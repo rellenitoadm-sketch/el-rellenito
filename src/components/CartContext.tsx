@@ -2,11 +2,18 @@
 
 import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
 import type { Product, ProductCategory } from '@/lib/products';
+import { unitUsd } from '@/lib/rates';
 
 export interface CartItem {
   id: string;
   name: string;
   price_usd: number;
+  /** Precio al detal en COP fijado por el cliente (null = derivar de USD × tasa). */
+  price_cop?: number | null;
+  /** Precio al mayor en USD (= detal si no hay descuento al mayor). */
+  wholesale_price_usd: number;
+  /** Precio al mayor en COP fijado por el cliente (null = derivar de USD × tasa). */
+  wholesale_price_cop?: number | null;
   quantity: number;
   image_url: string | null;
   category: ProductCategory;
@@ -55,6 +62,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
           id: product.id,
           name: product.name,
           price_usd: product.price_usd,
+          price_cop: product.price_cop ?? null,
+          wholesale_price_usd: product.wholesale_price_usd,
+          wholesale_price_cop: product.wholesale_price_cop ?? null,
           quantity: 1,
           image_url: product.image_url,
           category: product.category,
@@ -85,7 +95,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const openCart = useCallback(() => setIsOpen(true), []);
   const closeCart = useCallback(() => setIsOpen(false), []);
 
-  const totalUsd = items.reduce((sum, i) => sum + i.price_usd * i.quantity, 0);
+  // Total efectivo: aplica la tarifa al mayor por ítem cuando cantidad >= 10.
+  const totalUsd = items.reduce((sum, i) => sum + unitUsd(i, i.quantity) * i.quantity, 0);
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
 
   return (

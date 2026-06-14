@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import Image from 'next/image';
 import { Star } from 'lucide-react';
 import type { OpenStatus } from '@/lib/businessHours';
+import NavMenu from './NavMenu';
 
 /**
  * Slim, always-visible bar at the top of the sticky nav stack.
@@ -14,7 +15,7 @@ import type { OpenStatus } from '@/lib/businessHours';
  * 5 quick taps within 1.5s dispatch a 'staff-unlock' event (StaffUnlock listens).
  * Invisible to customers; no link, no hint.
  */
-export default function TopBar({ status }: { status: OpenStatus }) {
+export default function TopBar({ status, onMayorClick }: { status: OpenStatus; onMayorClick: () => void }) {
   const taps = useRef<number[]>([]);
 
   const handleSecretTap = () => {
@@ -53,6 +54,8 @@ export default function TopBar({ status }: { status: OpenStatus }) {
         <Star className="w-3.5 h-3.5 fill-current" style={{ color: 'var(--accent)' }} />
         4.5
       </span>
+
+      <NavMenu onMayorClick={onMayorClick} />
     </div>
   );
 }

@@ -53,7 +53,7 @@ export default function Upsell() {
                 {p.name}
               </p>
               <p className="text-[13.5px] font-bold mt-1 t-num" style={{ color: 'var(--text-1)' }}>
-                {format(p.price_usd)}
+                {format(p.price_usd, p.price_cop)}
               </p>
               <button
                 onClick={() => addItem(p)}

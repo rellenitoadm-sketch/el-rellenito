@@ -1,4 +1,4 @@
-// Parses src/lib/products.ts and emits a SQL INSERT for the products table.
+// Parses src/lib/products.ts and emits a transactional SQL replace for the products table.
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const src = readFileSync(new URL('../src/lib/products.ts', import.meta.url), 'utf8');
@@ -7,9 +7,10 @@ const src = readFileSync(new URL('../src/lib/products.ts', import.meta.url), 'ut
 const start = src.indexOf('export const products');
 const arrStart = src.indexOf('[', start);
 const arrEnd = src.indexOf('\n];', arrStart);
-const body = src.slice(arrStart + 1, arrEnd);
+// Strip whole-line `//` comments (category headers) so they don't break the split.
+const body = src.slice(arrStart + 1, arrEnd).replace(/^\s*\/\/.*$/gm, '');
 
-// Split into object blocks by `},` at brace depth handling is overkill — objects are flat.
+// Objects are flat (no nested braces) → split on `},  {`.
 const blocks = body.split(/\},\s*\{/).map((b, i, a) => {
   let s = b;
   if (i > 0) s = '{' + s;
@@ -32,6 +33,7 @@ function field(block, key) {
 
 const esc = (v) => v === null || v === undefined ? 'NULL' : `'${String(v).replace(/'/g, "''")}'`;
 const num = (v) => v === null || v === undefined ? '0' : String(v);
+const numOrNull = (v) => v === null || v === undefined ? 'NULL' : String(v);
 const bool = (v) => v ? 'true' : 'false';
 
 const rows = [];
@@ -39,17 +41,22 @@ for (const block of blocks) {
   const id = field(block, 'id');
   if (!id) continue;
   rows.push(
-    `(${esc(id)}, ${esc(field(block, 'name'))}, ${esc(field(block, 'description'))}, ` +
+    `(${esc(id)}, ${esc(field(block, 'name'))}, ${esc(field(block, 'units'))}, ${esc(field(block, 'description'))}, ` +
     `${esc(field(block, 'category'))}, ${esc(field(block, 'type'))}, ` +
     `${num(field(block, 'price_usd'))}, ${num(field(block, 'wholesale_price_usd'))}, ` +
+    `${numOrNull(field(block, 'price_cop'))}, ${numOrNull(field(block, 'wholesale_price_cop'))}, ` +
     `${bool(field(block, 'available'))}, ${esc(field(block, 'image_url'))}, ${bool(field(block, 'is_best_seller'))})`
   );
 }
 
 const sql =
-  `INSERT INTO products (id, name, description, category, type, price_usd, wholesale_price_usd, available, image_url, is_best_seller) VALUES\n` +
+  `-- Reemplazo completo del catálogo (generado desde src/lib/products.ts)\n` +
+  `BEGIN;\n` +
+  `DELETE FROM products;\n` +
+  `INSERT INTO products (id, name, units, description, category, type, price_usd, wholesale_price_usd, price_cop, wholesale_price_cop, available, image_url, is_best_seller) VALUES\n` +
   rows.join(',\n') +
-  `\nON CONFLICT (id) DO NOTHING;`;
+  `;\n` +
+  `COMMIT;\n`;
 
 writeFileSync(new URL('./seed-products.sql', import.meta.url), sql);
 console.log(`Generated ${rows.length} product rows.`);

@@ -15,7 +15,7 @@ interface FilterRowProps {
 
 const CURRENCIES: { id: Currency; label: string; full: string }[] = [
   { id: 'COP', label: 'COP', full: 'Pesos Colombianos' },
-  { id: 'USD', label: 'USD', full: 'Dólares' },
+  { id: 'USD', label: 'USD', full: 'Dólares (referencia BCV)' },
   { id: 'BS', label: 'Bs', full: 'Bolívares' },
 ];
 

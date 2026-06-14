@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/refresh-rate",
+      "schedule": "30 23 * * *"
+    }
+  ]
+}

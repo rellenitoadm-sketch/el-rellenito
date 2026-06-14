@@ -30,6 +30,7 @@ export type OrderInsert = {
   delivery_address: string | null;
   items: Json;
   total_usd: number;
+  total_cop?: number | null;
   currency_shown: string;
   payment_method: string;
   notes: string | null;

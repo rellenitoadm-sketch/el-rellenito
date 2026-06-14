@@ -75,3 +75,26 @@ export async function GET(request: NextRequest) {
     .select('customer_name,customer_whatsapp,total_usd,created_at,delivery_zone,status');
   return NextResponse.json(deriveFromOrders((orders ?? []) as OrderLike[]));
 }
+
+/** Eliminar un cliente del CRM por su WhatsApp — SOLO admin. */
+export async function DELETE(request: NextRequest) {
+  if (!requireRole(request, 'admin')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const whatsapp = new URL(request.url).searchParams.get('whatsapp')?.trim();
+  if (!whatsapp) {
+    return NextResponse.json({ error: 'Falta el WhatsApp del cliente' }, { status: 400 });
+  }
+
+  // Sin tabla customers (modo mock): el CRM se deriva de pedidos, no hay fila que borrar.
+  if (!supabaseAdmin) {
+    return NextResponse.json({ success: true });
+  }
+
+  const { error } = await supabaseAdmin.from('customers').delete().eq('whatsapp', whatsapp);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ success: true });
+}

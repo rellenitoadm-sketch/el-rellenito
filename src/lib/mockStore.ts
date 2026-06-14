@@ -39,4 +39,10 @@ export const mockStore = {
     const o = orders.find(o => o.id === id);
     if (o) o.status = status;
   },
+  remove(id: string): boolean {
+    const i = orders.findIndex(o => o.id === id);
+    if (i === -1) return false;
+    orders.splice(i, 1);
+    return true;
+  },
 };

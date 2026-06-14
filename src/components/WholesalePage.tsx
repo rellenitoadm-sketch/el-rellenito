@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Minus, Plus, ShoppingBag, Check, X, CalendarDays, MapPin, Navigation, Loader2, AlertCircle } from 'lucide-react';
 import { categories, categoryLabels, categoryEmoji } from '@/lib/products';
@@ -11,12 +12,14 @@ import PaymentTabs from './PaymentTabs';
 import PaymentDetails from './PaymentDetails';
 import ProofUpload, { type ProofData } from './ProofUpload';
 import type { PaymentMethodId } from '@/lib/payments';
+import { toCop } from '@/lib/rates';
 import { useGeolocationZone } from '@/hooks/useGeolocationZone';
 
 interface WholesaleCartItem {
   id: string;
   name: string;
   price_usd: number;
+  price_cop?: number | null;
   qty: number;
 }
 
@@ -25,7 +28,7 @@ interface WholesalePageProps {
 }
 
 export default function WholesalePage({ onBack }: WholesalePageProps) {
-  const { format } = useCurrency();
+  const { format, rates, currency } = useCurrency();
   const { products } = useProducts();
 
   const WHOLESALE_BY_CAT = useMemo(() => {
@@ -62,11 +65,11 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
     reset: resetLoc,
   } = useGeolocationZone();
 
-  const addToCart = (id: string, name: string, price_usd: number) => {
+  const addToCart = (id: string, name: string, price_usd: number, price_cop?: number | null) => {
     setCart(prev => {
       const existing = prev.find(i => i.id === id);
       if (existing) return prev.map(i => i.id === id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { id, name, price_usd, qty: 1 }];
+      return [...prev, { id, name, price_usd, price_cop: price_cop ?? null, qty: 1 }];
     });
   };
 
@@ -76,9 +79,12 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
   };
 
   const totalUsd = cart.reduce((s, i) => s + i.price_usd * i.qty, 0);
+  const totalCop = cart.reduce((s, i) => s + toCop(i.price_usd, i.price_cop, rates) * i.qty, 0);
   const itemCount = cart.reduce((s, i) => s + i.qty, 0);
   const advanceUsd = totalUsd * (advancePct / 100);
   const remainingUsd = totalUsd - advanceUsd;
+  const advanceCop = totalCop * (advancePct / 100);
+  const remainingCop = totalCop - advanceCop;
 
   const canConfirm =
     cart.length > 0 &&
@@ -110,9 +116,10 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
           delivery_address: coords
             ? [locAddress, `https://maps.google.com/?q=${coords.lat},${coords.lng}`].filter(Boolean).join(' · ')
             : null,
-          items: cart.map(i => ({ id: i.id, name: i.name, qty: i.qty, price_usd: i.price_usd })),
+          items: cart.map(i => ({ id: i.id, name: i.name, qty: i.qty, price_usd: i.price_usd, price_cop: i.price_cop ?? null })),
           total_usd: totalUsd,
-          currency_shown: 'USD',
+          total_cop: totalCop,
+          currency_shown: currency,
           payment_method: paymentMethod,
           payment_proof_ref: proofData?.type === 'reference' ? proofData.reference : null,
           notes: notes || null,
@@ -183,7 +190,8 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
         >
           <button
             onClick={onBack}
-            className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors flex-shrink-0"
+            aria-label="Volver al menú"
+            className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors flex-shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
@@ -227,31 +235,37 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                     className="flex items-center gap-3 rounded-2xl p-3 border"
                     style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                   >
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                    <div className="relative w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center text-2xl flex-shrink-0"
                       style={{ background: 'var(--surface-2)' }}>
-                      {categoryEmoji[p.category]}
+                      {p.image_url ? (
+                        <Image src={p.image_url} alt={p.name} fill className="object-cover" sizes="48px" />
+                      ) : (
+                        categoryEmoji[p.category]
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
                       <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--brand-orange)' }}>
-                        {format(p.wholesale_price_usd)}
+                        {format(p.wholesale_price_usd, p.wholesale_price_cop)}
                       </p>
                     </div>
                     <div className="flex-shrink-0">
                       {qty > 0 ? (
                         <div className="flex items-center gap-1.5 rounded-xl px-2 py-1.5 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                          <button onClick={() => updateQty(p.id, qty - 1)} className="w-6 h-6 rounded-full flex items-center justify-center" style={{ color: 'var(--brand-orange)' }}>
+                          <button onClick={() => updateQty(p.id, qty - 1)} aria-label="Restar" className="w-11 h-11 rounded-full flex items-center justify-center" style={{ color: 'var(--brand-orange)' }}>
                             <Minus className="w-3 h-3" />
                           </button>
                           <span className="text-sm font-bold w-4 text-center" style={{ color: 'var(--text-primary)' }}>{qty}</span>
-                          <button onClick={() => addToCart(p.id, p.name, p.wholesale_price_usd)} className="w-6 h-6 rounded-full bg-[var(--brand-orange)] flex items-center justify-center text-white">
+                          <button onClick={() => addToCart(p.id, p.name, p.wholesale_price_usd, p.wholesale_price_cop)} aria-label="Sumar" className="w-11 h-11 rounded-full bg-[var(--brand-orange)] flex items-center justify-center text-white">
                             <Plus className="w-3 h-3" />
                           </button>
                         </div>
                       ) : (
                         <button
-                          onClick={() => addToCart(p.id, p.name, p.wholesale_price_usd)}
+                          onClick={() => addToCart(p.id, p.name, p.wholesale_price_usd, p.wholesale_price_cop)}
+                          aria-label={`Agregar ${p.name}`}
                           className="text-white text-xs font-bold px-3 py-2 rounded-xl btn-gradient"
+                          style={{ minHeight: 44 }}
                         >
                           + Agregar
                         </button>
@@ -283,7 +297,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                 <ShoppingBag className="w-5 h-5" />
                 <span className="text-sm">Ver pedido · {itemCount} {itemCount === 1 ? 'ítem' : 'ítems'}</span>
               </div>
-              <span className="text-base font-bold">{format(totalUsd)}</span>
+              <span className="text-base font-bold">{format(totalUsd, totalCop)}</span>
             </button>
           </motion.div>
         )}
@@ -332,16 +346,16 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                         <div key={i.id} className="flex items-center justify-between gap-2">
                           <span className="text-sm flex-1" style={{ color: 'var(--text-secondary)' }}>{i.name}</span>
                           <div className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-                            <button onClick={() => updateQty(i.id, i.qty - 1)} className="w-5 h-5 flex items-center justify-center" style={{ color: 'var(--brand-orange)' }}><Minus className="w-3 h-3" /></button>
+                            <button onClick={() => updateQty(i.id, i.qty - 1)} aria-label="Restar" className="w-8 h-8 flex items-center justify-center" style={{ color: 'var(--brand-orange)' }}><Minus className="w-3 h-3" /></button>
                             <span className="text-xs font-bold w-4 text-center" style={{ color: 'var(--text-primary)' }}>{i.qty}</span>
-                            <button onClick={() => addToCart(i.id, i.name, i.price_usd)} className="w-5 h-5 rounded-full bg-[var(--brand-orange)] flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
+                            <button onClick={() => addToCart(i.id, i.name, i.price_usd, i.price_cop)} aria-label="Sumar" className="w-8 h-8 rounded-full bg-[var(--brand-orange)] flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
                           </div>
-                          <span className="text-sm font-semibold w-16 text-right" style={{ color: 'var(--text-primary)' }}>{format(i.price_usd * i.qty)}</span>
+                          <span className="text-sm font-semibold w-16 text-right" style={{ color: 'var(--text-primary)' }}>{format(i.price_usd * i.qty, i.price_cop != null ? i.price_cop * i.qty : null)}</span>
                         </div>
                       ))}
                       <div className="border-t pt-2 flex justify-between" style={{ borderColor: 'var(--border)' }}>
                         <span className="text-sm font-bold" style={{ color: 'var(--text-secondary)' }}>Total:</span>
-                        <span className="text-base font-black" style={{ color: 'var(--brand-orange)' }}>{format(totalUsd)}</span>
+                        <span className="text-base font-black" style={{ color: 'var(--brand-orange)' }}>{format(totalUsd, totalCop)}</span>
                       </div>
                     </div>
                   </section>
@@ -370,11 +384,11 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                     <div className="space-y-3">
                       <div>
                         <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Nombre completo *</label>
-                        <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="María García" className="field" />
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="María García" autoComplete="name" className="field" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>WhatsApp *</label>
-                        <input type="text" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="+58 412-000-0000" className="field" />
+                        <input type="tel" inputMode="tel" autoComplete="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="+58 412-000-0000" className="field" />
                       </div>
 
                       {/* Ubicación GPS (opcional) */}
@@ -463,12 +477,12 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                       </div>
                       <div className="border-t pt-2 flex justify-between" style={{ borderColor: 'var(--border)' }}>
                         <span className="text-sm font-bold" style={{ color: 'var(--brand-orange)' }}>Anticipo ({advancePct}%):</span>
-                        <span className="text-base font-black" style={{ color: 'var(--brand-orange)' }}>{format(advanceUsd)}</span>
+                        <span className="text-base font-black" style={{ color: 'var(--brand-orange)' }}>{format(advanceUsd, advanceCop)}</span>
                       </div>
                       {remainingUsd > 0 && (
                         <div className="flex justify-between">
                           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Saldo al recibir:</span>
-                          <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>{format(remainingUsd)}</span>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>{format(remainingUsd, remainingCop)}</span>
                         </div>
                       )}
                     </div>
@@ -496,7 +510,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                     disabled={!canConfirm || loading}
                     className="w-full text-white font-bold py-4 rounded-2xl text-base transition-all btn-gradient glow-orange disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    {loading ? 'Enviando...' : `Confirmar y pagar anticipo ${format(advanceUsd)}`}
+                    {loading ? 'Enviando...' : `Confirmar y pagar anticipo ${format(advanceUsd, advanceCop)}`}
                   </button>
                   {!canConfirm && !submitError && (
                     <p className="text-center text-xs mt-2" style={{ color: 'var(--text-muted)' }}>

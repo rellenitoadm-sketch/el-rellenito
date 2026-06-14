@@ -1,11 +1,19 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { detectZoneFromCoords, reverseGeocode, type CoordZoneResult } from '@/lib/zoneDetection';
+import {
+  detectZoneFromCoords,
+  estimateFromCoords,
+  reverseGeocode,
+  type CoordZoneResult,
+  type DeliveryEstimate,
+} from '@/lib/zoneDetection';
 
 export interface GeolocationZone {
   coords: { lat: number; lng: number } | null;
   zone: CoordZoneResult | null;
+  /** Estimado de envío por rango (no vinculante) para el sector detectado. */
+  estimate: DeliveryEstimate | null;
   address: string;
   loading: boolean;
   error: string;
@@ -14,15 +22,17 @@ export interface GeolocationZone {
 }
 
 /**
- * Captura la ubicación del navegador y resuelve la zona de entrega real por
- * coordenadas. La zona/precio salen de inmediato (cálculo local); la dirección
- * legible (reverse-geocoding) llega de forma asíncrona porque es solo referencia.
+ * Captura la ubicación del navegador y resuelve el sector de entrega real por
+ * coordenadas. El sector/estimado salen de inmediato (cálculo local); la
+ * dirección legible (reverse-geocoding) llega de forma asíncrona porque es solo
+ * referencia.
  *
  * Usado por el checkout al detal y por la página Al Mayor.
  */
 export function useGeolocationZone(): GeolocationZone {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [zone, setZone] = useState<CoordZoneResult | null>(null);
+  const [estimate, setEstimate] = useState<DeliveryEstimate | null>(null);
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -39,7 +49,8 @@ export function useGeolocationZone(): GeolocationZone {
         const { latitude, longitude } = pos.coords;
         setCoords({ lat: latitude, lng: longitude });
         setZone(detectZoneFromCoords(latitude, longitude));
-        setLoading(false); // zona/precio ya listos; la dirección es opcional
+        setEstimate(estimateFromCoords(latitude, longitude));
+        setLoading(false); // sector/estimado ya listos; la dirección es opcional
         reverseGeocode(latitude, longitude)
           .then(setAddress)
           .catch(() => { /* dirección es solo referencia */ });
@@ -59,9 +70,10 @@ export function useGeolocationZone(): GeolocationZone {
   const reset = useCallback(() => {
     setCoords(null);
     setZone(null);
+    setEstimate(null);
     setAddress('');
     setError('');
   }, []);
 
-  return { coords, zone, address, loading, error, detect, reset };
+  return { coords, zone, estimate, address, loading, error, detect, reset };
 }

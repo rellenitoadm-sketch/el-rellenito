@@ -8,7 +8,7 @@ import {
   categories, categoryLabels, categoryEmoji,
   type Product, type ProductCategory,
 } from '@/lib/products';
-import type { ExchangeRates } from '@/lib/rates';
+import { toCop, type ExchangeRates } from '@/lib/rates';
 import ProductEditor from './ProductEditor';
 
 const FALLBACK_RATES: ExchangeRates = { bs_per_usd: 535.28, cop_per_usd: 4200, updated_at: '' };
@@ -73,7 +73,7 @@ export default function ProductsPanel() {
             style={{ paddingLeft: '2.25rem' }}
           />
         </div>
-        <button onClick={load} className="btn btn-ghost" style={{ padding: '10px', border: '1px solid var(--border)' }} aria-label="Recargar">
+        <button onClick={load} className="btn btn-ghost" style={{ padding: '10px', minWidth: 44, minHeight: 44, border: '1px solid var(--border)' }} aria-label="Recargar">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -143,7 +143,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   return (
     <button
       onClick={onClick}
-      className="flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors whitespace-nowrap"
+      className="flex-shrink-0 px-3 py-1.5 min-h-11 rounded-full text-[12px] font-semibold border transition-colors whitespace-nowrap"
       style={active
         ? { borderColor: 'var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand-deep)' }
         : { borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text-2)' }}
@@ -154,7 +154,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 }
 
 function ProductRow({ product: p, rates, onClick }: { product: Product; rates: ExchangeRates; onClick: () => void }) {
-  const cop = Math.round(p.price_usd * rates.cop_per_usd);
+  const cop = toCop(p.price_usd, p.price_cop, rates);
   return (
     <button
       onClick={onClick}

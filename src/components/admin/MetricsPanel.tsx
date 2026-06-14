@@ -43,7 +43,7 @@ export default function MetricsPanel() {
     <div className="space-y-5 pb-10">
       <div className="flex items-center justify-between">
         <h2 className="t-h3" style={{ color: 'var(--text-1)' }}>Resumen</h2>
-        <button onClick={load} className="btn btn-ghost" style={{ padding: '7px' }} aria-label="Actualizar"><RefreshCw className="w-4 h-4" /></button>
+        <button onClick={load} className="btn btn-ghost" style={{ padding: '7px', minWidth: 44, minHeight: 44 }} aria-label="Actualizar"><RefreshCw className="w-4 h-4" /></button>
       </div>
 
       {/* Revenue cards */}
@@ -127,10 +127,18 @@ function BigStat({ Icon, label, value, accent }: { Icon: React.ElementType; labe
 }
 
 function HourChart({ data, peak, color }: { data: number[]; peak: number; color: string }) {
+  const total = data.reduce((a, b) => a + b, 0);
+  const peakHour = data.indexOf(Math.max(...data, 0));
   return (
-    <div className="flex items-end gap-[2px] h-16">
+    <div
+      className="flex items-end gap-[2px] h-16"
+      role="img"
+      aria-label={total === 0
+        ? 'Sin datos por hora todavía.'
+        : `Distribución por hora (0–23 h). Hora pico: ${peakHour}:00 con ${data[peakHour]}. Total: ${total}.`}
+    >
       {data.map((v, h) => (
-        <div key={h} className="flex-1 flex flex-col items-center justify-end h-full" title={`${h}:00 — ${v}`}>
+        <div key={h} aria-hidden="true" className="flex-1 flex flex-col items-center justify-end h-full" title={`${h}:00 — ${v}`}>
           <div
             className="w-full rounded-t-sm transition-all"
             style={{ height: `${Math.max((v / peak) * 100, v > 0 ? 8 : 2)}%`, background: v > 0 ? color : 'var(--surface-2)', opacity: v > 0 ? 1 : 0.5 }}

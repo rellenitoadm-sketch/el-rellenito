@@ -27,6 +27,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Faltan campos requeridos (nombre, categoría)' }, { status: 400 });
   }
 
+  const numOrNull = (v: unknown): number | null =>
+    v == null || v === '' ? null : Number(v) || null;
+
   const row: Omit<Product, 'id'> = {
     name: body.name,
     units: body.units ?? null,
@@ -35,6 +38,8 @@ export async function POST(request: NextRequest) {
     type: body.type ?? 'detal',
     price_usd: Number(body.price_usd) || 0,
     wholesale_price_usd: Number(body.wholesale_price_usd ?? body.price_usd) || 0,
+    price_cop: numOrNull(body.price_cop),
+    wholesale_price_cop: numOrNull(body.wholesale_price_cop),
     available: body.available ?? true,
     image_url: body.image_url ?? null,
     is_best_seller: body.is_best_seller ?? false,

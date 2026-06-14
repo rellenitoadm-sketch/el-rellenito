@@ -12,6 +12,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_rates: {
+        Row: {
+          bs_per_usd: number
+          cop_per_usd: number
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          bs_per_usd: number
+          cop_per_usd: number
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          bs_per_usd?: number
+          cop_per_usd?: number
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           first_seen: string
@@ -71,6 +92,7 @@ export type Database = {
           scheduled_date: string | null
           scheduled_time: string | null
           status: string
+          total_cop: number | null
           total_usd: number
         }
         Insert: {
@@ -95,6 +117,7 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time?: string | null
           status?: string
+          total_cop?: number | null
           total_usd: number
         }
         Update: {
@@ -119,55 +142,8 @@ export type Database = {
           scheduled_date?: string | null
           scheduled_time?: string | null
           status?: string
+          total_cop?: number | null
           total_usd?: number
-        }
-        Relationships: []
-      }
-      products: {
-        Row: {
-          available: boolean
-          category: string
-          created_at: string
-          description: string
-          id: string
-          image_url: string | null
-          is_best_seller: boolean
-          name: string
-          price_usd: number
-          type: string
-          units: string | null
-          updated_at: string
-          wholesale_price_usd: number
-        }
-        Insert: {
-          available?: boolean
-          category: string
-          created_at?: string
-          description?: string
-          id: string
-          image_url?: string | null
-          is_best_seller?: boolean
-          name: string
-          price_usd?: number
-          type?: string
-          units?: string | null
-          updated_at?: string
-          wholesale_price_usd?: number
-        }
-        Update: {
-          available?: boolean
-          category?: string
-          created_at?: string
-          description?: string
-          id?: string
-          image_url?: string | null
-          is_best_seller?: boolean
-          name?: string
-          price_usd?: number
-          type?: string
-          units?: string | null
-          updated_at?: string
-          wholesale_price_usd?: number
         }
         Relationships: []
       }
@@ -195,6 +171,60 @@ export type Database = {
           referrer?: string | null
           visit_date?: string
           visit_hour?: number
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          available: boolean
+          category: string
+          created_at: string
+          description: string
+          id: string
+          image_url: string | null
+          is_best_seller: boolean
+          name: string
+          price_cop: number | null
+          price_usd: number
+          type: string
+          units: string | null
+          updated_at: string
+          wholesale_price_cop: number | null
+          wholesale_price_usd: number
+        }
+        Insert: {
+          available?: boolean
+          category: string
+          created_at?: string
+          description?: string
+          id: string
+          image_url?: string | null
+          is_best_seller?: boolean
+          name: string
+          price_cop?: number | null
+          price_usd?: number
+          type?: string
+          units?: string | null
+          updated_at?: string
+          wholesale_price_cop?: number | null
+          wholesale_price_usd?: number
+        }
+        Update: {
+          available?: boolean
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_best_seller?: boolean
+          name?: string
+          price_cop?: number | null
+          price_usd?: number
+          type?: string
+          units?: string | null
+          updated_at?: string
+          wholesale_price_cop?: number | null
+          wholesale_price_usd?: number
         }
         Relationships: []
       }

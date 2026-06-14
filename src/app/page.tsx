@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import Header from '@/components/Header';
 import TopBar from '@/components/TopBar';
 import CategoryTabs from '@/components/CategoryTabs';
@@ -15,6 +15,7 @@ import VisitTracker from '@/components/VisitTracker';
 import CookieBanner from '@/components/CookieBanner';
 import Footer from '@/components/Footer';
 import WholesalePage from '@/components/WholesalePage';
+import InstallPrompt from '@/components/InstallPrompt';
 import { getOpenStatus, type OpenStatus } from '@/lib/businessHours';
 
 type AppView = 'catalog' | 'mayor';
@@ -33,6 +34,7 @@ export default function HomePage() {
   }, []);
 
   return (
+    <MotionConfig reducedMotion="user">
     <main className="app-shell">
       <AnimatePresence mode="wait">
         {view === 'catalog' ? (
@@ -48,7 +50,7 @@ export default function HomePage() {
 
             {/* Sticky nav stack: brand bar + category tabs + filters */}
             <div className="sticky top-0 z-40" style={{ boxShadow: 'var(--sh-2)' }}>
-              <TopBar status={status} />
+              <TopBar status={status} onMayorClick={() => setView('mayor')} />
               <CategoryTabs onMayorClick={() => setView('mayor')} revalidationKey={search} />
               <FilterRow
                 search={search}
@@ -80,6 +82,8 @@ export default function HomePage() {
       <StaffUnlock />
       <VisitTracker />
       <CookieBanner />
+      <InstallPrompt />
     </main>
+    </MotionConfig>
   );
 }

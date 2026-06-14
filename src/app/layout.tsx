@@ -23,6 +23,16 @@ export const metadata: Metadata = {
   description:
     'Tequeños, masas, pasapalos, panadería y pasteles artesanales en San Cristóbal, Táchira. Pedidos con entrega a domicilio. Lunes a sábado 8 AM – 7 PM.',
   keywords: 'tequeños, panadería, pastelería, pasapalos, San Cristóbal, Táchira, Venezuela, delivery',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    title: 'El Rellenito',
+    statusBarStyle: 'default',
+  },
+  icons: {
+    icon: '/icon-192.png',
+    apple: '/apple-touch-icon.png',
+  },
   openGraph: {
     title: 'El Rellenito — Panadería y Pastelería Artesanal',
     description: 'Tequeños, masas, pasapalos y más. Delivery en San Cristóbal.',
@@ -46,9 +56,6 @@ export default function RootLayout({
       lang="es"
       className={`${inter.variable} ${playfair.variable} h-full`}
     >
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-      </head>
       <body className="min-h-full antialiased">
         <CurrencyProvider>
           <ProductsProvider>

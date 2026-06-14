@@ -36,7 +36,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
       <motion.article
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.03, duration: 0.25 }}
+        transition={{ delay: Math.min(index, 8) * 0.03, duration: 0.25 }}
         className="card overflow-hidden flex flex-col"
         style={{ opacity: product.available ? 1 : 0.55 }}
       >
@@ -65,8 +65,11 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
           <h3 className="text-[13px] font-semibold leading-tight line-clamp-2" style={{ color: 'var(--text-1)' }}>
             {product.name}
           </h3>
+          {product.units && (
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>{product.units}</p>
+          )}
           <p className="text-[15px] font-bold mt-1.5 t-num" style={{ color: 'var(--text-1)' }}>
-            {format(product.price_usd)}
+            {format(product.price_usd, product.price_cop)}
           </p>
           <div className="mt-auto pt-2.5">
             {product.available ? (
@@ -75,7 +78,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
                   style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
                   <button
                     onClick={() => updateQty(product.id, qty - 1)}
-                    className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+                    className="w-11 h-11 rounded-md flex items-center justify-center transition-colors"
                     style={{ color: 'var(--brand)' }}
                     aria-label="Restar"
                   >
@@ -84,7 +87,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
                   <span className="text-[13px] font-bold t-num" style={{ color: 'var(--text-1)' }}>{qty}</span>
                   <button
                     onClick={() => addItem(product)}
-                    className="w-6 h-6 rounded-md flex items-center justify-center text-white transition-opacity"
+                    className="w-11 h-11 rounded-md flex items-center justify-center text-white transition-opacity"
                     style={{ background: 'var(--brand)' }}
                     aria-label="Sumar"
                   >
@@ -95,8 +98,9 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
                 <motion.button
                   onClick={handleAdd}
                   whileTap={{ scale: 0.96 }}
-                  className="btn btn-secondary w-full"
-                  style={{ padding: '6px 10px', fontSize: '12px' }}
+                  aria-label={`Agregar ${product.name}`}
+                  className="btn btn-primary w-full"
+                  style={{ padding: '6px 10px', fontSize: '12px', minHeight: 44 }}
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Agregar
@@ -116,7 +120,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
     <motion.article
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.03, duration: 0.25 }}
+      transition={{ delay: Math.min(index, 8) * 0.03, duration: 0.25 }}
       className="card flex items-center gap-3 p-3 transition-all duration-200"
       style={{ opacity: product.available ? 1 : 0.55 }}
     >
@@ -152,6 +156,11 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
         <h3 className="text-[14px] font-semibold leading-tight line-clamp-2" style={{ color: 'var(--text-1)' }}>
           {product.name}
         </h3>
+        {product.units && (
+          <p className="text-[11.5px] mt-0.5 font-medium" style={{ color: 'var(--text-3)' }}>
+            {product.units}
+          </p>
+        )}
         {product.description && (
           <p className="text-[12px] mt-0.5 line-clamp-1" style={{ color: 'var(--text-2)' }}>
             {product.description}
@@ -159,7 +168,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
         )}
         <div className="mt-1.5">
           <p className="text-[17px] font-bold t-num leading-none" style={{ color: 'var(--text-1)' }}>
-            {format(product.price_usd)}
+            {format(product.price_usd, product.price_cop)}
           </p>
         </div>
       </div>
@@ -172,7 +181,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
               style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
               <button
                 onClick={() => updateQty(product.id, qty - 1)}
-                className="w-7 h-7 rounded-md flex items-center justify-center transition-colors"
+                className="w-11 h-11 rounded-md flex items-center justify-center transition-colors"
                 style={{ color: 'var(--brand)' }}
                 aria-label="Restar"
               >
@@ -183,7 +192,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
               </span>
               <button
                 onClick={() => addItem(product)}
-                className="w-7 h-7 rounded-md flex items-center justify-center text-white transition-opacity"
+                className="w-11 h-11 rounded-md flex items-center justify-center text-white transition-opacity"
                 style={{ background: 'var(--brand)' }}
                 aria-label="Sumar"
               >
@@ -196,7 +205,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
               whileTap={{ scale: 0.94 }}
               aria-label={`Agregar ${product.name}`}
               className="btn btn-primary"
-              style={{ padding: '8px 14px', fontSize: '13px' }}
+              style={{ padding: '8px 14px', fontSize: '13px', minHeight: 44 }}
             >
               <Plus className="w-4 h-4" />
               Agregar

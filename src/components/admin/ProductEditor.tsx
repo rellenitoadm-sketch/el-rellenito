@@ -29,6 +29,8 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
   const [description, setDescription] = useState(product?.description ?? '');
   const [priceUsd, setPriceUsd] = useState(product?.price_usd?.toString() ?? '');
   const [wholesaleUsd, setWholesaleUsd] = useState(product?.wholesale_price_usd?.toString() ?? '');
+  const [priceCop, setPriceCop] = useState(product?.price_cop != null ? String(product.price_cop) : '');
+  const [wholesaleCop, setWholesaleCop] = useState(product?.wholesale_price_cop != null ? String(product.wholesale_price_cop) : '');
   const [type, setType] = useState<ProductType>(product?.type ?? 'detal');
   const [available, setAvailable] = useState(product?.available ?? true);
   const [bestSeller, setBestSeller] = useState(product?.is_best_seller ?? false);
@@ -46,6 +48,13 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, []);
+
+  // Cerrar con Escape.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const usd = parseFloat(priceUsd) || 0;
   const cop = Math.round(usd * rates.cop_per_usd);
@@ -81,6 +90,8 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
       description: description.trim(),
       price_usd: usd,
       wholesale_price_usd: parseFloat(wholesaleUsd) || usd,
+      price_cop: priceCop.trim() === '' ? null : Math.round(Number(priceCop)) || null,
+      wholesale_price_cop: wholesaleCop.trim() === '' ? null : Math.round(Number(wholesaleCop)) || null,
       type,
       available,
       is_best_seller: bestSeller,
@@ -122,6 +133,9 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label={isNew ? 'Nuevo producto' : 'Editar producto'}
         initial={{ y: '100%', opacity: 0.5 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: '100%' }}
@@ -196,29 +210,40 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Breve descripción del producto" className="field resize-none" />
           </div>
 
-          {/* Price USD + auto COP/BS */}
+          {/* Precio al detal: USD y COP los define el cliente; Bs se calcula solo con la tasa BCV */}
           <div>
-            <label className="text-[12px] font-semibold block mb-1" style={{ color: 'var(--text-2)' }}>Precio al detal (USD) *</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-bold" style={{ color: 'var(--text-3)' }}>$</span>
-              <input type="number" inputMode="decimal" step="0.01" value={priceUsd} onChange={e => setPriceUsd(e.target.value)} placeholder="0.00" className="field" style={{ paddingLeft: '1.75rem' }} />
+            <label className="text-[12px] font-semibold block mb-1.5" style={{ color: 'var(--text-2)' }}>Precio al detal *</label>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-bold" style={{ color: 'var(--text-3)' }}>$</span>
+                <input type="number" inputMode="decimal" step="0.01" value={priceUsd} onChange={e => setPriceUsd(e.target.value)} placeholder="USD" aria-label="Precio al detal USD" className="field" style={{ paddingLeft: '1.75rem' }} />
+              </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold" style={{ color: 'var(--text-3)' }}>COP</span>
+                <input type="number" inputMode="numeric" step="1" value={priceCop} onChange={e => setPriceCop(e.target.value)} placeholder={cop ? cop.toLocaleString('es-CO') : 'COP'} aria-label="Precio al detal COP" className="field" style={{ paddingLeft: '2.75rem' }} />
+              </div>
             </div>
             <div className="flex gap-2 mt-1.5 text-[11px]" style={{ color: 'var(--text-3)' }}>
-              <span className="px-2 py-0.5 rounded-md" style={{ background: 'var(--surface-2)' }}>≈ COP {cop.toLocaleString('es-CO')}</span>
-              <span className="px-2 py-0.5 rounded-md" style={{ background: 'var(--surface-2)' }}>≈ Bs {bs.toLocaleString('es-VE')}</span>
+              <span className="px-2 py-0.5 rounded-md" style={{ background: 'var(--surface-2)' }}>Bs {bs.toLocaleString('es-VE')} · auto</span>
             </div>
             <p className="text-[10.5px] mt-1" style={{ color: 'var(--text-3)' }}>
-              COP y Bs se calculan solos con la tasa del día. Solo editas el USD.
+              El USD y el COP los defines tú. El Bs se calcula solo con la tasa BCV del día. Si dejas el COP vacío, se estima del USD.
             </p>
           </div>
 
-          {/* Wholesale price (only if type involves mayorista) */}
+          {/* Precio al mayor (si el producto se vende al mayor) */}
           {(type === 'mayorista' || type === 'ambos') && (
             <div>
-              <label className="text-[12px] font-semibold block mb-1" style={{ color: 'var(--text-2)' }}>Precio al mayor (USD)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-bold" style={{ color: 'var(--text-3)' }}>$</span>
-                <input type="number" inputMode="decimal" step="0.01" value={wholesaleUsd} onChange={e => setWholesaleUsd(e.target.value)} placeholder="igual al detal" className="field" style={{ paddingLeft: '1.75rem' }} />
+              <label className="text-[12px] font-semibold block mb-1.5" style={{ color: 'var(--text-2)' }}>Precio al mayor</label>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-bold" style={{ color: 'var(--text-3)' }}>$</span>
+                  <input type="number" inputMode="decimal" step="0.01" value={wholesaleUsd} onChange={e => setWholesaleUsd(e.target.value)} placeholder="USD" aria-label="Precio al mayor USD" className="field" style={{ paddingLeft: '1.75rem' }} />
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold" style={{ color: 'var(--text-3)' }}>COP</span>
+                  <input type="number" inputMode="numeric" step="1" value={wholesaleCop} onChange={e => setWholesaleCop(e.target.value)} placeholder="COP" aria-label="Precio al mayor COP" className="field" style={{ paddingLeft: '2.75rem' }} />
+                </div>
               </div>
             </div>
           )}

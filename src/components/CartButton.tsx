@@ -4,10 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag } from 'lucide-react';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
+import { unitCop } from '@/lib/rates';
 
 export default function CartButton() {
-  const { itemCount, totalUsd, openCart } = useCart();
-  const { format } = useCurrency();
+  const { items, itemCount, totalUsd, openCart } = useCart();
+  const { format, rates } = useCurrency();
+
+  // COP efectivo (precio fijo por ítem, con tarifa al mayor si cantidad >= 10) —
+  // debe coincidir con el total del carrito, no derivarse de USD × tasa.
+  const totalCop = items.reduce((s, i) => s + unitCop(i, i.quantity, rates) * i.quantity, 0);
 
   return (
     <AnimatePresence>
@@ -44,7 +49,7 @@ export default function CartButton() {
               animate={{ scale: 1, opacity: 1 }}
               className="text-base font-bold"
             >
-              {format(totalUsd)}
+              {format(totalUsd, totalCop)}
             </motion.span>
           </motion.button>
         </motion.div>

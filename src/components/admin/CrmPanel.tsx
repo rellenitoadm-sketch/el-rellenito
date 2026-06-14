@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { RefreshCw, Search, Users, MessageCircle, Crown } from 'lucide-react';
+import { RefreshCw, Search, Users, MessageCircle, Crown, Trash2 } from 'lucide-react';
 
 interface CustomerRow {
   whatsapp: string;
@@ -25,6 +25,19 @@ export default function CrmPanel() {
     } catch { /* ignore */ } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
+
+  // Eliminar un cliente — este panel solo se muestra a admin; la ruta también lo exige.
+  const deleteCustomer = async (whatsapp: string, name: string) => {
+    if (!confirm(`¿Eliminar a ${name} del CRM? Esta acción no se puede deshacer (no borra sus pedidos).`)) return;
+    const prev = rows;
+    setRows(curr => curr.filter(r => r.whatsapp !== whatsapp));
+    try {
+      const res = await fetch(`/api/admin/customers?whatsapp=${encodeURIComponent(whatsapp)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+    } catch {
+      setRows(prev); // revierte si falla
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -54,7 +67,7 @@ export default function CrmPanel() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-3)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente o teléfono…" className="field" style={{ paddingLeft: '2.25rem' }} />
         </div>
-        <button onClick={load} className="btn btn-ghost" style={{ padding: '10px', border: '1px solid var(--border)' }} aria-label="Recargar">
+        <button onClick={load} className="btn btn-ghost" style={{ padding: '10px', minWidth: 44, minHeight: 44, border: '1px solid var(--border)' }} aria-label="Recargar">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -90,12 +103,21 @@ export default function CrmPanel() {
                 href={`https://wa.me/${c.whatsapp.replace(/[^0-9]/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ background: 'rgba(37,211,102,0.12)', color: '#1faa52' }}
                 aria-label="WhatsApp"
               >
                 <MessageCircle className="w-4 h-4" />
               </a>
+              <button
+                onClick={() => deleteCustomer(c.whatsapp, c.name)}
+                className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: 'var(--danger-soft)', color: '#B91C1C' }}
+                aria-label={`Eliminar ${c.name}`}
+                title="Eliminar cliente"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           ))}
         </div>

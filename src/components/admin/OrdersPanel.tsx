@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import {
   RefreshCw, Package, CheckCircle, Truck, XCircle, Clock, CalendarDays,
-  Receipt, ImageIcon, BadgeCheck, Banknote, X,
+  Receipt, ImageIcon, BadgeCheck, Banknote, X, Bell, BellOff, AlertCircle, Trash2,
 } from 'lucide-react';
+import type { StaffRole } from '@/lib/adminAuth';
 
 interface Order {
   id: string;
@@ -16,6 +17,8 @@ interface Order {
   delivery_type?: string;
   items: { name: string; qty: number; price_usd: number }[];
   total_usd: number;
+  total_cop?: number | null;
+  currency_shown?: string;
   payment_method: string;
   payment_proof_ref?: string | null;
   payment_proof_url?: string | null;
@@ -59,26 +62,127 @@ const VIEWS: { id: View; label: string; query: string }[] = [
   { id: 'historial', label: 'Historial 30d', query: '?days=30' },
 ];
 
-export default function OrdersPanel() {
+export default function OrdersPanel({ role }: { role: StaffRole | null }) {
   const [view, setView] = useState<View>('hoy');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [zoomImg, setZoomImg] = useState<string | null>(null);
 
-  const load = useCallback(async (v: View) => {
-    setLoading(true);
+  // ── Alertas de pedidos nuevos (sonido + notificación al celular) ──
+  // Inicializador lazy: lee la preferencia sin setState-en-effect (este panel
+  // sólo monta en cliente, así que no hay riesgo de hydration mismatch).
+  const [alertsOn, setAlertsOn] = useState<boolean>(() => {
+    try { return localStorage.getItem('rl_admin_alerts') === '1'; } catch { return false; }
+  });
+  const [toast, setToast] = useState('');
+  const knownIds = useRef<Set<string>>(new Set());
+  const initedViews = useRef<Set<View>>(new Set());
+  const alertsRef = useRef(false);
+  const audioRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => { alertsRef.current = alertsOn; }, [alertsOn]);
+
+  // AudioContext sólo se puede iniciar tras un gesto del usuario.
+  const ensureAudio = useCallback(() => {
+    if (!audioRef.current) {
+      try {
+        const AC = window.AudioContext
+          || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        audioRef.current = new AC();
+      } catch { /* sin audio */ }
+    }
+    audioRef.current?.resume().catch(() => {});
+  }, []);
+
+  // Doble "ding" generado por código (sin archivo de audio).
+  const playBeep = useCallback(() => {
+    ensureAudio();
+    const ctx = audioRef.current;
+    if (!ctx) return;
+    [0, 0.18].forEach((t, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = i === 0 ? 880 : 1175;
+      osc.connect(gain); gain.connect(ctx.destination);
+      const start = ctx.currentTime + t;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.15);
+      osc.start(start); osc.stop(start + 0.16);
+    });
+  }, [ensureAudio]);
+
+  // Notificación del sistema (aparece en el celular aunque la pestaña esté en segundo plano).
+  const notify = useCallback((o: Order) => {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    try {
+      new Notification('🛎️ Nuevo pedido — El Rellenito', {
+        body: `${o.customer_name} · $${o.total_usd.toFixed(2)}`,
+        icon: '/logo-circle.png',
+        tag: o.id,
+      });
+    } catch { /* ignore */ }
+  }, []);
+
+  const toggleAlerts = async () => {
+    ensureAudio();
+    const next = !alertsOn;
+    setAlertsOn(next);
+    try { localStorage.setItem('rl_admin_alerts', next ? '1' : '0'); } catch {}
+    if (next && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      try { await Notification.requestPermission(); } catch {}
+    }
+    if (next) playBeep(); // confirma que el sonido funciona
+  };
+
+  // Auto-descartar el toast de error.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // Cerrar el visor de comprobante con Escape.
+  useEffect(() => {
+    if (!zoomImg) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoomImg(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [zoomImg]);
+
+  const load = useCallback(async (v: View, silent = false) => {
+    if (!silent) setLoading(true);
     const q = VIEWS.find(x => x.id === v)!.query;
     try {
       const res = await fetch(`/api/admin/orders${q}`);
-      if (res.ok) setOrders(await res.json());
-      else setOrders([]);
-    } catch { setOrders([]); } finally { setLoading(false); }
-  }, []);
+      if (res.ok) {
+        const incoming: Order[] = await res.json();
+        // Sólo alerta tras haber "sembrado" los pedidos existentes de esta vista.
+        const seeded = initedViews.current.has(v);
+        if (seeded && alertsRef.current) {
+          const fresh = incoming.filter(o => o.status === 'pendiente' && !knownIds.current.has(o.id));
+          if (fresh.length > 0) { playBeep(); fresh.forEach(notify); }
+        }
+        incoming.forEach(o => knownIds.current.add(o.id));
+        initedViews.current.add(v);
+        setOrders(incoming);
+      } else if (!silent) setOrders([]);
+    } catch { if (!silent) setOrders([]); } finally { if (!silent) setLoading(false); }
+  }, [playBeep, notify]);
 
   useEffect(() => { load(view); }, [view, load]);
 
+  // Auto-actualización cada 25s (sin spinner) para detectar pedidos nuevos.
+  useEffect(() => {
+    const t = setInterval(() => { load(view, true); }, 25000);
+    return () => clearInterval(t);
+  }, [view, load]);
+
   const updateStatus = async (id: string, status: string) => {
+    // Confirmación antes de una acción destructiva.
+    if (status === 'cancelado' && !confirm('¿Cancelar este pedido? Esta acción no se puede deshacer.')) return;
     const prev = orders;
     setBusyId(id);
     setOrders(curr => curr.map(o => o.id === id ? { ...o, status } : o));
@@ -90,7 +194,26 @@ export default function OrdersPanel() {
       });
       if (!res.ok) throw new Error();
     } catch {
-      setOrders(prev); // revert on failure
+      setOrders(prev); // revierte si falla
+      setToast('No se pudo actualizar el pedido. Revisa tu conexión e intenta de nuevo.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Eliminar un pedido — SOLO admin (la ruta también lo exige en el servidor).
+  const deleteOrder = async (id: string) => {
+    if (!confirm('¿Eliminar este pedido de forma permanente? Esta acción no se puede deshacer.')) return;
+    const prev = orders;
+    setBusyId(id);
+    setOrders(curr => curr.filter(o => o.id !== id));
+    try {
+      const res = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      knownIds.current.delete(id);
+    } catch {
+      setOrders(prev); // revierte si falla
+      setToast('No se pudo eliminar el pedido. Revisa tu conexión e intenta de nuevo.');
     } finally {
       setBusyId(null);
     }
@@ -107,7 +230,7 @@ export default function OrdersPanel() {
           <button
             key={v.id}
             onClick={() => setView(v.id)}
-            className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
+            className="px-3 py-1.5 min-h-11 rounded-lg text-[12.5px] font-semibold transition-all"
             style={view === v.id
               ? { background: 'var(--brand-soft)', color: 'var(--brand-deep)', border: '1px solid var(--brand)' }
               : { background: 'var(--surface-2)', color: 'var(--text-2)', border: '1px solid var(--border)' }}
@@ -115,10 +238,30 @@ export default function OrdersPanel() {
             {v.label}
           </button>
         ))}
-        <button onClick={() => load(view)} className="ml-auto btn btn-ghost" style={{ padding: '8px' }} aria-label="Actualizar">
+        <button
+          onClick={toggleAlerts}
+          className="ml-auto btn btn-ghost"
+          style={{ padding: '8px', minWidth: 44, minHeight: 44, color: alertsOn ? 'var(--brand)' : 'var(--text-3)' }}
+          aria-label={alertsOn ? 'Alertas activadas' : 'Activar alertas de pedidos'}
+          title={alertsOn ? 'Alertas activadas (sonido + notificación)' : 'Activar alertas de pedidos nuevos'}
+        >
+          {alertsOn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+        </button>
+        <button onClick={() => load(view)} className="btn btn-ghost" style={{ padding: '8px', minWidth: 44, minHeight: 44 }} aria-label="Actualizar">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
+
+      {/* CTA para activar alertas (sirve como gesto que habilita audio + permiso de notificación) */}
+      {!alertsOn && (
+        <button
+          onClick={toggleAlerts}
+          className="w-full mb-4 flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-[13px] font-semibold"
+          style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)', border: '1px solid var(--brand)' }}
+        >
+          <Bell className="w-4 h-4" /> Activar alertas de pedidos nuevos (sonido + notificación al celular)
+        </button>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-2.5 mb-5">
@@ -176,6 +319,9 @@ export default function OrdersPanel() {
                   </div>
                   <div className="text-right">
                     <p className="text-[16px] font-bold t-num" style={{ color: 'var(--text-1)' }}>${order.total_usd.toFixed(2)}</p>
+                    {order.total_cop != null && order.total_cop > 0 && (
+                      <p className="text-[11px] t-num" style={{ color: 'var(--text-3)' }}>COP {Math.round(order.total_cop).toLocaleString('es-CO')}</p>
+                    )}
                     <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>{order.payment_method}</p>
                     {order.advance_usd != null && order.advance_usd > 0 && (
                       <p className="text-[10.5px]" style={{ color: 'var(--text-3)' }}>Anticipo ${order.advance_usd.toFixed(2)}</p>
@@ -222,7 +368,7 @@ export default function OrdersPanel() {
                           key={s}
                           onClick={() => updateStatus(order.id, s)}
                           disabled={busy}
-                          className="text-[12px] px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+                          className="text-[12px] px-3 py-1.5 min-h-11 rounded-lg font-medium transition-colors disabled:opacity-50"
                           style={danger
                             ? { background: 'var(--danger-soft)', color: '#B91C1C', border: '1px solid transparent' }
                             : { background: 'var(--surface-2)', color: 'var(--text-2)', border: '1px solid var(--border)' }}
@@ -231,6 +377,20 @@ export default function OrdersPanel() {
                         </button>
                       );
                     })}
+                  </div>
+                )}
+
+                {/* Eliminar pedido — solo admin */}
+                {role === 'admin' && (
+                  <div className="mt-3 pt-3 border-t flex justify-end" style={{ borderColor: 'var(--border)' }}>
+                    <button
+                      onClick={() => deleteOrder(order.id)}
+                      disabled={busy}
+                      className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 min-h-11 rounded-lg transition-colors disabled:opacity-50"
+                      style={{ background: 'var(--danger-soft)', color: '#B91C1C' }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Eliminar pedido
+                    </button>
                   </div>
                 )}
               </div>
@@ -245,6 +405,9 @@ export default function OrdersPanel() {
           className="fixed inset-0 z-[120] flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.85)' }}
           onClick={() => setZoomImg(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Comprobante de pago"
         >
           <button
             onClick={() => setZoomImg(null)}
@@ -256,6 +419,19 @@ export default function OrdersPanel() {
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={zoomImg} alt="Comprobante de pago" className="max-w-full max-h-full rounded-lg object-contain" onClick={e => e.stopPropagation()} />
+        </div>
+      )}
+
+      {/* Toast de error */}
+      {toast && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[130] w-[calc(100%-2rem)] max-w-sm">
+          <div className="flex items-start gap-2 rounded-xl px-4 py-3 shadow-lg" role="alert" aria-live="assertive" style={{ background: '#7F1D1D', color: '#fff' }}>
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <p className="text-[13px] flex-1">{toast}</p>
+            <button onClick={() => setToast('')} aria-label="Cerrar" className="flex-shrink-0">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
     </div>

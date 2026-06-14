@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
-import { type ProductCategory } from '@/lib/products';
+import { categories, categoryLabels, type ProductCategory } from '@/lib/products';
 
 interface CategoryTabsProps {
   onMayorClick: () => void;
@@ -11,17 +11,11 @@ interface CategoryTabsProps {
   revalidationKey?: string;
 }
 
+// Derivado de `categories` (fuente única) → nunca muestra un tab sin productos
+// ni se desincroniza del catálogo (ej. Postres, que ya no tiene productos).
 const TABS: { id: ProductCategory | 'TODOS'; label: string }[] = [
   { id: 'TODOS', label: 'Todos' },
-  { id: 'TEQUEÑOS', label: 'Tequeños' },
-  { id: 'PASAPALOS', label: 'Pasapalos' },
-  { id: 'MASAS', label: 'Masas' },
-  { id: 'PANADERIA', label: 'Panadería' },
-  { id: 'CAFETÍN', label: 'Cafetín' },
-  { id: 'SALSAS', label: 'Salsas' },
-  { id: 'BEBIDAS', label: 'Bebidas' },
-  { id: 'POSTRES', label: 'Postres' },
-  { id: 'COMBOS', label: 'Combos' },
+  ...categories.map(c => ({ id: c, label: categoryLabels[c] })),
 ];
 
 export default function CategoryTabs({ onMayorClick, revalidationKey }: CategoryTabsProps) {

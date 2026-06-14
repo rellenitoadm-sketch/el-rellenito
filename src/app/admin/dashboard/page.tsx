@@ -98,7 +98,7 @@ export default function AdminDashboard() {
 
       {/* Content */}
       <div className="max-w-2xl mx-auto px-4 py-5">
-        {tab === 'pedidos' && <OrdersPanel />}
+        {tab === 'pedidos' && <OrdersPanel role={role} />}
         {tab === 'productos' && <ProductsPanel />}
         {tab === 'metricas' && role === 'admin' && <MetricsPanel />}
         {tab === 'crm' && role === 'admin' && <CrmPanel />}

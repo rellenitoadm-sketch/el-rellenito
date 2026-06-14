@@ -10,12 +10,17 @@ interface CurrencyContextValue {
   currency: Currency;
   setCurrency: (c: Currency) => void;
   rates: ExchangeRates;
-  format: (usd: number) => string;
+  /**
+   * Formatea un monto en la moneda activa. Pasa `cop` (precio en COP fijado por
+   * el cliente) cuando exista; si se omite, COP se deriva de USD × tasa.
+   * Bs siempre se deriva del USD.
+   */
+  format: (usd: number, cop?: number | null) => string;
   isLoading: boolean;
 }
 
 const FALLBACK_RATES: ExchangeRates = {
-  bs_per_usd: 92.0,
+  bs_per_usd: 535.28,
   cop_per_usd: 4200,
   updated_at: new Date().toISOString(),
 };
@@ -37,7 +42,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       .catch(() => setIsLoading(false));
   }, []);
 
-  const format = (usd: number) => formatPrice(usd, rates, currency);
+  const format = (usd: number, cop?: number | null) => formatPrice(usd, rates, currency, cop);
 
   return (
     <CurrencyContext.Provider value={{ currency, setCurrency, rates, format, isLoading }}>

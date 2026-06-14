@@ -25,6 +25,8 @@ export async function PATCH(
   if (body.type !== undefined) patch.type = body.type;
   if (body.price_usd !== undefined) patch.price_usd = Number(body.price_usd) || 0;
   if (body.wholesale_price_usd !== undefined) patch.wholesale_price_usd = Number(body.wholesale_price_usd) || 0;
+  if (body.price_cop !== undefined) patch.price_cop = body.price_cop == null || (body.price_cop as unknown) === '' ? null : Number(body.price_cop) || null;
+  if (body.wholesale_price_cop !== undefined) patch.wholesale_price_cop = body.wholesale_price_cop == null || (body.wholesale_price_cop as unknown) === '' ? null : Number(body.wholesale_price_cop) || null;
   if (body.available !== undefined) patch.available = body.available;
   if (body.image_url !== undefined) patch.image_url = body.image_url;
   if (body.is_best_seller !== undefined) patch.is_best_seller = body.is_best_seller;
