@@ -1,125 +1,61 @@
-# HANDOFF — El Rellenito (sesión → nueva sesión)
+# HANDOFF — El Rellenito (→ nueva sesión)
 
-> Fecha: 2026-06-07 · Estado: **build verde, typecheck limpio, todo verificado en vivo**
+> Fecha: 2026-06-14 · Estado: feature **"bloqueo por moneda" SIN commitear** (typecheck verde, verificado en vivo). Build base: commit `221b72e`.
 
----
-
-## 0. Lo PRIMERO que debes saber (rutas)
-
-- **CÓDIGO REAL del proyecto:** `C:\Users\Diomar Guerrero\Claude\claude-webkit\site`
-  - Stack: **Next.js 16.2.6** (Turbopack) + **Supabase** + Tailwind v4 + framer-motion. App mobile-first (`.app-shell` max-width 480px).
-- **Carpeta de sesión / launch:** `C:\Users\Diomar Guerrero\Claude\El rellenito` → solo tiene `.claude/` (config). Su `launch.json` apunta al site real; el preview se llama **`rellenito`**.
-- **NO confundir:** la carpeta "El rellenito" NO tiene código; todo está en `claude-webkit\site`.
-
-### Entorno Windows — gotchas
-- **ExecutionPolicy bloquea `.ps1`** → llamar binarios directo: `& "C:\Program Files\nodejs\npm.cmd"`, `npx.cmd`, `& "C:\Program Files\nodejs\node.exe"`. Para `irm | iex` usar `npx.cmd` o `-OutFile` + `powershell -ExecutionPolicy Bypass -File`.
-- **Levantar la app:** preview MCP `preview_start` name `"rellenito"` (puerto 3000). Next recompila en el primer request (~10-20s); esperar con poll a `http://localhost:3000` antes de screenshot.
-- **Build:** `npm.cmd run build` (verde, ~40s). **Typecheck:** `.\node_modules\.bin\tsc.cmd --noEmit -p tsconfig.json`. 
-- **Lint:** `.\node_modules\.bin\eslint.cmd` desde la raíz (necesita `Push-Location`). ⚠️ **Next 16 NO corre ESLint en el build** (solo TypeScript) → los errores `react-hooks/set-state-in-effect` son **pre-existentes repo-wide** (patrón `useEffect(()=>{load()},[])` en todos los paneles) y **NO rompen el deploy**.
-
-### Acceso admin
-- **PIN:** `150101` · rol `admin`.
-- Entrar: gesto secreto = **5 taps en el logo del TopBar** (dispara evento `staff-unlock` → pinpad). En vivo se puede `POST /api/admin/login {pin:"150101"}` y navegar a `/admin/dashboard`.
+Lee esto primero para no re-explorar. Para el detalle histórico (PWA, alertas admin, a11y) ver `git show 221b72e`.
 
 ---
 
-## 1. Qué se hizo esta sesión (todo verificado en vivo)
-
-### A. Skill `ui-ux-pro-max` — ACTIVADA
-- Faltaba el `SKILL.md` en `~/.claude/skills/ui-ux-pro-max/` (solo estaban data/scripts/templates). Se creó → skill activa. Es la que guía las decisiones UI/UX (67 estilos, 161 paletas, reglas UX). Scripts en `scripts/search.py` (Python 3.14 ✓).
-
-### B. Auditoría + fixes UX storefront (cliente)
-Componentes en `src/components/`:
-- **ProductCard.tsx** — touch targets +/−/Agregar a **44px**; stagger capeado `Math.min(index,8)*0.03`.
-- **Cart.tsx** — touch targets 44px; **tecla Escape** cierra; `role="dialog" aria-modal aria-label="Tu pedido"`.
-- **Checkout.tsx** — `autoComplete` name/tel + `inputMode`; **focus al primer campo con error** tras submit; CTA ya no muta texto ambiguo (helper text aparte); `data-error` en ProofUpload.
-- **WholesalePage.tsx** — touch targets catálogo/back a 44px; `aria-label` que faltaban; inputs `type=tel`/`autoComplete`.
-
-### C. Caveman — INSTALADO y activo
-- Hooks `SessionStart`/`UserPromptSubmit` + statusline + MCP `caveman-shrink` en `~/.claude/settings.json`.
-- ⚠️ Durante el proceso el usuario **rompió `settings.json`** (pegó un comando dentro del archivo / faltaba `}`). Se reparó y se reinstaló con `--force`. **JSON válido ahora.**
-- Comandos disponibles (sesión nueva): `/caveman full|lite|ultra`, `/caveman-commit`, `/caveman-review`, `/caveman-stats`.
-
-### D. Panel Admin — alertas de pedidos (3 alta prioridad + notificación al celular)
-En **`src/components/admin/OrdersPanel.tsx`**:
-- **Polling 25s** silencioso (sin spinner) que detecta pedidos `pendiente` nuevos.
-- **Sonido** (doble beep Web Audio, sin archivo) + **Notification del sistema** (notificación al celular) al entrar pedido nuevo.
-- Toggle **🔔 campana** + banner "Activar alertas…" (sirve de gesto para habilitar audio + permiso). Persiste en `localStorage('rl_admin_alerts')`.
-- **Confirmar antes de cancelar** (acción destructiva).
-- **Toast de error** (`role=alert`) cuando falla un cambio de estado (antes era silencioso).
-- Verificado en vivo: toggle on/off, persistencia, banner. (En el navegador de preview `Notification.permission='denied'` — en celular real se concede.)
-
-### E. PWA — instalable + botón de instalar (para clientes)
-- **Iconos generados** con sharp: `public/icon-192.png`, `icon-512.png`, `apple-touch-icon.png` (script reutilizable en **`scripts/gen-icons.cjs`**, corre con `node scripts/gen-icons.cjs`). El manifest los referenciaba pero no existían.
-- **`src/app/layout.tsx`** — metadata `manifest`, `appleWebApp`, `icons` (quitado el `<link>` manual del head).
-- **`public/sw.js`** (NUEVO) — service worker mínimo network-first (instalable + offline básico, sin caché agresiva).
-- **`src/components/InstallPrompt.tsx`** (NUEVO) — banner "Instala El Rellenito" con botón **Instalar** (Android/`beforeinstallprompt`) + instrucciones iOS (Compartir→Agregar a inicio); registra el SW; dismissible (`localStorage('rl_install_dismissed')`). Añadido a `src/app/page.tsx`.
-- Verificado en vivo: banner aparece, botón 44px, SW **registrado**, meta tags presentes, `secureContext`.
-- **Notificación "solo app instalada":** las alertas admin son opt-in; al ser instalable, el staff usa la app en standalone y recibe las notificaciones.
-
-### F. Pendientes acumulados — HECHOS
-- **Contraste:** `--text-3` `#8A857F` → **`#6B6760`** en `src/app/globals.css` (ahora AA 4.5:1; verificado `#6b6760` en vivo).
-- **Touch targets admin 44px:** sub-vistas, campana, refresh, botones de estado (OrdersPanel), chips (ProductsPanel), link WhatsApp (CrmPanel), refresh (Metrics).
-- **Escape en modales admin:** visor de comprobante (OrdersPanel) + **ProductEditor.tsx**, con `role="dialog"`.
-- **Gráficos accesibles:** `MetricsPanel.tsx` `HourChart` ahora `role="img"` + `aria-label` con resumen (hora pico + total).
-
-### G. 🐛 Bug encontrado y CORREGIDO — hidratación
-- Los fixes iniciales de reduced-motion (`initial={reduce ? false : {...}}` con `useReducedMotion`) **rompían la hidratación** (server vs cliente con reduced-motion) → era el "1 Issue" del overlay de dev.
-- **Solución:** se revirtió el branching manual en ProductCard/Cart/Checkout (a `initial` estáticos) y se añadió **`<MotionConfig reducedMotion="user">`** envolviendo la tienda en `src/app/page.tsx`. Hydration-safe + reduced-motion global. Verificado: error desaparecido.
+## 0. Rutas + cómo correr (Windows)
+- **Código real:** `D:\Claude\claude-webkit\site` — Next.js **16.2.6** (Turbopack) + Supabase + Tailwind v4 + framer-motion. Mobile-first (`.app-shell` max 480px). `site/` es su **propio repo git** (local, sin remoto), ignorado por el repo padre.
+- **Catálogo REAL:** `site/src/lib/products.ts` → **99 productos**, 9 categorías (Tequeños, Pasapalos, Masas, Cafetín, Panadería, Salsas, Bebidas, Postres, Combos). ⚠️ `site-src-prep/` es una carpeta vieja de 86 productos — **ignorar/no usar**.
+- **Correr:** preview MCP `preview_start` name **`rellenito`** (puerto 3000). Ya existe `.claude/launch.json`. Next compila en el 1er request (~10-20s) → poll a `http://localhost:3000` antes de screenshot.
+- **Windows gotchas:** ExecutionPolicy bloquea `.ps1` → llamar binarios directo (`& "C:\Program Files\nodejs\npm.cmd"`, `npx.cmd`, `node.exe`). **El tool Bash no devuelve output en este entorno → usar PowerShell.** Grep/ripgrep se cuelga con el dev server corriendo → usar Read directo.
+- **Build:** `npm.cmd run build`. **Typecheck:** `.\node_modules\.bin\tsc.cmd --noEmit -p tsconfig.json` (desde `site/`, con Push-Location).
+- **Admin:** PIN `150101`. Entrar: **5 taps en el logo del TopBar** → pinpad. O `POST /api/admin/login {pin:"150101"}` → `/admin/dashboard`.
 
 ---
 
-## 2. Archivos tocados (en `claude-webkit\site`)
+## 1. EN CURSO (sin commitear) — Bloqueo por moneda
+**Regla:** un producto sin precio nativo en la moneda activa queda **bloqueado, NO se convierte**. COP necesita `price_cop`; USD y Bs dependen de `price_usd` (Bs se deriva del USD). Hoy solo afecta a los **6 postres** (solo USD) → bloqueados en COP.
 
-```
-src/app/layout.tsx          metadata PWA (manifest/appleWebApp/icons)
-src/app/page.tsx            + InstallPrompt, + <MotionConfig reducedMotion="user">
-src/app/globals.css         --text-3 #6B6760 (contraste AA)
-src/components/ProductCard.tsx       touch 44px, stagger cap, reduced-motion revert
-src/components/Cart.tsx              touch 44px, Escape, role=dialog, revert
-src/components/Checkout.tsx          autoComplete, focus-error, CTA, revert
-src/components/WholesalePage.tsx     touch 44px, aria, input types
-src/components/InstallPrompt.tsx     NUEVO — banner instalar PWA + registra SW
-src/components/admin/OrdersPanel.tsx alertas (polling+sonido+notif), confirm cancel, toast, touch 44, Escape lightbox
-src/components/admin/ProductEditor.tsx  Escape + role=dialog
-src/components/admin/ProductsPanel.tsx  chips 44px, refresh 44px
-src/components/admin/CrmPanel.tsx       whatsapp link 44px, refresh 44px
-src/components/admin/MetricsPanel.tsx   HourChart accesible, refresh 44px
-public/sw.js                NUEVO — service worker
-public/icon-192.png / icon-512.png / apple-touch-icon.png   NUEVOS
-scripts/gen-icons.cjs       NUEVO — genera iconos con sharp
-```
-Fuera del repo: `~/.claude/skills/ui-ux-pro-max/SKILL.md` (creado), `~/.claude/settings.json` (reparado + caveman).
+- **Helper (fuente única):** `site/src/lib/rates.ts` → `isPricedIn(p, currency)`, `cartTotals(items, currency, rates)`, `CURRENCY_NAME`.
+- **Archivos tocados (6):** `lib/rates.ts`, `components/ProductCard.tsx`, `Cart.tsx`, `CartButton.tsx`, `Upsell.tsx`, `WholesalePage.tsx`.
+- **UX:** tarjeta bloqueada = candado + "No disponible en {moneda}" + sin botón Agregar. Carrito = ítem marcado, excluido del total, checkout deshabilitado + banner "Quitar no disponibles". Igual en mayorista.
+- **Verificado:** `tsc` verde. En vivo (preview MCP eval): en COP los 6 postres bloqueados; en USD aparecen con su precio real. Carrito/mayorista por lógica (mismo helper) — el dropdown de moneda no se deja manejar bien en preview headless.
+- **Detalle menor:** el atenuado `opacity:0.55` lo pisa la animación de framer (cosmético; el bloqueo se comunica con candado+label+botón). Si se quiere atenuar de verdad, pasar opacity por el `animate` de framer.
+- **Decisión del usuario:** NO tocar precios. Solo bloquear monedas. Productos con mayor=detal o solo-COP: dejarlos.
+
+**Pendiente inmediato:** preguntar al usuario si commitea estos 6 archivos.
 
 ---
 
-## 3. PENDIENTE (próxima sesión)
-
-### Código
-- [ ] **Emojis → SVG en headings de categoría** (ProductList + WholesalePage + ProductsPanel/Metrics usan `categoryEmoji`). Es lo único de las auditorías sin hacer: requiere **decidir un set de iconos** para las ~7 categorías (Tequeños, Pasapalos, Masas, Panadería, Cafetín…). Lucide o iconos custom. No hacerlo a medias.
-- [ ] (Opcional) Header: ya cubierto por MotionConfig; sin acción.
-
-### Instalación de herramientas (requieren acción del usuario — bloqueadas para el agente)
-- [ ] **MemPalace (MCP server)** — el usuario debe correr:
-  ```powershell
-  python -m pip install mempalace        # (o pipx install mempalace)
-  claude mcp add -s user mempalace -- mempalace-mcp
-  ```
-  Comando MCP = **`mempalace-mcp`** (entry point oficial). Python 3.14 ✓ compatible (wheels cp314, usa ONNX no torch). Bloqueado para el agente por riesgo de cadena de suministro (nombre de paquete deducido). Guarda historial verbatim local; usa `<private>` para excluir.
-- [ ] **claude-mem (thedotmack)** — es un **plugin**, se instala con `/plugin marketplace add thedotmack/claude-mem` + `/plugin install claude-mem`. ⚠️ **`/plugin` NO está disponible en este entorno** (Cowork/embebido). Prereq **Bun ya instalado (1.3.14)**. Pendiente vía CLI alterna o entorno con `/plugin`.
+## 2. Pendientes
+- [ ] **Fotos de los 99 productos** → se suben por el **panel admin** (bucket Supabase `product-images`, vía `/api/admin/upload`). NO nombrar archivos por id. Excel guía ya generado: `D:\Claude\claude-webkit\El-Rellenito-productos-fotos.xlsx` (99 productos, best-sellers marcados, columna "¿Foto lista?").
+- [ ] **Emojis → iconos SVG** en headings de categoría (`categoryEmoji` en `products.ts`; usado en ProductList, WholesalePage, ProductsPanel, MetricsPanel). Elegir set Lucide para las 9 categorías. Único ítem de auditoría a11y sin hacer.
+- [ ] **MemPalace** / **claude-mem** (instalación bloqueada para el agente, requiere acción del usuario).
 
 ---
 
-## 4. Estado de verificación (al cierre)
-- ✅ `npm run build` → **BUILD_EXIT=0** (verde)
-- ✅ `tsc --noEmit` → limpio
-- ✅ PWA: manifest + iconos (200) + SW registrado + meta iOS + secureContext
-- ✅ Storefront y admin probados en vivo (preview MCP)
-- ✅ Hydration error resuelto ("1 Issue" desaparecido)
-- ⚠️ Dev server detenido tras el build final — relanzar con preview `rellenito` si se necesita.
+## 3. Análisis de precios (HECHO — no re-derivar)
+El usuario pidió analizar precios; se encontraron estas incoherencias (decidió **no** corregirlas por ahora, solo el bloqueo por moneda):
+- `combo-torta-1kg` 15.00 USD < `torta-1kg` 17.19 USD (combo más barato en USD, pero más caro en COP 57k vs 40k) → typo probable.
+- `biscocho-1kg` 6.81 USD ≈ `biscocho-medio-kg` 6.45 USD (el kilo casi igual al medio) → typo probable.
+- 14 productos con descuento al mayor en una moneda y no en la otra.
+- Dos "tasas" COP/USD implícitas: ~2.300 (general) vs ~3.600 (Cafetín + algunas bebidas).
+- 6 postres sin `price_cop` (intencional → quedan bloqueados en COP, ver §1).
+- Scripts reusables: `site-src-prep/analiza_precios.py` y `export_productos.py` (parsean `products.ts`; requieren `openpyxl`).
 
-## 5. Cómo retomar rápido
-1. `preview_start` name `rellenito` → esperar a `http://localhost:3000`.
-2. Admin: `POST /api/admin/login {pin:"150101"}` → `/admin/dashboard`.
-3. Antes de tocar UI: usar skill `ui-ux-pro-max`. Para commits/brevedad: caveman (`/caveman-commit`).
-4. Verificar siempre: `tsc --noEmit` + `npm run build` antes de dar por cerrado.
+---
+
+## 4. Datos clave del sistema
+- Productos cargan de `/api/products` (Supabase) con **fallback estático** `products.ts` (`ProductsContext`). Edits del admin se reflejan vía API.
+- Monedas: COP (default), USD, Bs. `CurrencyContext` + `rates.ts`. Tasa BCV en vivo vía `/api/rates` (cron `api/cron/refresh-rate`); fallback Bs 535.28, COP 4200.
+- Trigger mayorista: cantidad ≥ 10 del mismo producto conmuta a `wholesale_*`.
+
+---
+
+## 5. Cómo retomar
+1. `preview_start` name `rellenito` → poll `http://localhost:3000`.
+2. Antes de cerrar cualquier cambio UI: `tsc --noEmit` verde + verificar por preview MCP (eval/screenshot).
+3. Decidir con el usuario el commit de la feature de moneda (§1).

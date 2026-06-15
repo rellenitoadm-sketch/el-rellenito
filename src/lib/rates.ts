@@ -108,6 +108,50 @@ export function unitCop(p: MirrorPrices, qty: number, rates: ExchangeRates): num
     : toCop(p.price_usd, p.price_cop, rates);
 }
 
+/** Nombre amigable de cada moneda (para mensajes al cliente). */
+export const CURRENCY_NAME: Record<'USD' | 'COP' | 'BS', string> = {
+  USD: 'USD',
+  COP: 'pesos',
+  BS: 'bolívares',
+};
+
+/**
+ * ¿El producto tiene precio NATIVO en la moneda activa?
+ * - USD y BS dependen del precio en USD (los bolívares se derivan del USD).
+ * - COP depende del precio en COP fijado por el cliente.
+ * Si no lo tiene, el producto queda BLOQUEADO en esa moneda: NO se convierte
+ * desde la otra. USD y COP son mercados independientes.
+ */
+export function isPricedIn(
+  p: { price_usd?: number | null; price_cop?: number | null },
+  currency: 'USD' | 'COP' | 'BS',
+): boolean {
+  return currency === 'COP' ? p.price_cop != null : p.price_usd != null;
+}
+
+/**
+ * Totales del carrito en la moneda activa, contando SOLO los ítems con precio
+ * nativo en esa moneda. Los bloqueados se devuelven en `blockedIds` y NO suman.
+ */
+export function cartTotals<T extends MirrorPrices & { id: string; quantity: number }>(
+  items: T[],
+  currency: 'USD' | 'COP' | 'BS',
+  rates: ExchangeRates,
+): { totalUsd: number; totalCop: number; blockedIds: string[] } {
+  let totalUsd = 0;
+  let totalCop = 0;
+  const blockedIds: string[] = [];
+  for (const i of items) {
+    if (!isPricedIn(i, currency)) {
+      blockedIds.push(i.id);
+      continue;
+    }
+    totalUsd += unitUsd(i, i.quantity) * i.quantity;
+    totalCop += unitCop(i, i.quantity, rates) * i.quantity;
+  }
+  return { totalUsd, totalCop, blockedIds };
+}
+
 /**
  * Formatea un monto en la moneda elegida.
  * - USD: el valor en dólares.

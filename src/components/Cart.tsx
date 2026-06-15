@@ -2,18 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Trash2, Plus, Minus } from 'lucide-react';
+import { X, Trash2, Plus, Minus, Lock } from 'lucide-react';
 import Image from 'next/image';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
-import { unitUsd, unitCop, isWholesaleQty } from '@/lib/rates';
+import { unitUsd, unitCop, isWholesaleQty, isPricedIn, cartTotals, CURRENCY_NAME } from '@/lib/rates';
 import { categoryEmoji } from '@/lib/products';
 import Upsell from './Upsell';
 import Checkout from './Checkout';
 
 export default function Cart() {
-  const { items, isOpen, closeCart, removeItem, updateQty, totalUsd, itemCount } = useCart();
-  const { format, rates } = useCurrency();
+  const { items, isOpen, closeCart, removeItem, updateQty, itemCount } = useCart();
+  const { format, rates, currency } = useCurrency();
   const [showCheckout, setShowCheckout] = useState(false);
 
   // Cerrar con tecla Escape (accesibilidad / teclado).
@@ -24,8 +24,11 @@ export default function Cart() {
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, closeCart]);
 
-  // Total en COP efectivo: aplica la tarifa al mayor por ítem cuando cantidad >= 10.
-  const totalCop = items.reduce((s, i) => s + unitCop(i, i.quantity, rates) * i.quantity, 0);
+  // Totales SOLO de ítems con precio nativo en la moneda activa. Los bloqueados
+  // (sin precio en esta moneda) no suman y no dejan finalizar el pedido.
+  const { totalUsd, totalCop, blockedIds } = cartTotals(items, currency, rates);
+  const hasBlocked = blockedIds.length > 0;
+  const removeBlocked = () => blockedIds.forEach(removeItem);
 
   return (
     <AnimatePresence>
@@ -75,6 +78,24 @@ export default function Cart() {
 
                 {/* Items */}
                 <div className="flex-1 overflow-y-auto">
+                  {hasBlocked && items.length > 0 && (
+                    <div className="mx-4 mt-4 rounded-xl p-3 border flex items-start gap-2" style={{ background: 'var(--danger-soft)', borderColor: 'var(--danger)' }}>
+                      <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--danger)' }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+                          {blockedIds.length === 1
+                            ? '1 producto no está disponible'
+                            : `${blockedIds.length} productos no están disponibles`} en {CURRENCY_NAME[currency]}.
+                        </p>
+                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-2)' }}>
+                          Cambia de moneda o quítalos para finalizar el pedido.
+                        </p>
+                        <button onClick={removeBlocked} className="text-[11px] font-semibold underline mt-1" style={{ color: 'var(--danger)' }}>
+                          Quitar no disponibles
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {items.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center px-4">
                       <span className="text-5xl mb-4">🛍️</span>
@@ -117,9 +138,15 @@ export default function Cart() {
                             </div>
 
                             <div className="flex items-center justify-between gap-2">
-                              <p className="text-sm font-bold text-[#FF5100]">
-                                {format(unitUsd(item, item.quantity) * item.quantity, unitCop(item, item.quantity, rates) * item.quantity)}
-                              </p>
+                              {isPricedIn(item, currency) ? (
+                                <p className="text-sm font-bold text-[#FF5100]">
+                                  {format(unitUsd(item, item.quantity) * item.quantity, unitCop(item, item.quantity, rates) * item.quantity)}
+                                </p>
+                              ) : (
+                                <p className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: 'var(--danger)' }}>
+                                  <Lock className="w-3 h-3" /> No disp. en {CURRENCY_NAME[currency]}
+                                </p>
+                              )}
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 <button
                                   onClick={() => updateQty(item.id, item.quantity - 1)}
@@ -156,10 +183,11 @@ export default function Cart() {
                       <span className="text-lg font-bold text-[#FF5100]">{format(totalUsd, totalCop)}</span>
                     </div>
                     <button
-                      onClick={() => setShowCheckout(true)}
-                      className="w-full bg-[#FF5100] hover:bg-[#e04800] active:scale-[0.98] text-white font-bold py-4 rounded-2xl text-base transition-all"
+                      onClick={() => { if (!hasBlocked) setShowCheckout(true); }}
+                      disabled={hasBlocked}
+                      className="w-full bg-[#FF5100] hover:bg-[#e04800] active:scale-[0.98] text-white font-bold py-4 rounded-2xl text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#FF5100]"
                     >
-                      Finalizar pedido
+                      {hasBlocked ? 'Resuelve los no disponibles' : 'Finalizar pedido'}
                     </button>
                   </div>
                 )}

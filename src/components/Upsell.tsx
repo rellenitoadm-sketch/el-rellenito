@@ -6,19 +6,20 @@ import { useMemo } from 'react';
 import { useCurrency } from './CurrencyContext';
 import { useCart } from './CartContext';
 import { useProducts } from './ProductsContext';
+import { isPricedIn } from '@/lib/rates';
 import { categoryEmoji } from '@/lib/products';
 
 export default function Upsell() {
-  const { format } = useCurrency();
+  const { format, currency } = useCurrency();
   const { addItem, items } = useCart();
   const { products } = useProducts();
 
-  // Bebidas disponibles, best-sellers primero.
+  // Bebidas disponibles y con precio en la moneda activa, best-sellers primero.
   const beveragePool = useMemo(
     () => products
-      .filter(p => p.available && p.category === 'BEBIDAS')
+      .filter(p => p.available && p.category === 'BEBIDAS' && isPricedIn(p, currency))
       .sort((a, b) => Number(b.is_best_seller) - Number(a.is_best_seller)),
-    [products],
+    [products, currency],
   );
 
   const cartIds = new Set(items.map(i => i.id));

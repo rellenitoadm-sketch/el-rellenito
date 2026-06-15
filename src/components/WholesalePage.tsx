@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Minus, Plus, ShoppingBag, Check, X, CalendarDays, MapPin, Navigation, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, ShoppingBag, Check, X, CalendarDays, MapPin, Navigation, Loader2, AlertCircle, Lock } from 'lucide-react';
 import { categories, categoryLabels, categoryEmoji } from '@/lib/products';
 import { useProducts } from './ProductsContext';
 import { useCurrency } from './CurrencyContext';
@@ -12,7 +12,7 @@ import PaymentTabs from './PaymentTabs';
 import PaymentDetails from './PaymentDetails';
 import ProofUpload, { type ProofData } from './ProofUpload';
 import type { PaymentMethodId } from '@/lib/payments';
-import { toCop } from '@/lib/rates';
+import { toCop, isPricedIn, CURRENCY_NAME } from '@/lib/rates';
 import { useGeolocationZone } from '@/hooks/useGeolocationZone';
 
 interface WholesaleCartItem {
@@ -86,8 +86,12 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
   const advanceCop = totalCop * (advancePct / 100);
   const remainingCop = totalCop - advanceCop;
 
+  // Ningún ítem del carrito puede estar bloqueado (sin precio en la moneda activa).
+  const hasBlocked = cart.some(i => !isPricedIn(i, currency));
+
   const canConfirm =
     cart.length > 0 &&
+    !hasBlocked &&
     selectedDate !== null &&
     selectedTime !== null &&
     name.trim().length > 0 &&
@@ -229,6 +233,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
               {items.map(p => {
                 const item = cart.find(i => i.id === p.id);
                 const qty = item?.qty ?? 0;
+                const priced = isPricedIn(p, currency);
                 return (
                   <div
                     key={p.id}
@@ -245,12 +250,22 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
-                      <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--brand-orange)' }}>
-                        {format(p.wholesale_price_usd, p.wholesale_price_cop)}
-                      </p>
+                      {priced ? (
+                        <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--brand-orange)' }}>
+                          {format(p.wholesale_price_usd, p.wholesale_price_cop)}
+                        </p>
+                      ) : (
+                        <p className="text-xs font-semibold mt-0.5 inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                          <Lock className="w-3 h-3" /> No disp. en {CURRENCY_NAME[currency]}
+                        </p>
+                      )}
                     </div>
                     <div className="flex-shrink-0">
-                      {qty > 0 ? (
+                      {!priced ? (
+                        <span className="inline-flex items-center justify-center w-11 h-11" style={{ color: 'var(--text-muted)' }}>
+                          <Lock className="w-4 h-4" />
+                        </span>
+                      ) : qty > 0 ? (
                         <div className="flex items-center gap-1.5 rounded-xl px-2 py-1.5 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                           <button onClick={() => updateQty(p.id, qty - 1)} aria-label="Restar" className="w-11 h-11 rounded-full flex items-center justify-center" style={{ color: 'var(--brand-orange)' }}>
                             <Minus className="w-3 h-3" />
@@ -350,7 +365,11 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                             <span className="text-xs font-bold w-4 text-center" style={{ color: 'var(--text-primary)' }}>{i.qty}</span>
                             <button onClick={() => addToCart(i.id, i.name, i.price_usd, i.price_cop)} aria-label="Sumar" className="w-8 h-8 rounded-full bg-[var(--brand-orange)] flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
                           </div>
-                          <span className="text-sm font-semibold w-16 text-right" style={{ color: 'var(--text-primary)' }}>{format(i.price_usd * i.qty, i.price_cop != null ? i.price_cop * i.qty : null)}</span>
+                          {isPricedIn(i, currency) ? (
+                            <span className="text-sm font-semibold w-16 text-right" style={{ color: 'var(--text-primary)' }}>{format(i.price_usd * i.qty, i.price_cop != null ? i.price_cop * i.qty : null)}</span>
+                          ) : (
+                            <span className="text-[11px] font-semibold w-16 text-right inline-flex items-center justify-end gap-1" style={{ color: 'var(--destructive)' }}><Lock className="w-3 h-3" /> N/D</span>
+                          )}
                         </div>
                       ))}
                       <div className="border-t pt-2 flex justify-between" style={{ borderColor: 'var(--border)' }}>
@@ -512,7 +531,12 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                   >
                     {loading ? 'Enviando...' : `Confirmar y pagar anticipo ${format(advanceUsd, advanceCop)}`}
                   </button>
-                  {!canConfirm && !submitError && (
+                  {hasBlocked && (
+                    <p className="text-center text-xs mt-2" style={{ color: 'var(--destructive)' }}>
+                      Tienes productos sin precio en {CURRENCY_NAME[currency]}. Cambia de moneda o quítalos.
+                    </p>
+                  )}
+                  {!canConfirm && !hasBlocked && !submitError && (
                     <p className="text-center text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
                       Elige fecha, hora, tus datos y el comprobante para continuar
                     </p>

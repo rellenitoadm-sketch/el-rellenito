@@ -2,10 +2,11 @@
 
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, Lock } from 'lucide-react';
 import { useCurrency } from './CurrencyContext';
 import { useCart } from './CartContext';
 import { useBubble } from './AddToCartBubble';
+import { isPricedIn, CURRENCY_NAME } from '@/lib/rates';
 import { categoryEmoji, type Product } from '@/lib/products';
 
 interface ProductCardProps {
@@ -15,12 +16,18 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, index = 0, viewMode = 'list' }: ProductCardProps) {
-  const { format } = useCurrency();
+  const { format, currency } = useCurrency();
   const { addItem, updateQty, items } = useCart();
   const { triggerBubble } = useBubble();
 
   const cartItem = items.find(i => i.id === product.id);
   const qty = cartItem?.quantity ?? 0;
+
+  // Bloqueo por moneda: si el producto no tiene precio nativo en la moneda
+  // activa, NO se convierte — queda bloqueado (no se puede agregar).
+  const priced = isPricedIn(product, currency);
+  const purchasable = product.available && priced;
+  const blockedLabel = `No disponible en ${CURRENCY_NAME[currency]}`;
 
   const handleAdd = (e: React.MouseEvent<HTMLButtonElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -38,7 +45,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: Math.min(index, 8) * 0.03, duration: 0.25 }}
         className="card overflow-hidden flex flex-col"
-        style={{ opacity: product.available ? 1 : 0.55 }}
+        style={{ opacity: purchasable ? 1 : 0.55 }}
       >
         <div className="relative w-full aspect-square flex items-center justify-center text-4xl"
           style={{ background: 'linear-gradient(135deg, var(--surface-2), var(--surface-3))' }}>
@@ -68,11 +75,17 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
           {product.units && (
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>{product.units}</p>
           )}
-          <p className="text-[15px] font-bold mt-1.5 t-num" style={{ color: 'var(--text-1)' }}>
-            {format(product.price_usd, product.price_cop)}
-          </p>
+          {priced ? (
+            <p className="text-[15px] font-bold mt-1.5 t-num" style={{ color: 'var(--text-1)' }}>
+              {format(product.price_usd, product.price_cop)}
+            </p>
+          ) : (
+            <p className="text-[12px] font-semibold mt-1.5 flex items-center gap-1" style={{ color: 'var(--text-3)' }}>
+              <Lock className="w-3 h-3" /> {blockedLabel}
+            </p>
+          )}
           <div className="mt-auto pt-2.5">
-            {product.available ? (
+            {purchasable ? (
               qty > 0 ? (
                 <div className="flex items-center justify-between rounded-[10px] py-1 px-1"
                   style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
@@ -106,8 +119,12 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
                   Agregar
                 </motion.button>
               )
-            ) : (
+            ) : !product.available ? (
               <span className="text-[11px]" style={{ color: 'var(--text-3)' }}>No disponible</span>
+            ) : (
+              <span className="text-[11px] inline-flex items-center gap-1" style={{ color: 'var(--text-3)' }}>
+                <Lock className="w-3 h-3" /> Bloqueado
+              </span>
             )}
           </div>
         </div>
@@ -122,7 +139,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index, 8) * 0.03, duration: 0.25 }}
       className="card flex items-center gap-3 p-3 transition-all duration-200"
-      style={{ opacity: product.available ? 1 : 0.55 }}
+      style={{ opacity: purchasable ? 1 : 0.55 }}
     >
       {/* Image */}
       <div
@@ -167,15 +184,21 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
           </p>
         )}
         <div className="mt-1.5">
-          <p className="text-[17px] font-bold t-num leading-none" style={{ color: 'var(--text-1)' }}>
-            {format(product.price_usd, product.price_cop)}
-          </p>
+          {priced ? (
+            <p className="text-[17px] font-bold t-num leading-none" style={{ color: 'var(--text-1)' }}>
+              {format(product.price_usd, product.price_cop)}
+            </p>
+          ) : (
+            <p className="text-[12.5px] font-semibold leading-none flex items-center gap-1" style={{ color: 'var(--text-3)' }}>
+              <Lock className="w-3 h-3" /> {blockedLabel}
+            </p>
+          )}
         </div>
       </div>
 
       {/* CTA */}
       <div className="flex-shrink-0">
-        {product.available ? (
+        {purchasable ? (
           qty > 0 ? (
             <div className="flex items-center gap-1 rounded-[10px] px-1 py-1"
               style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
@@ -211,8 +234,12 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
               Agregar
             </motion.button>
           )
-        ) : (
+        ) : !product.available ? (
           <span className="text-[11px]" style={{ color: 'var(--text-3)' }}>No disponible</span>
+        ) : (
+          <span className="text-[11px] inline-flex items-center gap-1" style={{ color: 'var(--text-3)' }}>
+            <Lock className="w-3 h-3" /> Bloqueado
+          </span>
         )}
       </div>
     </motion.article>

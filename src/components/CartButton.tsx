@@ -4,15 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag } from 'lucide-react';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
-import { unitCop } from '@/lib/rates';
+import { cartTotals } from '@/lib/rates';
 
 export default function CartButton() {
-  const { items, itemCount, totalUsd, openCart } = useCart();
-  const { format, rates } = useCurrency();
+  const { items, itemCount, openCart } = useCart();
+  const { format, rates, currency } = useCurrency();
 
-  // COP efectivo (precio fijo por ítem, con tarifa al mayor si cantidad >= 10) —
-  // debe coincidir con el total del carrito, no derivarse de USD × tasa.
-  const totalCop = items.reduce((s, i) => s + unitCop(i, i.quantity, rates) * i.quantity, 0);
+  // Totales SOLO de los ítems con precio nativo en la moneda activa: los
+  // bloqueados (sin precio en esta moneda) no suman al total mostrado.
+  const { totalUsd, totalCop } = cartTotals(items, currency, rates);
 
   return (
     <AnimatePresence>
