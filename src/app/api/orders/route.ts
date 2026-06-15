@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { saveOrder, supabaseAdmin, type OrderInsert } from '@/lib/supabase';
 import { checkRateLimit, recordFailure } from '@/lib/rateLimit';
 import { getClientIp } from '@/lib/getClientIp';
+import { sendPushToAll } from '@/lib/push';
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +35,29 @@ export async function POST(request: NextRequest) {
           p_zone: body.delivery_zone ?? '',
         })
         .then(({ error }) => { if (error) console.warn('CRM upsert:', error.message); });
+    }
+
+    // Avisar al equipo: notificación push al celular (aunque la app esté cerrada).
+    // El badge muestra el total de pedidos por verificar. Best-effort.
+    try {
+      let count = 1;
+      if (supabaseAdmin) {
+        const { count: pending } = await supabaseAdmin
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pendiente');
+        if (typeof pending === 'number' && pending > 0) count = pending;
+      }
+      const total = `$${Number(body.total_usd).toFixed(2)}`;
+      await sendPushToAll({
+        title: '🛎️ Nuevo pedido — El Rellenito',
+        body: `${body.customer_name} · ${total}${body.is_wholesale ? ' · Al mayor' : ''}`,
+        tag: `order-${result.id}`,
+        url: '/admin/dashboard',
+        count,
+      });
+    } catch (err) {
+      console.warn('Push notify:', err);
     }
 
     return NextResponse.json({ id: result.id, status: 'pendiente' }, { status: 201 });

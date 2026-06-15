@@ -34,11 +34,21 @@ export default function StaffUnlock() {
   // Open the vault on a fresh pad.
   const openVault = useCallback(() => { setOpen(true); resetPad(); }, [resetPad]);
 
-  // Secret gesture from the TopBar logo.
+  // Entrada del equipo: si este dispositivo YA tiene una sesión válida (cookie de
+  // 30 días), entra directo al panel SIN volver a pedir el PIN. Si no, abre el pinpad.
+  const gateOpen = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/me');
+      if (res.ok) { router.push('/admin/dashboard'); return; }
+    } catch { /* sin red → cae al pinpad */ }
+    openVault();
+  }, [router, openVault]);
+
+  // Secret gesture from the TopBar logo (5 taps) → puerta con sesión persistente.
   useEffect(() => {
-    window.addEventListener('staff-unlock', openVault);
-    return () => window.removeEventListener('staff-unlock', openVault);
-  }, [openVault]);
+    window.addEventListener('staff-unlock', gateOpen);
+    return () => window.removeEventListener('staff-unlock', gateOpen);
+  }, [gateOpen]);
 
   // Lock body scroll while the vault is open.
   useEffect(() => {
@@ -88,21 +98,11 @@ export default function StaffUnlock() {
     setPin(prev => prev.slice(0, -1));
   };
 
-  // Quick access on registered devices: if the session is still valid, go
-  // straight in; otherwise open the vault to re-enter the PIN.
-  const quickAccess = async () => {
-    try {
-      const res = await fetch('/api/admin/me');
-      if (res.ok) { router.push('/admin/dashboard'); return; }
-    } catch { /* fall through */ }
-    openVault();
-  };
-
   return (
     <>
       {showShortcut && !open && (
         <button
-          onClick={quickAccess}
+          onClick={gateOpen}
           aria-label="Acceso del equipo"
           className="fixed bottom-3 left-3 z-30 w-9 h-9 rounded-full flex items-center justify-center opacity-20 hover:opacity-90 transition-opacity"
           style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}

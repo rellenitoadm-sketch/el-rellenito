@@ -1,0 +1,49 @@
+// Regenera los iconos PWA agrandando el logo dentro del lienzo.
+// El logo original quedaba pequeño y centrado con mucho margen naranja → en el
+// acceso directo se veía diminuto. Aquí recortamos el margen y lo escalamos para
+// que llene la zona segura (maskable recorta ~20% del borde).
+//
+// Uso:  node scripts/gen-icons.mjs
+import sharp from 'sharp';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const pub = path.join(here, '..', 'public');
+const SRC = path.join(pub, 'logo-full.png');
+
+// Color de fondo = pixel de la esquina (el naranja del logo) para fundir sin costuras.
+const { data: corner } = await sharp(SRC)
+  .extract({ left: 0, top: 0, width: 1, height: 1 })
+  .raw()
+  .toBuffer({ resolveWithObject: true });
+const bg = { r: corner[0], g: corner[1], b: corner[2], alpha: 1 };
+console.log('Fondo detectado:', bg);
+
+// Recorta el borde naranja uniforme para aislar el contenido (chef + texto).
+const trimmed = await sharp(SRC).trim({ threshold: 30 }).png().toBuffer();
+
+/** Genera un icono cuadrado con el logo escalado a `fill` del lienzo. */
+async function make(size, fill, out) {
+  const box = Math.round(size * fill);
+  const logo = await sharp(trimmed)
+    .resize({ width: box, height: box, fit: 'inside', withoutEnlargement: false })
+    .toBuffer();
+  await sharp({
+    create: { width: size, height: size, channels: 4, background: bg },
+  })
+    .composite([{ input: logo, gravity: 'center' }])
+    .png()
+    .toFile(path.join(pub, out));
+  console.log(`✓ ${out} (${size}px, logo ${Math.round(fill * 100)}%)`);
+}
+
+// maskable → logo al 80% (queda dentro del círculo seguro del launcher).
+await make(512, 0.80, 'icon-512.png');
+await make(192, 0.80, 'icon-192.png');
+// apple-touch-icon: iOS sólo redondea esquinas (no recorta en círculo) → más grande.
+await make(180, 0.88, 'apple-touch-icon.png');
+// logo-circle: usado en el footer y notificaciones (recorte circular vía CSS).
+await make(256, 0.86, 'logo-circle.png');
+
+console.log('Listo.');

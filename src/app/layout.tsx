@@ -5,6 +5,7 @@ import { CartProvider } from '@/components/CartContext';
 import { CurrencyProvider } from '@/components/CurrencyContext';
 import { BubbleProvider } from '@/components/AddToCartBubble';
 import { ProductsProvider } from '@/components/ProductsContext';
+import StaffAlerts from '@/components/StaffAlerts';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -62,6 +63,7 @@ export default function RootLayout({
             <CartProvider>
               <BubbleProvider>
                 {children}
+                <StaffAlerts />
               </BubbleProvider>
             </CartProvider>
           </ProductsProvider>

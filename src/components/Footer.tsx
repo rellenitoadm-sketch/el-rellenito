@@ -85,7 +85,7 @@ export default function Footer() {
       <div className="px-5 pt-8 pb-6 border-b" style={{ borderColor: 'var(--border-light)' }}>
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border" style={{ borderColor: 'var(--border)' }}>
-            <Image src="/logo.png" alt="El Rellenito" width={40} height={40} className="object-cover w-full h-full" />
+            <Image src="/logo-circle.png" alt="El Rellenito" width={40} height={40} className="object-cover w-full h-full" />
           </div>
           <div>
             <p className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>El Rellenito</p>

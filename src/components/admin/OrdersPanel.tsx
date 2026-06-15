@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import {
   RefreshCw, Package, CheckCircle, Truck, XCircle, Clock, CalendarDays,
@@ -69,72 +69,27 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [zoomImg, setZoomImg] = useState<string | null>(null);
 
-  // ── Alertas de pedidos nuevos (sonido + notificación al celular) ──
-  // Inicializador lazy: lee la preferencia sin setState-en-effect (este panel
-  // sólo monta en cliente, así que no hay riesgo de hydration mismatch).
+  // ── Alertas de pedidos nuevos ──
+  // El sonido, el push al celular y el badge los maneja el provider global
+  // <StaffAlerts/> (así funcionan también en el catálogo, no sólo aquí). Este
+  // botón sólo conmuta el interruptor compartido.
   const [alertsOn, setAlertsOn] = useState<boolean>(() => {
     try { return localStorage.getItem('rl_admin_alerts') === '1'; } catch { return false; }
   });
   const [toast, setToast] = useState('');
-  const knownIds = useRef<Set<string>>(new Set());
-  const initedViews = useRef<Set<View>>(new Set());
-  const alertsRef = useRef(false);
-  const audioRef = useRef<AudioContext | null>(null);
 
-  useEffect(() => { alertsRef.current = alertsOn; }, [alertsOn]);
-
-  // AudioContext sólo se puede iniciar tras un gesto del usuario.
-  const ensureAudio = useCallback(() => {
-    if (!audioRef.current) {
-      try {
-        const AC = window.AudioContext
-          || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        audioRef.current = new AC();
-      } catch { /* sin audio */ }
-    }
-    audioRef.current?.resume().catch(() => {});
+  // Sincroniza el icono si el estado cambia desde el provider.
+  useEffect(() => {
+    const sync = () => {
+      try { setAlertsOn(localStorage.getItem('rl_admin_alerts') === '1'); } catch { /* ignore */ }
+    };
+    window.addEventListener('rl-alerts-changed', sync);
+    return () => window.removeEventListener('rl-alerts-changed', sync);
   }, []);
 
-  // Doble "ding" generado por código (sin archivo de audio).
-  const playBeep = useCallback(() => {
-    ensureAudio();
-    const ctx = audioRef.current;
-    if (!ctx) return;
-    [0, 0.18].forEach((t, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = i === 0 ? 880 : 1175;
-      osc.connect(gain); gain.connect(ctx.destination);
-      const start = ctx.currentTime + t;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.15);
-      osc.start(start); osc.stop(start + 0.16);
-    });
-  }, [ensureAudio]);
-
-  // Notificación del sistema (aparece en el celular aunque la pestaña esté en segundo plano).
-  const notify = useCallback((o: Order) => {
-    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-    try {
-      new Notification('🛎️ Nuevo pedido — El Rellenito', {
-        body: `${o.customer_name} · $${o.total_usd.toFixed(2)}`,
-        icon: '/logo-circle.png',
-        tag: o.id,
-      });
-    } catch { /* ignore */ }
-  }, []);
-
-  const toggleAlerts = async () => {
-    ensureAudio();
-    const next = !alertsOn;
-    setAlertsOn(next);
-    try { localStorage.setItem('rl_admin_alerts', next ? '1' : '0'); } catch {}
-    if (next && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      try { await Notification.requestPermission(); } catch {}
-    }
-    if (next) playBeep(); // confirma que el sonido funciona
+  const toggleAlerts = () => {
+    // Delegar al provider: pide permiso, suscribe push y desbloquea el audio.
+    window.dispatchEvent(new Event(alertsOn ? 'rl-disable-alerts' : 'rl-enable-alerts'));
   };
 
   // Auto-descartar el toast de error.
@@ -157,20 +112,10 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
     const q = VIEWS.find(x => x.id === v)!.query;
     try {
       const res = await fetch(`/api/admin/orders${q}`);
-      if (res.ok) {
-        const incoming: Order[] = await res.json();
-        // Sólo alerta tras haber "sembrado" los pedidos existentes de esta vista.
-        const seeded = initedViews.current.has(v);
-        if (seeded && alertsRef.current) {
-          const fresh = incoming.filter(o => o.status === 'pendiente' && !knownIds.current.has(o.id));
-          if (fresh.length > 0) { playBeep(); fresh.forEach(notify); }
-        }
-        incoming.forEach(o => knownIds.current.add(o.id));
-        initedViews.current.add(v);
-        setOrders(incoming);
-      } else if (!silent) setOrders([]);
+      if (res.ok) setOrders(await res.json());
+      else if (!silent) setOrders([]);
     } catch { if (!silent) setOrders([]); } finally { if (!silent) setLoading(false); }
-  }, [playBeep, notify]);
+  }, []);
 
   useEffect(() => { load(view); }, [view, load]);
 
@@ -210,7 +155,6 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
     try {
       const res = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
-      knownIds.current.delete(id);
     } catch {
       setOrders(prev); // revierte si falla
       setToast('No se pudo eliminar el pedido. Revisa tu conexión e intenta de nuevo.');
