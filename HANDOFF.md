@@ -30,6 +30,19 @@ Lee esto primero para no re-explorar. Para el detalle histórico (PWA, alertas a
 
 ---
 
+## 1b. EN CURSO (sin commitear) — Fixes panel admin + tasas (14-jun-2026)
+Pedidos del usuario, todos verificados (`tsc` verde + preview MCP en vivo):
+1. **Dirección manual al mayor** (`WholesalePage.tsx`): el checkout mayorista solo tenía GPS. Ahora hay campo de texto "Dirección de entrega" siempre visible; el GPS quedó opcional debajo. `delivery_type='delivery'` si hay dirección escrita o GPS.
+2. **Tasa BCV/COP siempre visible + recarga manual** (`admin/ProductsPanel.tsx`): barra fija arriba del buscador con `1 USD = Bs X · COP Y` + hora + botón recargar. El botón llama `/api/rates?refresh=1`.
+3. **Fuentes de tasa CORREGIDAS** (`lib/rates.ts`, `api/rates/route.ts`): el BCV salía mal (582 vs oficial 587). **`ve.dolarapi.com/v1/dolares/oficial` campo `promedio` = BCV oficial EXACTO** → ahora va de PRIMERA fuente (pydolarve quedó de respaldo, iba atrasado/caído). COP ya no está hardcodeado a 4200 → se consulta en vivo (`open.er-api.com` → `rates.COP`, fallback `currency-api`); hoy ~3503. Nuevo `fetchCopRate()`; `getExchangeRates()` trae ambos en paralelo. `/api/rates?refresh=1` ignora el caché del día. Fallbacks internos: Bs 587.41, COP 3500. **COP solo es informativo** (no afecta precios de productos: los sin `price_cop` quedan bloqueados en COP, no se convierten).
+4. **Bug label COP en editor** (`admin/ProductEditor.tsx`): el "COP" pisaba el input → padding-left 2.75rem→3.25rem + `pointer-events-none z-10` en el span (detal y mayor).
+5. **Cuadrícula por defecto** (`page.tsx`): `viewMode` inicial `'list'`→`'grid'`.
+6. **Categoría "Incompletos"** (`admin/ProductsPanel.tsx`): chip amarillo `⚠️ Incompletos (N)` que filtra productos a los que les falta unidades/descripción/precio USD-COP detal-mayor (helper `getMissingFields`). NO mueve el producto de su categoría real; muestra etiquetas "Sin {campo}". Hoy 6 incompletos.
+
+**Pendiente inmediato:** decidir commit de TODO lo de §1 + §1b (mismo repo `site/`).
+
+---
+
 ## 2. Pendientes
 - [ ] **Fotos de los 99 productos** → se suben por el **panel admin** (bucket Supabase `product-images`, vía `/api/admin/upload`). NO nombrar archivos por id. Excel guía ya generado: `D:\Claude\claude-webkit\El-Rellenito-productos-fotos.xlsx` (99 productos, best-sellers marcados, columna "¿Foto lista?").
 - [ ] **Emojis → iconos SVG** en headings de categoría (`categoryEmoji` en `products.ts`; usado en ProductList, WholesalePage, ProductsPanel, MetricsPanel). Elegir set Lucide para las 9 categorías. Único ítem de auditoría a11y sin hacer.
@@ -50,7 +63,7 @@ El usuario pidió analizar precios; se encontraron estas incoherencias (decidió
 
 ## 4. Datos clave del sistema
 - Productos cargan de `/api/products` (Supabase) con **fallback estático** `products.ts` (`ProductsContext`). Edits del admin se reflejan vía API.
-- Monedas: COP (default), USD, Bs. `CurrencyContext` + `rates.ts`. Tasa BCV en vivo vía `/api/rates` (cron `api/cron/refresh-rate`); fallback Bs 535.28, COP 4200.
+- Monedas: COP (default), USD, Bs. `CurrencyContext` + `rates.ts`. Tasa BCV en vivo vía `/api/rates` (BCV=`ve.dolarapi.com/oficial`.promedio; COP=`open.er-api.com`.rates.COP; cron `api/cron/refresh-rate`); fallback interno Bs 587.41, COP 3500. Ver §1b.
 - Trigger mayorista: cantidad ≥ 10 del mismo producto conmuta a `wholesale_*`.
 
 ---

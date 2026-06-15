@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { AnimatePresence } from 'framer-motion';
-import { Plus, Search, RefreshCw, Star, Package } from 'lucide-react';
+import { Plus, Search, RefreshCw, Star, Package, AlertTriangle, DollarSign } from 'lucide-react';
 import {
   categories, categoryLabels, categoryEmoji,
   type Product, type ProductCategory,
@@ -13,12 +13,26 @@ import ProductEditor from './ProductEditor';
 
 const FALLBACK_RATES: ExchangeRates = { bs_per_usd: 535.28, cop_per_usd: 4200, updated_at: '' };
 
+function getMissingFields(p: Product): string[] {
+  const missing: string[] = [];
+  if (!p.units?.trim()) missing.push('unidades');
+  if (!p.description?.trim()) missing.push('descripción');
+  if (!p.price_usd) missing.push('precio USD detal');
+  if (p.price_cop == null) missing.push('precio COP detal');
+  if (p.type === 'mayorista' || p.type === 'ambos') {
+    if (!p.wholesale_price_usd) missing.push('precio USD mayor');
+    if (p.wholesale_price_cop == null) missing.push('precio COP mayor');
+  }
+  return missing;
+}
+
 export default function ProductsPanel() {
   const [products, setProducts] = useState<Product[]>([]);
   const [rates, setRates] = useState<ExchangeRates>(FALLBACK_RATES);
   const [loading, setLoading] = useState(true);
+  const [loadingRates, setLoadingRates] = useState(false);
   const [search, setSearch] = useState('');
-  const [catFilter, setCatFilter] = useState<ProductCategory | 'ALL'>('ALL');
+  const [catFilter, setCatFilter] = useState<ProductCategory | 'ALL' | 'INCOMPLETOS'>('ALL');
   const [editing, setEditing] = useState<Product | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -31,19 +45,31 @@ export default function ProductsPanel() {
     } catch { /* ignore */ } finally { setLoading(false); }
   };
 
+  const reloadRates = async () => {
+    setLoadingRates(true);
+    try {
+      // refresh=1 fuerza la consulta en vivo (BCV + COP), ignorando el caché del día.
+      const res = await fetch('/api/rates?refresh=1');
+      if (res.ok) setRates(await res.json());
+    } catch { /* ignore */ } finally { setLoadingRates(false); }
+  };
+
   useEffect(() => { load(); }, []);
+
+  const incompleteProducts = useMemo(() => products.filter(p => getMissingFields(p).length > 0), [products]);
 
   // Filter + group in a single pass over the catalog.
   const grouped = useMemo(() => {
     const q = search.trim().toLowerCase();
     const map: Partial<Record<ProductCategory, Product[]>> = {};
-    for (const p of products) {
-      const matchCat = catFilter === 'ALL' || p.category === catFilter;
+    const source = catFilter === 'INCOMPLETOS' ? incompleteProducts : products;
+    for (const p of source) {
+      const matchCat = catFilter === 'ALL' || catFilter === 'INCOMPLETOS' || p.category === catFilter;
       const matchSearch = !q || p.name.toLowerCase().includes(q) || (p.description ?? '').toLowerCase().includes(q);
       if (matchCat && matchSearch) (map[p.category] ??= []).push(p);
     }
     return map;
-  }, [products, search, catFilter]);
+  }, [products, search, catFilter, incompleteProducts]);
 
   const visibleCats = categories.filter(c => (grouped[c]?.length ?? 0) > 0);
 
@@ -59,8 +85,37 @@ export default function ProductsPanel() {
     setEditing(null);
   };
 
+  const rateUpdatedAt = rates.updated_at
+    ? new Date(rates.updated_at).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })
+    : null;
+
   return (
     <div>
+      {/* BCV Rate bar — siempre visible */}
+      <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 mb-3 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+        <DollarSign className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand)' }} />
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-3)' }}>Tasa BCV</p>
+          <p className="text-[13px] font-bold leading-tight" style={{ color: 'var(--text-1)' }}>
+            1 USD = Bs {rates.bs_per_usd.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <span className="text-[11px] font-normal ml-2" style={{ color: 'var(--text-3)' }}>
+              · COP {Math.round(rates.cop_per_usd).toLocaleString('es-CO')}
+            </span>
+          </p>
+          {rateUpdatedAt && <p className="text-[9.5px]" style={{ color: 'var(--text-3)' }}>Act. {rateUpdatedAt}</p>}
+        </div>
+        <button
+          onClick={reloadRates}
+          disabled={loadingRates}
+          className="btn btn-ghost"
+          style={{ padding: '8px', minWidth: 44, minHeight: 44, border: '1px solid var(--border)' }}
+          aria-label="Recargar tasa BCV"
+          title="Recargar tasa BCV"
+        >
+          <RefreshCw className={`w-4 h-4 ${loadingRates ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
       {/* Toolbar */}
       <div className="flex items-center gap-2 mb-3">
         <div className="relative flex-1">
@@ -73,7 +128,7 @@ export default function ProductsPanel() {
             style={{ paddingLeft: '2.25rem' }}
           />
         </div>
-        <button onClick={load} className="btn btn-ghost" style={{ padding: '10px', minWidth: 44, minHeight: 44, border: '1px solid var(--border)' }} aria-label="Recargar">
+        <button onClick={load} className="btn btn-ghost" style={{ padding: '10px', minWidth: 44, minHeight: 44, border: '1px solid var(--border)' }} aria-label="Recargar productos">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
@@ -81,12 +136,29 @@ export default function ProductsPanel() {
       {/* Category chips */}
       <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-2 mb-2">
         <Chip active={catFilter === 'ALL'} onClick={() => setCatFilter('ALL')}>Todas ({products.length})</Chip>
+        {incompleteProducts.length > 0 && (
+          <button
+            onClick={() => setCatFilter('INCOMPLETOS')}
+            className="flex-shrink-0 px-3 py-1.5 min-h-11 rounded-full text-[12px] font-semibold border transition-colors whitespace-nowrap inline-flex items-center gap-1"
+            style={catFilter === 'INCOMPLETOS'
+              ? { borderColor: '#D97706', background: '#FEF9C3', color: '#B45309' }
+              : { borderColor: '#FCD34D', background: '#FFFBEB', color: '#92400E' }}
+          >
+            <AlertTriangle className="w-3 h-3" /> Incompletos ({incompleteProducts.length})
+          </button>
+        )}
         {categories.map(c => (
           <Chip key={c} active={catFilter === c} onClick={() => setCatFilter(c)}>
             {categoryEmoji[c]} {categoryLabels[c]}
           </Chip>
         ))}
       </div>
+
+      {catFilter === 'INCOMPLETOS' && incompleteProducts.length > 0 && (
+        <p className="text-[11px] mb-3 flex items-center gap-1" style={{ color: '#92400E' }}>
+          <AlertTriangle className="w-3 h-3" /> Estos productos necesitan información. Toca uno para editarlo.
+        </p>
+      )}
 
       {/* List */}
       {loading ? (
@@ -107,7 +179,13 @@ export default function ProductsPanel() {
               </h3>
               <div className="space-y-2">
                 {grouped[cat]!.map(p => (
-                  <ProductRow key={p.id} product={p} rates={rates} onClick={() => setEditing(p)} />
+                  <ProductRow
+                    key={p.id}
+                    product={p}
+                    rates={rates}
+                    onClick={() => setEditing(p)}
+                    missing={catFilter === 'INCOMPLETOS' ? getMissingFields(p) : undefined}
+                  />
                 ))}
               </div>
             </section>
@@ -153,7 +231,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
-function ProductRow({ product: p, rates, onClick }: { product: Product; rates: ExchangeRates; onClick: () => void }) {
+function ProductRow({ product: p, rates, onClick, missing }: { product: Product; rates: ExchangeRates; onClick: () => void; missing?: string[] }) {
   const cop = toCop(p.price_usd, p.price_cop, rates);
   return (
     <button
@@ -177,6 +255,15 @@ function ProductRow({ product: p, rates, onClick }: { product: Product; rates: E
           <span className="text-[10.5px]" style={{ color: 'var(--text-3)' }}>· COP {cop.toLocaleString('es-CO')}</span>
           {!p.available && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--danger-soft)', color: '#B91C1C' }}>Agotado</span>}
         </div>
+        {missing && missing.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {missing.map(m => (
+              <span key={m} className="text-[9.5px] px-1.5 py-0.5 rounded-md font-semibold" style={{ background: '#FEF9C3', color: '#854D0E' }}>
+                Sin {m}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </button>
   );

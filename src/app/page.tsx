@@ -23,7 +23,7 @@ type AppView = 'catalog' | 'mayor';
 export default function HomePage() {
   const [view, setView] = useState<AppView>('catalog');
   const [search, setSearch] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [status, setStatus] = useState<OpenStatus>({ open: true, label: 'Abierto · Hasta las 7 PM' });
 
   // Compute open/closed client-side (TZ-correct) and refresh every minute.

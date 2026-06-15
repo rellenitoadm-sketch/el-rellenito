@@ -46,6 +46,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
   const [name, setName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [notes, setNotes] = useState('');
+  const [manualAddress, setManualAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>('pago_movil');
   const [advancePct, setAdvancePct] = useState(50);
   const [proofData, setProofData] = useState<ProofData | null>(null);
@@ -114,12 +115,12 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
           is_wholesale: true,
           customer_name: name,
           customer_whatsapp: whatsapp,
-          delivery_type: coords ? 'delivery' : 'retiro',
+          delivery_type: (coords || manualAddress.trim()) ? 'delivery' : 'retiro',
           delivery_zone: locZone?.zone.name ?? null,
           delivery_cost_cop: 0,
           delivery_address: coords
-            ? [locAddress, `https://maps.google.com/?q=${coords.lat},${coords.lng}`].filter(Boolean).join(' · ')
-            : null,
+            ? [locAddress, manualAddress.trim() || null, `https://maps.google.com/?q=${coords.lat},${coords.lng}`].filter(Boolean).join(' · ')
+            : (manualAddress.trim() || null),
           items: cart.map(i => ({ id: i.id, name: i.name, qty: i.qty, price_usd: i.price_usd, price_cop: i.price_cop ?? null })),
           total_usd: totalUsd,
           total_cop: totalCop,
@@ -410,54 +411,61 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                         <input type="tel" inputMode="tel" autoComplete="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="+58 412-000-0000" className="field" />
                       </div>
 
-                      {/* Ubicación GPS (opcional) */}
+                      {/* Ubicación de entrega: dirección escrita + GPS opcional */}
                       <div>
-                        <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Ubicación de entrega</label>
-                        {!coords ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={handleGPS}
-                              disabled={gpsLoading}
-                              className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition-colors disabled:opacity-60"
-                              style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--brand-orange)' }}
-                            >
-                              {gpsLoading
-                                ? <><Loader2 className="w-4 h-4 animate-spin" /> Detectando…</>
-                                : <><Navigation className="w-4 h-4" /> Compartir mi ubicación (GPS)</>
-                              }
-                            </button>
-                            {gpsError && (
-                              <p className="text-[11px] mt-1.5 flex items-center gap-1" style={{ color: 'var(--destructive)' }}>
-                                <AlertCircle className="w-3.5 h-3.5" /> {gpsError}
-                              </p>
-                            )}
-                          </>
-                        ) : (
-                          <div className="rounded-xl p-3 border flex items-start gap-2"
-                            style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                            <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--brand-orange)' }} />
-                            <div className="flex-1 min-w-0">
-                              {locZone && (
-                                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-                                  Zona aproximada: {locZone.zone.name}
+                        <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Dirección de entrega</label>
+                        <input
+                          type="text"
+                          value={manualAddress}
+                          onChange={e => setManualAddress(e.target.value)}
+                          placeholder="Calle, barrio, edificio, punto de referencia…"
+                          className="field"
+                        />
+                        {/* GPS: opcional para precisar la ubicación */}
+                        <div className="mt-2">
+                          {!coords ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={handleGPS}
+                                disabled={gpsLoading}
+                                className="w-full inline-flex items-center justify-center gap-2 py-2 rounded-xl border text-xs font-semibold transition-colors disabled:opacity-60"
+                                style={{ background: 'var(--surface-2)', borderColor: 'var(--border)', color: 'var(--brand-orange)' }}
+                              >
+                                {gpsLoading
+                                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Detectando…</>
+                                  : <><Navigation className="w-3.5 h-3.5" /> Agregar ubicación GPS (opcional)</>
+                                }
+                              </button>
+                              {gpsError && (
+                                <p className="text-[11px] mt-1.5 flex items-center gap-1" style={{ color: 'var(--destructive)' }}>
+                                  <AlertCircle className="w-3.5 h-3.5" /> {gpsError}
                                 </p>
                               )}
-                              {locAddress && (
-                                <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: 'var(--text-muted)' }}>{locAddress}</p>
-                              )}
-                              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Ubicación compartida ✓</p>
+                            </>
+                          ) : (
+                            <div className="rounded-xl p-2.5 border flex items-center gap-2"
+                              style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                              <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--brand-orange)' }} />
+                              <div className="flex-1 min-w-0">
+                                {locZone && (
+                                  <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>GPS: {locZone.zone.name}</p>
+                                )}
+                                {locAddress && (
+                                  <p className="text-[10px] mt-0.5 line-clamp-1" style={{ color: 'var(--text-muted)' }}>{locAddress}</p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={resetLoc}
+                                className="text-[11px] font-semibold flex-shrink-0 underline"
+                                style={{ color: 'var(--text-secondary)' }}
+                              >
+                                Quitar
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={resetLoc}
-                              className="text-[11px] font-semibold flex-shrink-0 underline"
-                              style={{ color: 'var(--text-secondary)' }}
-                            >
-                              Cambiar
-                            </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
 
                       <div>

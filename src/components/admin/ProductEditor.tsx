@@ -219,8 +219,8 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
                 <input type="number" inputMode="decimal" step="0.01" value={priceUsd} onChange={e => setPriceUsd(e.target.value)} placeholder="USD" aria-label="Precio al detal USD" className="field" style={{ paddingLeft: '1.75rem' }} />
               </div>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold" style={{ color: 'var(--text-3)' }}>COP</span>
-                <input type="number" inputMode="numeric" step="1" value={priceCop} onChange={e => setPriceCop(e.target.value)} placeholder={cop ? cop.toLocaleString('es-CO') : 'COP'} aria-label="Precio al detal COP" className="field" style={{ paddingLeft: '2.75rem' }} />
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold pointer-events-none z-10" style={{ color: 'var(--text-3)' }}>COP</span>
+                <input type="number" inputMode="numeric" step="1" value={priceCop} onChange={e => setPriceCop(e.target.value)} placeholder={cop ? cop.toLocaleString('es-CO') : '0'} aria-label="Precio al detal COP" className="field" style={{ paddingLeft: '3.25rem' }} />
               </div>
             </div>
             <div className="flex gap-2 mt-1.5 text-[11px]" style={{ color: 'var(--text-3)' }}>
@@ -241,8 +241,8 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
                   <input type="number" inputMode="decimal" step="0.01" value={wholesaleUsd} onChange={e => setWholesaleUsd(e.target.value)} placeholder="USD" aria-label="Precio al mayor USD" className="field" style={{ paddingLeft: '1.75rem' }} />
                 </div>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold" style={{ color: 'var(--text-3)' }}>COP</span>
-                  <input type="number" inputMode="numeric" step="1" value={wholesaleCop} onChange={e => setWholesaleCop(e.target.value)} placeholder="COP" aria-label="Precio al mayor COP" className="field" style={{ paddingLeft: '2.75rem' }} />
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold pointer-events-none z-10" style={{ color: 'var(--text-3)' }}>COP</span>
+                  <input type="number" inputMode="numeric" step="1" value={wholesaleCop} onChange={e => setWholesaleCop(e.target.value)} placeholder="0" aria-label="Precio al mayor COP" className="field" style={{ paddingLeft: '3.25rem' }} />
                 </div>
               </div>
             </div>
