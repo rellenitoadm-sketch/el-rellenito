@@ -60,17 +60,17 @@ export default function Header({ onMayorClick, status }: HeaderProps) {
           transition={{ duration: 0.45, type: 'spring', stiffness: 200, damping: 18 }}
         >
           <div
-            className="w-[180px] h-[180px] rounded-full overflow-hidden bg-white p-[3px]"
+            className="w-[196px] h-[196px] rounded-full overflow-hidden bg-white p-[3px]"
             style={{ boxShadow: '0 14px 44px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.45)' }}
           >
-            <div className="w-full h-full rounded-full overflow-hidden">
+            <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
               <Image
-                src="/logo-circle.png"
+                src="/logo-hero.png"
                 alt="Pasapalos El Rellenito"
-                width={360}
-                height={360}
+                width={392}
+                height={392}
                 priority
-                className="object-cover w-full h-full"
+                className="object-contain w-full h-full"
               />
             </div>
           </div>

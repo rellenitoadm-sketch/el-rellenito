@@ -43,6 +43,17 @@ Pedidos del usuario, todos verificados (`tsc` verde + preview MCP en vivo):
 
 ---
 
+## 1c. DEPLOY + NOTIFICACIONES (commiteado, 15-jun-2026)
+**Repo:** `https://github.com/rellenitoadm-sketch/el-rellenito` (privado). `site/` es ese repo. Push a `main` → auto-deploy en Vercel (proyecto `el-rellenito`, dominio **elrellenito.com** vía Namecheap: A `@`→216.198.79.1, CNAME `www`→cname.vercel-dns-0.com). ⚠️ El MCP de Vercel está en otra cuenta/scope (no ve el proyecto).
+
+**Notificaciones push (nuevo):** `web-push` + VAPID. Tabla Supabase `push_subscriptions` (RLS, solo service_role). Flujo:
+- `lib/push.ts` (envío), `api/admin/push` (suscribir/desuscribir), `POST /api/orders` envía push con conteo de pendientes.
+- `public/sw.js` → handlers `push`/`notificationclick` + `setAppBadge`.
+- `components/StaffAlerts.tsx` (montado en `layout.tsx`): provider global; solo se activa si `/api/admin/me` OK; suena el "ding" en cualquier pantalla (incl. catálogo), pinta badge, suscribe push. `OrdersPanel` delega en él (su campana dispara `rl-enable-alerts`/`rl-disable-alerts`; estado en localStorage `rl_admin_alerts`).
+- ⚠️ **Vercel necesita 3 env vars** para que el push funcione en prod: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (están en `.env.local`). La PUBLIC es build-time → tras agregarlas hay que **Redeploy**.
+
+**Otros fixes (mismo commit):** imagen footer (`/logo.png` 404 → `/logo-circle.png`); iconos PWA regenerados al 80% (`scripts/gen-icons.mjs` con sharp); 5 taps en logo no re-piden PIN si hay sesión (`StaffUnlock` verifica `/api/admin/me`).
+
 ## 2. Pendientes
 - [ ] **Fotos de los 99 productos** → se suben por el **panel admin** (bucket Supabase `product-images`, vía `/api/admin/upload`). NO nombrar archivos por id. Excel guía ya generado: `D:\Claude\claude-webkit\El-Rellenito-productos-fotos.xlsx` (99 productos, best-sellers marcados, columna "¿Foto lista?").
 - [ ] **Emojis → iconos SVG** en headings de categoría (`categoryEmoji` en `products.ts`; usado en ProductList, WholesalePage, ProductsPanel, MetricsPanel). Elegir set Lucide para las 9 categorías. Único ítem de auditoría a11y sin hacer.

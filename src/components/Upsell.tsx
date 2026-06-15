@@ -36,12 +36,12 @@ export default function Upsell() {
         {upsell.map(p => (
           <div
             key={p.id}
-            className="flex-shrink-0 w-[138px] rounded-2xl overflow-hidden border flex flex-col"
+            className="flex-shrink-0 w-[150px] rounded-2xl overflow-hidden border flex flex-col"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
-            <div className="w-full h-20 flex items-center justify-center text-3xl" style={{ background: 'var(--surface-2)' }}>
+            <div className="relative w-full aspect-square flex items-center justify-center text-4xl" style={{ background: 'var(--surface-2)' }}>
               {p.image_url ? (
-                <Image src={p.image_url} alt={p.name} width={138} height={80} className="object-cover w-full h-full" />
+                <Image src={p.image_url} alt={p.name} fill sizes="150px" className="object-contain p-1.5" />
               ) : (
                 <span>{categoryEmoji[p.category]}</span>
               )}

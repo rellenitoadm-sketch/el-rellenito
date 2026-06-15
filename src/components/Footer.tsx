@@ -118,7 +118,7 @@ export default function Footer() {
       </div>
 
       {/* Quiénes somos */}
-      <div className="px-5 py-6 border-b" style={{ borderColor: 'var(--border-light)' }}>
+      <div id="quienes-somos" className="px-5 py-6 border-b scroll-mt-24" style={{ borderColor: 'var(--border-light)' }}>
         <h3 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-orange)' }}>
           Quiénes somos
         </h3>
@@ -130,7 +130,7 @@ export default function Footer() {
       </div>
 
       {/* FAQ */}
-      <div className="px-5 py-6 border-b" style={{ borderColor: 'var(--border-light)' }}>
+      <div id="faq" className="px-5 py-6 border-b scroll-mt-24" style={{ borderColor: 'var(--border-light)' }}>
         <h3 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-orange)' }}>
           Preguntas frecuentes
         </h3>
@@ -142,7 +142,7 @@ export default function Footer() {
       </div>
 
       {/* PQRS */}
-      <div className="px-5 py-6 border-b" style={{ borderColor: 'var(--border-light)' }}>
+      <div id="pqrs" className="px-5 py-6 border-b scroll-mt-24" style={{ borderColor: 'var(--border-light)' }}>
         <h3 className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--brand-orange)' }}>
           PQRS
         </h3>

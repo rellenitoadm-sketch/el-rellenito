@@ -75,6 +75,11 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
           {product.units && (
             <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>{product.units}</p>
           )}
+          {product.description && (
+            <p className="text-[11px] mt-1 leading-snug" style={{ color: 'var(--text-2)' }}>
+              {product.description}
+            </p>
+          )}
           {priced ? (
             <p className="text-[15px] font-bold mt-1.5 t-num" style={{ color: 'var(--text-1)' }}>
               {format(product.price_usd, product.price_cop)}
@@ -179,7 +184,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
           </p>
         )}
         {product.description && (
-          <p className="text-[12px] mt-0.5 line-clamp-1" style={{ color: 'var(--text-2)' }}>
+          <p className="text-[12px] mt-0.5 leading-snug" style={{ color: 'var(--text-2)' }}>
             {product.description}
           </p>
         )}

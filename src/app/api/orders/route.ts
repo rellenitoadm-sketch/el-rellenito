@@ -3,6 +3,7 @@ import { saveOrder, supabaseAdmin, type OrderInsert } from '@/lib/supabase';
 import { checkRateLimit, recordFailure } from '@/lib/rateLimit';
 import { getClientIp } from '@/lib/getClientIp';
 import { sendPushToAll } from '@/lib/push';
+import { fireOrderEvent } from '@/lib/webhook';
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,6 +60,25 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.warn('Push notify:', err);
     }
+
+    // Webhook saliente para automatizaciones (n8n) — best-effort.
+    await fireOrderEvent('order.created', {
+      id: result.id,
+      customer_name: body.customer_name,
+      customer_whatsapp: body.customer_whatsapp,
+      status: 'pendiente',
+      total_usd: body.total_usd,
+      total_cop: body.total_cop ?? null,
+      currency_shown: body.currency_shown,
+      is_wholesale: body.is_wholesale ?? false,
+      delivery_type: body.delivery_type,
+      delivery_zone: body.delivery_zone ?? null,
+      delivery_address: body.delivery_address ?? null,
+      payment_method: body.payment_method,
+      scheduled_date: body.scheduled_date ?? null,
+      scheduled_time: body.scheduled_time ?? null,
+      items: body.items,
+    });
 
     return NextResponse.json({ id: result.id, status: 'pendiente' }, { status: 201 });
   } catch (err) {

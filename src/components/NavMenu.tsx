@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, Home, Sparkles, ChevronRight, Shield } from 'lucide-react';
+import { Menu, X, Home, Sparkles, ChevronRight, Shield, Info, HelpCircle, MessageSquareWarning } from 'lucide-react';
 import { categories, categoryLabels } from '@/lib/products';
 
 interface NavMenuProps {
@@ -42,6 +42,14 @@ export default function NavMenu({ onMayorClick }: NavMenuProps) {
     // Espera a que cierre el drawer (desbloquea el scroll) antes de desplazar.
     setTimeout(() => {
       document.getElementById(`section-${cat}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 220);
+  };
+
+  // Secciones informativas del footer (Quiénes somos, FAQ, PQRS).
+  const goToSection = (id: string) => {
+    setOpen(false);
+    setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 220);
   };
 
@@ -128,6 +136,25 @@ export default function NavMenu({ onMayorClick }: NavMenuProps) {
                     <ChevronRight className="w-4 h-4 ml-auto" style={{ color: 'var(--text-3)' }} />
                   </button>
                 ))}
+
+                <p className="px-4 pt-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
+                  Información
+                </p>
+                <button onClick={() => goToSection('quienes-somos')} className="nav-row">
+                  <Info className="w-[18px] h-[18px]" style={{ color: 'var(--text-2)' }} />
+                  <span>Quiénes somos</span>
+                  <ChevronRight className="w-4 h-4 ml-auto" style={{ color: 'var(--text-3)' }} />
+                </button>
+                <button onClick={() => goToSection('faq')} className="nav-row">
+                  <HelpCircle className="w-[18px] h-[18px]" style={{ color: 'var(--text-2)' }} />
+                  <span>Preguntas frecuentes</span>
+                  <ChevronRight className="w-4 h-4 ml-auto" style={{ color: 'var(--text-3)' }} />
+                </button>
+                <button onClick={() => goToSection('pqrs')} className="nav-row">
+                  <MessageSquareWarning className="w-[18px] h-[18px]" style={{ color: 'var(--text-2)' }} />
+                  <span>PQRS</span>
+                  <ChevronRight className="w-4 h-4 ml-auto" style={{ color: 'var(--text-3)' }} />
+                </button>
 
                 <p className="px-4 pt-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
                   Contacto

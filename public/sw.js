@@ -45,6 +45,10 @@ self.addEventListener('push', (event) => {
       body,
       tag,
       renotify: true,
+      // No silenciosa → el SO reproduce el sonido de notificación aunque la app
+      // esté cerrada. requireInteraction la mantiene visible hasta que la toquen.
+      silent: false,
+      requireInteraction: true,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       vibrate: [120, 60, 120],

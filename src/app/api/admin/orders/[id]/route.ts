@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { mockStore } from '@/lib/mockStore';
 import { isAuthorized, requireRole } from '@/lib/adminAuth';
+import { fireOrderEvent } from '@/lib/webhook';
 
 // Only these status values may be set, and only via this endpoint.
 const VALID_STATUSES = ['pendiente', 'confirmado', 'en_camino', 'entregado', 'cancelado'] as const;
@@ -31,14 +32,31 @@ export async function PATCH(
     return NextResponse.json({ id, ...patch });
   }
 
-  const { error } = await db
+  const { data: updated, error } = await db
     .from('orders')
     .update(patch)
-    .eq('id', id);
+    .eq('id', id)
+    .select('id, customer_name, customer_whatsapp, status, total_usd, total_cop, is_wholesale, delivery_zone, scheduled_date, scheduled_time')
+    .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Webhook saliente para automatizaciones (n8n): WhatsApp de "en camino",
+  // "cancelado", etc. según el nuevo estado. Best-effort.
+  await fireOrderEvent('order.status_changed', {
+    id,
+    status: patch.status,
+    customer_name: updated?.customer_name,
+    customer_whatsapp: updated?.customer_whatsapp,
+    total_usd: updated?.total_usd,
+    total_cop: updated?.total_cop ?? null,
+    is_wholesale: updated?.is_wholesale ?? undefined,
+    delivery_zone: updated?.delivery_zone ?? null,
+    scheduled_date: updated?.scheduled_date ?? null,
+    scheduled_time: updated?.scheduled_time ?? null,
+  });
 
   return NextResponse.json({ success: true });
 }

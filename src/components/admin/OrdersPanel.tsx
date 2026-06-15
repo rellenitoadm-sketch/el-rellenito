@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import {
   RefreshCw, Package, CheckCircle, Truck, XCircle, Clock, CalendarDays,
-  Receipt, ImageIcon, BadgeCheck, Banknote, X, Bell, BellOff, AlertCircle, Trash2,
+  Receipt, ImageIcon, BadgeCheck, Banknote, X, Bell, BellOff, AlertCircle, Trash2, MapPin,
 } from 'lucide-react';
 import type { StaffRole } from '@/lib/adminAuth';
 
@@ -249,11 +249,19 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
                       {order.customer_whatsapp}
                     </a>
                     {order.delivery_zone && <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-2)' }}>📍 {order.delivery_zone}</p>}
-                    {(addrText || mapsUrl) && (
-                      <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-2)' }}>
-                        {addrText && <span>{addrText} </span>}
-                        {mapsUrl && <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="font-semibold underline" style={{ color: 'var(--brand)' }}>Ver ubicación</a>}
-                      </p>
+                    {addrText && (
+                      <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-2)' }}>{addrText}</p>
+                    )}
+                    {mapsUrl && (
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-1 text-[12px] font-semibold px-2.5 py-1 rounded-lg"
+                        style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}
+                      >
+                        <MapPin className="w-3.5 h-3.5" /> Ver mapa
+                      </a>
                     )}
                     {order.scheduled_date && (
                       <p className="text-[12px] mt-0.5 inline-flex items-center gap-1" style={{ color: 'var(--text-2)' }}>
