@@ -200,7 +200,7 @@ body {
   border: 1px solid var(--border-strong);
   border-radius: var(--r-md);
   padding: 10px 12px;
-  font-size: 14px;
+  font-size: 16px; /* ≥16px evita el auto-zoom de Safari iOS al enfocar */
   color: var(--text-1);
   transition: border-color 0.15s, box-shadow 0.15s;
 }

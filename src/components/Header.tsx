@@ -53,6 +53,10 @@ export default function Header({ onMayorClick, status }: HeaderProps) {
 
       {/* Hero content — normal flow */}
       <div className="relative flex flex-col items-center text-center text-white px-5 pt-7 pb-6">
+        {/* H1 de la página (oculto visualmente; SEO + lectores de pantalla).
+            La marca ya se comunica por el logo. */}
+        <h1 className="sr-only">Pasapalos El Rellenito — Tequeños y pasapalos en La Concordia</h1>
+
         {/* Circular logo (full mark: chef + El Rellenito) */}
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}

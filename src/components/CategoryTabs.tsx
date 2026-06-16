@@ -89,7 +89,7 @@ export default function CategoryTabs({ onMayorClick, revalidationKey }: Category
           <button
             key={tab.id}
             onClick={() => handleClick(tab.id)}
-            className="relative flex-shrink-0 px-3 py-3 text-[13px] transition-colors
+            className="relative flex-shrink-0 inline-flex items-center justify-center px-3 min-h-[44px] text-[13px] transition-colors
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-1 rounded-sm"
             style={{
               color: isActive ? 'var(--text-1)' : 'var(--text-3)',

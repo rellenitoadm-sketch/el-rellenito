@@ -44,10 +44,9 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
     return (
       <motion.article
         initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+        animate={{ opacity: purchasable ? 1 : 0.55, y: 0 }}
         transition={{ delay: Math.min(index, 8) * 0.03, duration: 0.25 }}
         className="card overflow-hidden flex flex-col"
-        style={{ opacity: purchasable ? 1 : 0.55 }}
       >
         <div className="relative w-full aspect-square flex items-center justify-center text-4xl"
           style={{ background: 'linear-gradient(135deg, var(--surface-2), var(--surface-3))' }}>
@@ -143,10 +142,9 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
   return (
     <motion.article
       initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{ opacity: purchasable ? 1 : 0.55, y: 0 }}
       transition={{ delay: Math.min(index, 8) * 0.03, duration: 0.25 }}
       className="card flex items-center gap-3 p-3 transition-all duration-200"
-      style={{ opacity: purchasable ? 1 : 0.55 }}
     >
       {/* Image */}
       <div

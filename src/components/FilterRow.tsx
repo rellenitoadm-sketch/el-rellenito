@@ -47,12 +47,15 @@ export default function FilterRow({ search, onSearchChange, viewMode, onViewMode
             style={{ color: 'var(--text-3)' }}
           />
           <input
-            type="text"
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            aria-label="Buscar producto"
             placeholder="Buscar producto…"
             value={search}
             onChange={e => onSearchChange(e.target.value)}
             className="field"
-            style={{ paddingLeft: '2.5rem' }}
+            style={{ paddingLeft: '2.5rem', minHeight: 44 }}
           />
         </div>
 
@@ -60,9 +63,10 @@ export default function FilterRow({ search, onSearchChange, viewMode, onViewMode
         <div className="relative flex-shrink-0" ref={dropdownRef}>
           <button
             onClick={() => setCurrencyOpen(o => !o)}
-            className="flex items-center gap-1 px-2.5 py-2 rounded-[10px] text-[12px] font-bold transition-colors"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-1)', border: '1px solid var(--border)' }}
+            className="flex items-center gap-1 px-2.5 rounded-[10px] text-[12px] font-bold transition-colors"
+            style={{ background: 'var(--surface-2)', color: 'var(--text-1)', border: '1px solid var(--border)', minHeight: 44 }}
             aria-label="Cambiar moneda"
+            aria-haspopup="listbox"
             aria-expanded={currencyOpen}
           >
             <span className="min-w-[26px] text-center">{activeLabel}</span>
@@ -82,7 +86,7 @@ export default function FilterRow({ search, onSearchChange, viewMode, onViewMode
                   <button
                     key={c.id}
                     onClick={() => { setCurrency(c.id); setCurrencyOpen(false); }}
-                    className="w-full flex items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-[var(--surface-2)]"
+                    className="w-full flex items-center gap-3 px-3.5 py-2.5 min-h-[44px] text-left transition-colors hover:bg-[var(--surface-2)]"
                   >
                     <span
                       className="w-9 flex-shrink-0 text-[14px] font-bold"
@@ -107,7 +111,7 @@ export default function FilterRow({ search, onSearchChange, viewMode, onViewMode
         <div className="flex rounded-[10px] overflow-hidden flex-shrink-0" style={{ border: '1px solid var(--border)' }}>
           <button
             onClick={() => onViewModeChange('list')}
-            className="p-2 transition-colors"
+            className="flex items-center justify-center min-h-[44px] min-w-[44px] transition-colors"
             style={{
               background: viewMode === 'list' ? 'var(--brand)' : 'var(--surface-2)',
               color: viewMode === 'list' ? '#fff' : 'var(--text-3)',
@@ -118,7 +122,7 @@ export default function FilterRow({ search, onSearchChange, viewMode, onViewMode
           </button>
           <button
             onClick={() => onViewModeChange('grid')}
-            className="p-2 transition-colors"
+            className="flex items-center justify-center min-h-[44px] min-w-[44px] transition-colors"
             style={{
               background: viewMode === 'grid' ? 'var(--brand)' : 'var(--surface-2)',
               color: viewMode === 'grid' ? '#fff' : 'var(--text-3)',
