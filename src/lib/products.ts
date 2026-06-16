@@ -1,13 +1,9 @@
-export type ProductCategory =
-  | 'TEQUEÑOS'
-  | 'PASAPALOS'
-  | 'MASAS'
-  | 'PANADERIA'
-  | 'CAFETÍN'
-  | 'SALSAS'
-  | 'BEBIDAS'
-  | 'POSTRES'
-  | 'COMBOS';
+/**
+ * Clave de categoría. Es un `string` para permitir categorías DINÁMICAS creadas
+ * desde el panel admin (tabla Supabase `categories`). Las 9 base están abajo en
+ * `categories` / `categoryLabels` / `categoryEmoji` y sirven de fallback.
+ */
+export type ProductCategory = string;
 
 export type ProductType = 'detal' | 'mayorista' | 'ambos';
 

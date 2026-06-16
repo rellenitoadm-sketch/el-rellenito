@@ -3,13 +3,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { AnimatePresence } from 'framer-motion';
-import { Plus, Search, RefreshCw, Star, Package, AlertTriangle, DollarSign } from 'lucide-react';
-import {
-  categories, categoryLabels, categoryEmoji,
-  type Product, type ProductCategory,
-} from '@/lib/products';
+import { Plus, Search, RefreshCw, Star, Package, AlertTriangle, DollarSign, Tags } from 'lucide-react';
+import { type Product, type ProductCategory } from '@/lib/products';
 import { toCop, type ExchangeRates } from '@/lib/rates';
+import { useCategories } from '../CategoriesContext';
 import ProductEditor from './ProductEditor';
+import CategoryManager from './CategoryManager';
 
 const FALLBACK_RATES: ExchangeRates = { bs_per_usd: 535.28, cop_per_usd: 4200, updated_at: '' };
 
@@ -27,6 +26,7 @@ function getMissingFields(p: Product): string[] {
 }
 
 export default function ProductsPanel() {
+  const { order, labelOf, emojiOf } = useCategories();
   const [products, setProducts] = useState<Product[]>([]);
   const [rates, setRates] = useState<ExchangeRates>(FALLBACK_RATES);
   const [loading, setLoading] = useState(true);
@@ -35,6 +35,7 @@ export default function ProductsPanel() {
   const [catFilter, setCatFilter] = useState<ProductCategory | 'ALL' | 'INCOMPLETOS'>('ALL');
   const [editing, setEditing] = useState<Product | null>(null);
   const [creating, setCreating] = useState(false);
+  const [managingCats, setManagingCats] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -71,7 +72,11 @@ export default function ProductsPanel() {
     return map;
   }, [products, search, catFilter, incompleteProducts]);
 
-  const visibleCats = categories.filter(c => (grouped[c]?.length ?? 0) > 0);
+  const presentCats = Object.keys(grouped).filter(c => (grouped[c as ProductCategory]?.length ?? 0) > 0);
+  const visibleCats = [
+    ...order.filter(c => presentCats.includes(c)),
+    ...presentCats.filter(c => !order.includes(c)),
+  ];
 
   const handleSaved = (saved: Product) => {
     setProducts(prev => {
@@ -128,6 +133,9 @@ export default function ProductsPanel() {
             style={{ paddingLeft: '2.25rem' }}
           />
         </div>
+        <button onClick={() => setManagingCats(true)} className="btn btn-ghost" style={{ padding: '10px', minWidth: 44, minHeight: 44, border: '1px solid var(--border)' }} aria-label="Gestionar categorías" title="Gestionar categorías">
+          <Tags className="w-4 h-4" />
+        </button>
         <button onClick={load} className="btn btn-ghost" style={{ padding: '10px', minWidth: 44, minHeight: 44, border: '1px solid var(--border)' }} aria-label="Recargar productos">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
@@ -147,9 +155,9 @@ export default function ProductsPanel() {
             <AlertTriangle className="w-3 h-3" /> Incompletos ({incompleteProducts.length})
           </button>
         )}
-        {categories.map(c => (
+        {order.map(c => (
           <Chip key={c} active={catFilter === c} onClick={() => setCatFilter(c)}>
-            {categoryEmoji[c]} {categoryLabels[c]}
+            {emojiOf(c)} {labelOf(c)}
           </Chip>
         ))}
       </div>
@@ -174,7 +182,7 @@ export default function ProductsPanel() {
           {visibleCats.map(cat => (
             <section key={cat}>
               <h3 className="text-[12px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-2)' }}>
-                <span>{categoryEmoji[cat]}</span> {categoryLabels[cat]}
+                <span>{emojiOf(cat)}</span> {labelOf(cat)}
                 <span className="font-normal" style={{ color: 'var(--text-3)' }}>· {grouped[cat]!.length}</span>
               </h3>
               <div className="space-y-2">
@@ -183,6 +191,7 @@ export default function ProductsPanel() {
                     key={p.id}
                     product={p}
                     rates={rates}
+                    emoji={emojiOf(p.category)}
                     onClick={() => setEditing(p)}
                     missing={catFilter === 'INCOMPLETOS' ? getMissingFields(p) : undefined}
                   />
@@ -213,6 +222,10 @@ export default function ProductsPanel() {
           />
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {managingCats && <CategoryManager onClose={() => setManagingCats(false)} />}
+      </AnimatePresence>
     </div>
   );
 }
@@ -231,7 +244,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
-function ProductRow({ product: p, rates, onClick, missing }: { product: Product; rates: ExchangeRates; onClick: () => void; missing?: string[] }) {
+function ProductRow({ product: p, rates, emoji, onClick, missing }: { product: Product; rates: ExchangeRates; emoji: string; onClick: () => void; missing?: string[] }) {
   const cop = toCop(p.price_usd, p.price_cop, rates);
   return (
     <button
@@ -242,7 +255,7 @@ function ProductRow({ product: p, rates, onClick, missing }: { product: Product;
       <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'var(--surface-2)' }}>
         {p.image_url
           ? <Image src={p.image_url} alt="" width={48} height={48} className="object-cover w-full h-full" unoptimized />
-          : <span className="text-xl">{categoryEmoji[p.category]}</span>}
+          : <span className="text-xl">{emoji}</span>}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">

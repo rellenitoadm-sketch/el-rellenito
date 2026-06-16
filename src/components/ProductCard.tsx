@@ -7,7 +7,8 @@ import { useCurrency } from './CurrencyContext';
 import { useCart } from './CartContext';
 import { useBubble } from './AddToCartBubble';
 import { isPricedIn, CURRENCY_NAME } from '@/lib/rates';
-import { categoryEmoji, type Product } from '@/lib/products';
+import { type Product } from '@/lib/products';
+import { useCategories } from './CategoriesContext';
 
 interface ProductCardProps {
   product: Product;
@@ -19,6 +20,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
   const { format, currency } = useCurrency();
   const { addItem, updateQty, items } = useCart();
   const { triggerBubble } = useBubble();
+  const { emojiOf } = useCategories();
 
   const cartItem = items.find(i => i.id === product.id);
   const qty = cartItem?.quantity ?? 0;
@@ -35,7 +37,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
     triggerBubble(rect.left + rect.width / 2, rect.top + rect.height / 2);
   };
 
-  const emoji = categoryEmoji[product.category] ?? '🍽️';
+  const emoji = emojiOf(product.category);
 
   /* ── GRID MODE ── */
   if (viewMode === 'grid') {

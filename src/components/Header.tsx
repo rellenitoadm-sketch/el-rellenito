@@ -60,10 +60,13 @@ export default function Header({ onMayorClick, status }: HeaderProps) {
           transition={{ duration: 0.45, type: 'spring', stiffness: 200, damping: 18 }}
         >
           <div
-            className="w-[196px] h-[196px] rounded-full overflow-hidden bg-white p-[3px]"
-            style={{ boxShadow: '0 14px 44px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.45)' }}
+            className="w-[196px] h-[196px] rounded-full overflow-hidden p-[3px]"
+            style={{ background: 'var(--brand)', boxShadow: '0 14px 44px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.25)' }}
           >
-            <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
+            <div
+              className="w-full h-full rounded-full overflow-hidden flex items-center justify-center"
+              style={{ background: 'var(--brand)' }}
+            >
               <Image
                 src="/logo-hero.png"
                 alt="Pasapalos El Rellenito"

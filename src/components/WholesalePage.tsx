@@ -4,8 +4,8 @@ import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Minus, Plus, ShoppingBag, Check, X, CalendarDays, MapPin, Navigation, Loader2, AlertCircle, Lock } from 'lucide-react';
-import { categories, categoryLabels, categoryEmoji } from '@/lib/products';
 import { useProducts } from './ProductsContext';
+import { useCategories } from './CategoriesContext';
 import { useCurrency } from './CurrencyContext';
 import WholesaleDatePicker from './WholesaleDatePicker';
 import PaymentTabs from './PaymentTabs';
@@ -30,13 +30,14 @@ interface WholesalePageProps {
 export default function WholesalePage({ onBack }: WholesalePageProps) {
   const { format, rates, currency } = useCurrency();
   const { products } = useProducts();
+  const { order, labelOf, emojiOf } = useCategories();
 
   const WHOLESALE_BY_CAT = useMemo(() => {
     const wholesale = products.filter(p => p.type === 'mayorista' || p.type === 'ambos');
-    return categories
+    return order
       .map(cat => ({ cat, items: wholesale.filter(p => p.category === cat) }))
       .filter(g => g.items.length > 0);
-  }, [products]);
+  }, [products, order]);
 
   const [cart, setCart] = useState<WholesaleCartItem[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -215,7 +216,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
               className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
               style={{ background: 'var(--surface)', color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
             >
-              {categoryEmoji[cat]} {categoryLabels[cat]}
+              {emojiOf(cat)} {labelOf(cat)}
             </button>
           ))}
         </nav>
@@ -227,8 +228,8 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
           <section key={cat} id={`wmayor-${cat}`} className="scroll-mt-28">
             <h2 className="text-sm font-bold uppercase tracking-widest mb-3 flex items-center gap-2"
               style={{ color: 'var(--brand-orange)' }}>
-              <span className="text-base">{categoryEmoji[cat]}</span>
-              {categoryLabels[cat]}
+              <span className="text-base">{emojiOf(cat)}</span>
+              {labelOf(cat)}
             </h2>
             <div className="space-y-2.5">
               {items.map(p => {
@@ -246,7 +247,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                       {p.image_url ? (
                         <Image src={p.image_url} alt={p.name} fill className="object-cover" sizes="48px" />
                       ) : (
-                        categoryEmoji[p.category]
+                        emojiOf(p.category)
                       )}
                     </div>
                     <div className="flex-1 min-w-0">

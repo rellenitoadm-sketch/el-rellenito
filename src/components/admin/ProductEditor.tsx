@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { X, Upload, Loader2, Trash2, Star } from 'lucide-react';
-import { categories, categoryLabels, type Product, type ProductCategory, type ProductType } from '@/lib/products';
+import { X, Upload, Loader2, Trash2, Star, Plus } from 'lucide-react';
+import { type Product, type ProductCategory, type ProductType } from '@/lib/products';
 import type { ExchangeRates } from '@/lib/rates';
+import { useCategories } from '../CategoriesContext';
 
 interface ProductEditorProps {
   product: Product | null; // null = creating new
@@ -23,9 +24,36 @@ const TYPE_OPTIONS: { id: ProductType; label: string }[] = [
 
 export default function ProductEditor({ product, rates, onClose, onSaved, onDeleted }: ProductEditorProps) {
   const isNew = product === null;
+  const { order, labelOf, reload: reloadCats } = useCategories();
   const [name, setName] = useState(product?.name ?? '');
   const [units, setUnits] = useState(product?.units ?? '');
-  const [category, setCategory] = useState<ProductCategory>(product?.category ?? 'TEQUEÑOS');
+  const [category, setCategory] = useState<ProductCategory>(product?.category ?? order[0] ?? 'TEQUEÑOS');
+
+  // Crear categoría nueva sin salir del editor.
+  const [addingCat, setAddingCat] = useState(false);
+  const [newCatLabel, setNewCatLabel] = useState('');
+  const [newCatEmoji, setNewCatEmoji] = useState('');
+  const [catSaving, setCatSaving] = useState(false);
+  const [catError, setCatError] = useState('');
+
+  const createCat = async () => {
+    if (!newCatLabel.trim()) { setCatError('Escribe el nombre de la categoría'); return; }
+    setCatSaving(true); setCatError('');
+    try {
+      const res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: newCatLabel.trim(), emoji: newCatEmoji.trim() || '🍽️' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'No se pudo crear');
+      await reloadCats();
+      setCategory(data.key);
+      setAddingCat(false); setNewCatLabel(''); setNewCatEmoji('');
+    } catch (err) {
+      setCatError(err instanceof Error ? err.message : 'Error al crear la categoría');
+    } finally { setCatSaving(false); }
+  };
   const [description, setDescription] = useState(product?.description ?? '');
   const [priceUsd, setPriceUsd] = useState(product?.price_usd?.toString() ?? '');
   const [wholesaleUsd, setWholesaleUsd] = useState(product?.wholesale_price_usd?.toString() ?? '');
@@ -199,9 +227,55 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
           {/* Category */}
           <div>
             <label className="text-[12px] font-semibold block mb-1" style={{ color: 'var(--text-2)' }}>Categoría</label>
-            <select value={category} onChange={e => setCategory(e.target.value as ProductCategory)} className="field">
-              {categories.map(c => <option key={c} value={c}>{categoryLabels[c]}</option>)}
-            </select>
+            <div className="flex gap-2">
+              <select value={category} onChange={e => setCategory(e.target.value)} className="field flex-1">
+                {order.map(c => <option key={c} value={c}>{labelOf(c)}</option>)}
+                {/* Por si el producto tiene una categoría que ya no está en la lista */}
+                {!order.includes(category) && <option value={category}>{labelOf(category)}</option>}
+              </select>
+              <button
+                type="button"
+                onClick={() => { setAddingCat(a => !a); setCatError(''); }}
+                className="btn btn-ghost flex-shrink-0"
+                style={{ border: '1px solid var(--border)', minWidth: 44 }}
+                aria-label="Nueva categoría"
+                title="Crear categoría nueva"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            {addingCat && (
+              <div className="mt-2 p-2.5 rounded-xl border space-y-2" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                <div className="flex gap-2">
+                  <input
+                    value={newCatEmoji}
+                    onChange={e => setNewCatEmoji(e.target.value)}
+                    placeholder="🍽️"
+                    maxLength={4}
+                    className="field text-center"
+                    style={{ width: 56 }}
+                    aria-label="Emoji de la categoría"
+                  />
+                  <input
+                    value={newCatLabel}
+                    onChange={e => setNewCatLabel(e.target.value)}
+                    placeholder="Nombre de la categoría"
+                    className="field flex-1"
+                    aria-label="Nombre de la categoría"
+                  />
+                </div>
+                {catError && <p className="text-[11px]" style={{ color: 'var(--danger)' }}>{catError}</p>}
+                <button
+                  type="button"
+                  onClick={createCat}
+                  disabled={catSaving}
+                  className="btn btn-primary w-full"
+                  style={{ fontSize: 13, minHeight: 40 }}
+                >
+                  {catSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creando…</> : 'Crear categoría'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Description */}

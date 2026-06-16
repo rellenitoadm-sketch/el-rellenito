@@ -2,8 +2,9 @@
 
 import { useMemo } from 'react';
 import ProductCard from './ProductCard';
-import { categories, categoryLabels, categoryEmoji, type ProductCategory } from '@/lib/products';
+import type { ProductCategory } from '@/lib/products';
 import { useProducts } from './ProductsContext';
+import { useCategories } from './CategoriesContext';
 import type { ViewMode } from './FilterRow';
 
 interface ProductListProps {
@@ -13,6 +14,7 @@ interface ProductListProps {
 
 export default function ProductList({ search, viewMode }: ProductListProps) {
   const { products } = useProducts();
+  const { order, labelOf, emojiOf } = useCategories();
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter(p => {
@@ -35,7 +37,13 @@ export default function ProductList({ search, viewMode }: ProductListProps) {
     return map;
   }, [filtered]);
 
-  const visibleCategories = categories.filter(cat => (grouped[cat]?.length ?? 0) > 0);
+  // Ordena por el orden de categorías dinámico; añade al final cualquier
+  // categoría presente en productos que no esté en la lista (defensivo).
+  const present = Object.keys(grouped).filter(k => (grouped[k as ProductCategory]?.length ?? 0) > 0);
+  const visibleCategories = [
+    ...order.filter(c => present.includes(c)),
+    ...present.filter(c => !order.includes(c)),
+  ];
 
   if (visibleCategories.length === 0) {
     return (
@@ -61,8 +69,8 @@ export default function ProductList({ search, viewMode }: ProductListProps) {
               className="t-h3 flex items-center gap-2"
               style={{ color: 'var(--text-1)' }}
             >
-              <span className="text-[20px] leading-none">{categoryEmoji[cat]}</span>
-              {categoryLabels[cat]}
+              <span className="text-[20px] leading-none">{emojiOf(cat)}</span>
+              {labelOf(cat)}
             </h2>
             <span className="text-[11px] font-medium" style={{ color: 'var(--text-3)' }}>
               {(grouped[cat] ?? []).length} {(grouped[cat] ?? []).length === 1 ? 'producto' : 'productos'}

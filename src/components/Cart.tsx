@@ -7,13 +7,14 @@ import Image from 'next/image';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
 import { unitUsd, unitCop, isWholesaleQty, isPricedIn, cartTotals, CURRENCY_NAME } from '@/lib/rates';
-import { categoryEmoji } from '@/lib/products';
+import { useCategories } from './CategoriesContext';
 import Upsell from './Upsell';
 import Checkout from './Checkout';
 
 export default function Cart() {
   const { items, isOpen, closeCart, removeItem, updateQty, itemCount } = useCart();
   const { format, rates, currency } = useCurrency();
+  const { emojiOf } = useCategories();
   const [showCheckout, setShowCheckout] = useState(false);
 
   // Cerrar con tecla Escape (accesibilidad / teclado).
@@ -113,7 +114,7 @@ export default function Cart() {
                             {item.image_url ? (
                               <Image src={item.image_url} alt={item.name} width={48} height={48} className="object-cover w-full h-full" />
                             ) : (
-                              <span className="text-xl">{categoryEmoji[item.category] ?? '🍽️'}</span>
+                              <span className="text-xl">{emojiOf(item.category)}</span>
                             )}
                           </div>
 

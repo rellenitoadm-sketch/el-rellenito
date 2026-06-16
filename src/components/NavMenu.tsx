@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Menu, X, Home, Sparkles, ChevronRight, Shield, Info, HelpCircle, MessageSquareWarning } from 'lucide-react';
-import { categories, categoryLabels } from '@/lib/products';
+import { useCategories } from './CategoriesContext';
 
 interface NavMenuProps {
   onMayorClick: () => void;
@@ -18,6 +18,7 @@ interface NavMenuProps {
  */
 export default function NavMenu({ onMayorClick }: NavMenuProps) {
   const [open, setOpen] = useState(false);
+  const { order, labelOf } = useCategories();
 
   // Cerrar con Escape + bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
@@ -130,9 +131,9 @@ export default function NavMenu({ onMayorClick }: NavMenuProps) {
                 <p className="px-4 pt-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
                   Categorías
                 </p>
-                {categories.map(cat => (
+                {order.map(cat => (
                   <button key={cat} onClick={() => goToCategory(cat)} className="nav-row">
-                    <span>{categoryLabels[cat]}</span>
+                    <span>{labelOf(cat)}</span>
                     <ChevronRight className="w-4 h-4 ml-auto" style={{ color: 'var(--text-3)' }} />
                   </button>
                 ))}

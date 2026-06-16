@@ -6,13 +6,14 @@ import { useMemo } from 'react';
 import { useCurrency } from './CurrencyContext';
 import { useCart } from './CartContext';
 import { useProducts } from './ProductsContext';
+import { useCategories } from './CategoriesContext';
 import { isPricedIn } from '@/lib/rates';
-import { categoryEmoji } from '@/lib/products';
 
 export default function Upsell() {
   const { format, currency } = useCurrency();
   const { addItem, items } = useCart();
   const { products } = useProducts();
+  const { emojiOf } = useCategories();
 
   // Bebidas disponibles y con precio en la moneda activa, best-sellers primero.
   const beveragePool = useMemo(
@@ -43,7 +44,7 @@ export default function Upsell() {
               {p.image_url ? (
                 <Image src={p.image_url} alt={p.name} fill sizes="150px" className="object-contain p-1.5" />
               ) : (
-                <span>{categoryEmoji[p.category]}</span>
+                <span>{emojiOf(p.category)}</span>
               )}
             </div>
             <div className="p-2.5 flex flex-col flex-1">

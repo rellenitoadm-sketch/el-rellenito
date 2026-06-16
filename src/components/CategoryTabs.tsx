@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
-import { categories, categoryLabels, type ProductCategory } from '@/lib/products';
+import { useCategories } from './CategoriesContext';
 
 interface CategoryTabsProps {
   onMayorClick: () => void;
@@ -11,21 +11,22 @@ interface CategoryTabsProps {
   revalidationKey?: string;
 }
 
-// Derivado de `categories` (fuente única) → nunca muestra un tab sin productos
-// ni se desincroniza del catálogo (ej. Postres, que ya no tiene productos).
-const TABS: { id: ProductCategory | 'TODOS'; label: string }[] = [
-  { id: 'TODOS', label: 'Todos' },
-  ...categories.map(c => ({ id: c, label: categoryLabels[c] })),
-];
-
 export default function CategoryTabs({ onMayorClick, revalidationKey }: CategoryTabsProps) {
+  const { order, labelOf } = useCategories();
   const [active, setActive] = useState<string>('TODOS');
   const scrollingRef  = useRef(false);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Re-register IO whenever revalidationKey changes (filter/search changes section list)
+  // Derivado de las categorías dinámicas (fuente única).
+  const tabs = useMemo(
+    () => [{ id: 'TODOS', label: 'Todos' }, ...order.map(c => ({ id: c, label: labelOf(c) }))],
+    [order, labelOf],
+  );
+  const orderKey = order.join(',');
+
+  // Re-register IO whenever revalidationKey or the category set changes.
   useEffect(() => {
-    const sectionIds = TABS.filter(t => t.id !== 'TODOS').map(t => t.id as string);
+    const sectionIds = order;
     const observer = new IntersectionObserver(
       entries => {
         if (scrollingRef.current) return;
@@ -56,7 +57,7 @@ export default function CategoryTabs({ onMayorClick, revalidationKey }: Category
       observer.disconnect();
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [revalidationKey]);
+  }, [revalidationKey, orderKey]);
 
   const handleClick = (id: string) => {
     // Clear any pending timer from a previous click
@@ -82,7 +83,7 @@ export default function CategoryTabs({ onMayorClick, revalidationKey }: Category
       className="flex items-center gap-1 overflow-x-auto px-4 scrollbar-none border-b"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
-      {TABS.map(tab => {
+      {tabs.map(tab => {
         const isActive = active === tab.id;
         return (
           <button
