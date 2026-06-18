@@ -26,6 +26,17 @@ export interface Product {
   available: boolean;
   image_url: string | null;
   is_best_seller: boolean;
+  /**
+   * Cantidad mínima del mismo producto que activa la tarifa al mayor.
+   * La columna en Supabase es NOT NULL (default 10); si se omite aquí, la lógica
+   * de precios cae al default global `WHOLESALE_MIN_QTY` (10).
+   */
+  limite_unidades_mayor?: number;
+  /**
+   * Si true, el producto admite servicio de fritos (recargo por bandeja) en
+   * venta individual. Por defecto Tequeños y Pasapalos. Combos exentos.
+   */
+  cobra_frito?: boolean | null;
 }
 
 /*
@@ -1544,6 +1555,193 @@ export const products: Product[] = [
     image_url: null,
     is_best_seller: true,
   },
+
+  // ─── COMBOS DE EVENTO ─────────────────────────────────────
+  // Precio fijo (sin personalización). USD derivado del COP (~3500) — editable
+  // en el panel. El servicio de fritos va incluido a $0 en el precio del combo.
+  {
+    id: 'combo-evento-1',
+    name: 'Combo 1 (Pequeño)',
+    units: '1 Combo',
+    description: '1 Torta 1 Kilo, 1 Bandeja Galletas, 1 Gelatina, 1 Coca-Cola 2L',
+    category: 'COMBOS',
+    type: 'ambos',
+    price_usd: 16.29,
+    wholesale_price_usd: 16.29,
+    price_cop: 57000,
+    wholesale_price_cop: 57000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
+  {
+    id: 'combo-evento-2',
+    name: 'Combo 2 (Pequeño)',
+    units: '1 Combo',
+    description: '1 Torta 1 Kilo, 1 Bandeja Palmeritas, 1 Porción Repollitas. Incluye selección: 25 Tequeños Mini o 15 Pastelitos (indicar al pedir)',
+    category: 'COMBOS',
+    type: 'ambos',
+    price_usd: 19.43,
+    wholesale_price_usd: 19.43,
+    price_cop: 68000,
+    wholesale_price_cop: 68000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
+  {
+    id: 'combo-evento-3',
+    name: 'Combo 3 (~50 personas)',
+    units: '1 Combo',
+    description: '4 Bandejas Tequeños (100u), 7 Bandejas Pasapalos (100u), 2 Bandeja Morcilla (50u), 2 Bandejas Bolitas de Carne (30u)',
+    category: 'COMBOS',
+    type: 'ambos',
+    price_usd: 36.00,
+    wholesale_price_usd: 36.00,
+    price_cop: 126000,
+    wholesale_price_cop: 126000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
+  {
+    id: 'combo-evento-4',
+    name: 'Combo 4 (~70 personas)',
+    units: '1 Combo',
+    description: '4 Bandejas Tequeños (100u), 5 Bandejas Pasapalos (75u), 2 Pasapalos Carne (30u), 2 Pasapalos Pollo (30u), 2 Bandejas Hallaquita (50u), 2 Morcilla (50u), 2 Bolitas Carne (30u)',
+    category: 'COMBOS',
+    type: 'ambos',
+    price_usd: 64.00,
+    wholesale_price_usd: 64.00,
+    price_cop: 224000,
+    wholesale_price_cop: 224000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
+  {
+    id: 'combo-evento-5',
+    name: 'Combo 5 (~150 personas)',
+    units: '1 Combo',
+    description: '12 Combos Tequeños (300u), 10 Pasapalos (150u), 4 Bandejas Morcilla (100u), 4 Bandejas Bolitas Carne (60u), 1 Combo Mini Pizzas (20u), 4 Bandejas Hallaquita (100u)',
+    category: 'COMBOS',
+    type: 'ambos',
+    price_usd: 114.86,
+    wholesale_price_usd: 114.86,
+    price_cop: 402000,
+    wholesale_price_cop: 402000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
+  {
+    id: 'combo-evento-6',
+    name: 'Combo 6 (~25 personas)',
+    units: '1 Combo',
+    description: '1 Combo Mini Pizzas (20u), 2 Tequeños (50u), 3 Pastelitos (45u), 1 Coca-Cola 2L',
+    category: 'COMBOS',
+    type: 'ambos',
+    price_usd: 27.43,
+    wholesale_price_usd: 27.43,
+    price_cop: 96000,
+    wholesale_price_cop: 96000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
+
+  // ─── PIZZERÍA ─────────────────────────────────────────────
+  // Menú de pizzas. Precio en COP nativo; USD derivado (~3500), editable.
+  {
+    id: 'pizza-clasica',
+    name: 'Clásica',
+    units: '1 Pizza',
+    description: 'Queso, chorizo, maíz, tocineta, pimentón, salsa de tomate',
+    category: 'PIZZERIA',
+    type: 'ambos',
+    price_usd: 2.29,
+    wholesale_price_usd: 2.29,
+    price_cop: 8000,
+    wholesale_price_cop: 8000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
+  {
+    id: 'pizza-pepperoni',
+    name: 'Pepperoni',
+    units: '1 Pizza',
+    description: 'Queso, pepperoni, anchoas, cebolla, pimentón, salsa de tomate',
+    category: 'PIZZERIA',
+    type: 'ambos',
+    price_usd: 2.86,
+    wholesale_price_usd: 2.86,
+    price_cop: 10000,
+    wholesale_price_cop: 10000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
+  {
+    id: 'pizza-hawaiana',
+    name: 'Hawaiana',
+    units: '1 Pizza',
+    description: 'Queso, piña, bocadillo, salsa de tomate',
+    category: 'PIZZERIA',
+    type: 'ambos',
+    price_usd: 2.86,
+    wholesale_price_usd: 2.86,
+    price_cop: 10000,
+    wholesale_price_cop: 10000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
+  {
+    id: 'pizza-salami',
+    name: 'Salami',
+    units: '1 Pizza',
+    description: 'Queso, salami, anchoas, cebolla, pimentón, salsa de tomate',
+    category: 'PIZZERIA',
+    type: 'ambos',
+    price_usd: 2.86,
+    wholesale_price_usd: 2.86,
+    price_cop: 10000,
+    wholesale_price_cop: 10000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
+  {
+    id: 'pizza-infantil',
+    name: 'Infantil',
+    units: '1 Pizza',
+    description: 'Queso, pollo, jamón, salsa de tomate',
+    category: 'PIZZERIA',
+    type: 'ambos',
+    price_usd: 2.86,
+    wholesale_price_usd: 2.86,
+    price_cop: 10000,
+    wholesale_price_cop: 10000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
+  {
+    id: 'pizza-de-la-casa',
+    name: 'De la casa',
+    units: '1 Pizza',
+    description: 'Tocineta, pollo, anchoas, salami, cebolla, pimentón, salsa de tomate',
+    category: 'PIZZERIA',
+    type: 'ambos',
+    price_usd: 2.86,
+    wholesale_price_usd: 2.86,
+    price_cop: 10000,
+    wholesale_price_cop: 10000,
+    available: true,
+    image_url: null,
+    is_best_seller: false,
+  },
 ];
 
 export const categories: ProductCategory[] = [
@@ -1555,6 +1753,7 @@ export const categories: ProductCategory[] = [
   'SALSAS',
   'BEBIDAS',
   'POSTRES',
+  'PIZZERIA',
   'COMBOS',
 ];
 
@@ -1567,6 +1766,7 @@ export const categoryLabels: Record<ProductCategory, string> = {
   SALSAS: 'Salsas',
   BEBIDAS: 'Bebidas',
   POSTRES: 'Postres',
+  PIZZERIA: 'Pizzería',
   COMBOS: 'Combos',
 };
 
@@ -1580,5 +1780,6 @@ export const categoryEmoji: Record<ProductCategory, string> = {
   SALSAS: '🫙',
   BEBIDAS: '🥤',
   POSTRES: '🎂',
+  PIZZERIA: '',
   COMBOS: '🎁',
 };

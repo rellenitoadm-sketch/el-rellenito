@@ -32,7 +32,6 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
   // Crear categoría nueva sin salir del editor.
   const [addingCat, setAddingCat] = useState(false);
   const [newCatLabel, setNewCatLabel] = useState('');
-  const [newCatEmoji, setNewCatEmoji] = useState('');
   const [catSaving, setCatSaving] = useState(false);
   const [catError, setCatError] = useState('');
 
@@ -43,13 +42,13 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
       const res = await fetch('/api/admin/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: newCatLabel.trim(), emoji: newCatEmoji.trim() || '🍽️' }),
+        body: JSON.stringify({ label: newCatLabel.trim(), emoji: '' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'No se pudo crear');
       await reloadCats();
       setCategory(data.key);
-      setAddingCat(false); setNewCatLabel(''); setNewCatEmoji('');
+      setAddingCat(false); setNewCatLabel('');
     } catch (err) {
       setCatError(err instanceof Error ? err.message : 'Error al crear la categoría');
     } finally { setCatSaving(false); }
@@ -59,9 +58,11 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
   const [wholesaleUsd, setWholesaleUsd] = useState(product?.wholesale_price_usd?.toString() ?? '');
   const [priceCop, setPriceCop] = useState(product?.price_cop != null ? String(product.price_cop) : '');
   const [wholesaleCop, setWholesaleCop] = useState(product?.wholesale_price_cop != null ? String(product.wholesale_price_cop) : '');
+  const [limiteUnidadesMayor, setLimiteUnidadesMayor] = useState(product?.limite_unidades_mayor != null ? String(product.limite_unidades_mayor) : '');
   const [type, setType] = useState<ProductType>(product?.type ?? 'detal');
   const [available, setAvailable] = useState(product?.available ?? true);
   const [bestSeller, setBestSeller] = useState(product?.is_best_seller ?? false);
+  const [cobraFrito, setCobraFrito] = useState(product?.cobra_frito ?? false);
   const [imageUrl, setImageUrl] = useState<string | null>(product?.image_url ?? null);
 
   const [uploading, setUploading] = useState(false);
@@ -120,9 +121,11 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
       wholesale_price_usd: parseFloat(wholesaleUsd) || usd,
       price_cop: priceCop.trim() === '' ? null : Math.round(Number(priceCop)) || null,
       wholesale_price_cop: wholesaleCop.trim() === '' ? null : Math.round(Number(wholesaleCop)) || null,
+      limite_unidades_mayor: limiteUnidadesMayor.trim() === '' ? null : Math.max(1, Math.round(Number(limiteUnidadesMayor))) || null,
       type,
       available,
       is_best_seller: bestSeller,
+      cobra_frito: cobraFrito,
       image_url: imageUrl,
     };
     try {
@@ -248,15 +251,6 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
               <div className="mt-2 p-2.5 rounded-xl border space-y-2" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                 <div className="flex gap-2">
                   <input
-                    value={newCatEmoji}
-                    onChange={e => setNewCatEmoji(e.target.value)}
-                    placeholder="🍽️"
-                    maxLength={4}
-                    className="field text-center"
-                    style={{ width: 56 }}
-                    aria-label="Emoji de la categoría"
-                  />
-                  <input
                     value={newCatLabel}
                     onChange={e => setNewCatLabel(e.target.value)}
                     placeholder="Nombre de la categoría"
@@ -319,8 +313,46 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
                   <input type="number" inputMode="numeric" step="1" value={wholesaleCop} onChange={e => setWholesaleCop(e.target.value)} placeholder="0" aria-label="Precio al mayor COP" className="field" style={{ paddingLeft: '3.25rem' }} />
                 </div>
               </div>
+              <div className="mt-2.5">
+                <label className="text-[12px] font-semibold block mb-1" style={{ color: 'var(--text-2)' }}>Mínimo de unidades para precio al mayor</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step="1"
+                  value={limiteUnidadesMayor}
+                  onChange={e => setLimiteUnidadesMayor(e.target.value)}
+                  placeholder="10"
+                  aria-label="Mínimo de unidades para precio al mayor"
+                  className="field"
+                />
+                <p className="text-[10.5px] mt-1" style={{ color: 'var(--text-3)' }}>
+                  A partir de esta cantidad del mismo producto se cobra el precio al mayor. Si lo dejas vacío, se usa 10.
+                </p>
+              </div>
             </div>
           )}
+
+          {/* Servicio de fritos */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setCobraFrito(v => !v)}
+              aria-pressed={cobraFrito}
+              className="w-full flex items-center justify-between gap-3 p-3 rounded-xl border transition-colors"
+              style={cobraFrito
+                ? { borderColor: 'var(--brand)', background: 'var(--brand-soft)' }
+                : { borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+            >
+              <span className="text-left">
+                <span className="block text-[13px] font-semibold" style={{ color: 'var(--text-1)' }}>Cobra servicio de fritos</span>
+                <span className="block text-[11px]" style={{ color: 'var(--text-3)' }}>El cliente puede pedirlo frito (recargo por bandeja)</span>
+              </span>
+              <span className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors" style={{ background: cobraFrito ? 'var(--brand)' : 'var(--surface-3)' }}>
+                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ left: cobraFrito ? '22px' : '2px' }} />
+              </span>
+            </button>
+          </div>
 
           {/* Type */}
           <div>

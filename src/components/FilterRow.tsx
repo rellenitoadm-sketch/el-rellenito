@@ -60,7 +60,7 @@ export default function FilterRow({ search, onSearchChange, viewMode, onViewMode
         </div>
 
         {/* Currency — discreet dropdown */}
-        <div className="relative flex-shrink-0" ref={dropdownRef}>
+        <div className="relative flex-shrink-0" ref={dropdownRef} data-tour="currency">
           <button
             onClick={() => setCurrencyOpen(o => !o)}
             className="flex items-center gap-1 px-2.5 rounded-[10px] text-[12px] font-bold transition-colors"
@@ -108,7 +108,7 @@ export default function FilterRow({ search, onSearchChange, viewMode, onViewMode
         </div>
 
         {/* View toggle */}
-        <div className="flex rounded-[10px] overflow-hidden flex-shrink-0" style={{ border: '1px solid var(--border)' }}>
+        <div data-tour="view" className="flex rounded-[10px] overflow-hidden flex-shrink-0" style={{ border: '1px solid var(--border)' }}>
           <button
             onClick={() => onViewModeChange('list')}
             className="flex items-center justify-center min-h-[44px] min-w-[44px] transition-colors"

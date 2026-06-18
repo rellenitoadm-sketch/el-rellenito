@@ -6,15 +6,16 @@ import { X, Trash2, Plus, Minus, Lock } from 'lucide-react';
 import Image from 'next/image';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
-import { unitUsd, unitCop, isWholesaleQty, isPricedIn, cartTotals, CURRENCY_NAME } from '@/lib/rates';
-import { useCategories } from './CategoriesContext';
+import { unitUsd, unitCop, isWholesaleQty, wholesaleThreshold, isPricedIn, cartTotals, CURRENCY_NAME } from '@/lib/rates';
+import { fritoUnitUsd, fritoUnitCop, FRITO_SURCHARGE } from '@/lib/fritos';
 import Upsell from './Upsell';
 import Checkout from './Checkout';
+import { useOnboarding } from './Onboarding';
 
 export default function Cart() {
-  const { items, isOpen, closeCart, removeItem, updateQty, itemCount } = useCart();
+  const { items, isOpen, closeCart, removeItem, updateQty, setItemFritos, itemCount } = useCart();
   const { format, rates, currency } = useCurrency();
-  const { emojiOf } = useCategories();
+  const { maybeStartCart } = useOnboarding();
   const [showCheckout, setShowCheckout] = useState(false);
 
   // Cerrar con tecla Escape (accesibilidad / teclado).
@@ -24,6 +25,14 @@ export default function Cart() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, closeCart]);
+
+  // Tutorial del carrito: la primera vez que se abre con productos (UI congelada).
+  useEffect(() => {
+    if (isOpen && items.length > 0 && !showCheckout) {
+      const t = setTimeout(() => maybeStartCart(), 450);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen, items.length, showCheckout, maybeStartCart]);
 
   // Totales SOLO de ítems con precio nativo en la moneda activa. Los bloqueados
   // (sin precio en esta moneda) no suman y no dejan finalizar el pedido.
@@ -106,7 +115,7 @@ export default function Cart() {
                       </button>
                     </div>
                   ) : (
-                    <div className="px-4 mt-4 space-y-3">
+                    <div className="px-4 mt-4 space-y-3" data-tour="cart-items">
                       {items.map(item => (
                         <div key={item.id} className="flex gap-3 rounded-xl p-3 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                           {/* Image or category emoji */}
@@ -114,7 +123,7 @@ export default function Cart() {
                             {item.image_url ? (
                               <Image src={item.image_url} alt={item.name} width={48} height={48} className="object-cover w-full h-full" />
                             ) : (
-                              <span className="text-xl">{emojiOf(item.category)}</span>
+                              <span className="text-base font-bold" style={{ color: 'var(--text-3)' }}>{item.name.charAt(0).toUpperCase()}</span>
                             )}
                           </div>
 
@@ -123,7 +132,7 @@ export default function Cart() {
                             <div className="flex items-start gap-2">
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
-                                {isWholesaleQty(item.quantity) && (
+                                {isWholesaleQty(item.quantity, wholesaleThreshold(item)) && (
                                   <span className="inline-block mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}>
                                     Precio al mayor
                                   </span>
@@ -141,7 +150,7 @@ export default function Cart() {
                             <div className="flex items-center justify-between gap-2">
                               {isPricedIn(item, currency) ? (
                                 <p className="text-sm font-bold text-[#FF5100]">
-                                  {format(unitUsd(item, item.quantity) * item.quantity, unitCop(item, item.quantity, rates) * item.quantity)}
+                                  {format((unitUsd(item, item.quantity) + fritoUnitUsd(item)) * item.quantity, (unitCop(item, item.quantity, rates) + fritoUnitCop(item)) * item.quantity)}
                                 </p>
                               ) : (
                                 <p className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: 'var(--danger)' }}>
@@ -166,6 +175,21 @@ export default function Cart() {
                                 </button>
                               </div>
                             </div>
+
+                            {item.cobra_frito && (
+                              <button
+                                type="button"
+                                onClick={() => setItemFritos(item.id, !item.fritos)}
+                                aria-pressed={!!item.fritos}
+                                className="flex items-center gap-2 text-[12px] font-medium self-start"
+                                style={{ color: item.fritos ? 'var(--brand-deep)' : 'var(--text-muted)' }}
+                              >
+                                <span className="relative w-8 h-[18px] rounded-full transition-colors flex-shrink-0" style={{ background: item.fritos ? 'var(--brand)' : 'var(--surface-3)' }}>
+                                  <span className="absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white transition-all" style={{ left: item.fritos ? '16px' : '2px' }} />
+                                </span>
+                                Fritos +{format(FRITO_SURCHARGE.usd, FRITO_SURCHARGE.cop)}
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -179,13 +203,14 @@ export default function Cart() {
                 {/* Footer */}
                 {items.length > 0 && (
                   <div className="px-4 pb-6 pt-3 border-t" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                    <div className="flex items-center justify-between mb-3 px-1">
+                    <div className="flex items-center justify-between mb-3 px-1" data-tour="cart-subtotal">
                       <span className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Subtotal</span>
                       <span className="text-lg font-bold text-[#FF5100]">{format(totalUsd, totalCop)}</span>
                     </div>
                     <button
                       onClick={() => { if (!hasBlocked) setShowCheckout(true); }}
                       disabled={hasBlocked}
+                      data-tour="cart-checkout"
                       className="w-full bg-[#FF5100] hover:bg-[#e04800] active:scale-[0.98] text-white font-bold py-4 rounded-2xl text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#FF5100]"
                     >
                       {hasBlocked ? 'Resuelve los no disponibles' : 'Finalizar pedido'}

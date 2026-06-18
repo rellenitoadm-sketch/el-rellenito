@@ -6,9 +6,9 @@ import { Plus, Minus, Lock } from 'lucide-react';
 import { useCurrency } from './CurrencyContext';
 import { useCart } from './CartContext';
 import { useBubble } from './AddToCartBubble';
+import { useProductModal } from './ProductModal';
 import { isPricedIn, CURRENCY_NAME } from '@/lib/rates';
 import { type Product } from '@/lib/products';
-import { useCategories } from './CategoriesContext';
 
 interface ProductCardProps {
   product: Product;
@@ -20,7 +20,16 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
   const { format, currency } = useCurrency();
   const { addItem, updateQty, items } = useCart();
   const { triggerBubble } = useBubble();
-  const { emojiOf } = useCategories();
+  const { open: openDetail } = useProductModal();
+
+  const showDetail = () => openDetail(
+    product,
+    ({ fritos }) => addItem(product, { fritos }),
+    { allowFritos: !!product.cobra_frito },
+  );
+  const onDetailKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showDetail(); }
+  };
 
   const cartItem = items.find(i => i.id === product.id);
   const qty = cartItem?.quantity ?? 0;
@@ -37,7 +46,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
     triggerBubble(rect.left + rect.width / 2, rect.top + rect.height / 2);
   };
 
-  const emoji = emojiOf(product.category);
+  const placeholder = product.name.charAt(0).toUpperCase();
 
   /* ── GRID MODE ── */
   if (viewMode === 'grid') {
@@ -48,12 +57,14 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
         transition={{ delay: Math.min(index, 8) * 0.03, duration: 0.25 }}
         className="card overflow-hidden flex flex-col"
       >
-        <div className="relative w-full aspect-square flex items-center justify-center text-4xl"
-          style={{ background: 'linear-gradient(135deg, var(--surface-2), var(--surface-3))' }}>
+        <div className="relative w-full aspect-square flex items-center justify-center text-4xl cursor-pointer"
+          style={{ background: 'linear-gradient(135deg, var(--surface-2), var(--surface-3))' }}
+          onClick={showDetail} onKeyDown={onDetailKey} role="button" tabIndex={0}
+          aria-label={`Ver detalle de ${product.name}`}>
           {product.image_url ? (
             <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="50vw" />
           ) : (
-            <span style={{ opacity: 0.5 }}>{emoji}</span>
+            <span className="font-bold" style={{ opacity: 0.4 }}>{placeholder}</span>
           )}
           {product.is_best_seller && (
             <span className="absolute top-2 left-2 chip chip-warning" style={{ padding: '2px 8px', fontSize: '10px' }}>
@@ -70,7 +81,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
         </div>
 
         <div className="p-3 flex flex-col flex-1">
-          <h3 className="text-[13px] font-semibold leading-tight line-clamp-2" style={{ color: 'var(--text-1)' }}>
+          <h3 className="text-[13px] font-semibold leading-tight line-clamp-2 cursor-pointer" style={{ color: 'var(--text-1)' }} onClick={showDetail}>
             {product.name}
           </h3>
           {product.units && (
@@ -148,13 +159,15 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
     >
       {/* Image */}
       <div
-        className="relative flex-shrink-0 w-[88px] h-[88px] rounded-[12px] overflow-hidden flex items-center justify-center"
+        className="relative flex-shrink-0 w-[88px] h-[88px] rounded-[12px] overflow-hidden flex items-center justify-center cursor-pointer"
         style={{ background: 'linear-gradient(135deg, var(--surface-2), var(--surface-3))' }}
+        onClick={showDetail} onKeyDown={onDetailKey} role="button" tabIndex={0}
+        aria-label={`Ver detalle de ${product.name}`}
       >
         {product.image_url ? (
           <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="88px" />
         ) : (
-          <span className="text-3xl" style={{ opacity: 0.6 }}>{emoji}</span>
+          <span className="text-3xl font-bold" style={{ opacity: 0.4 }}>{placeholder}</span>
         )}
         {product.is_best_seller && (
           <span
@@ -175,7 +188,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <h3 className="text-[14px] font-semibold leading-tight line-clamp-2" style={{ color: 'var(--text-1)' }}>
+        <h3 className="text-[14px] font-semibold leading-tight line-clamp-2 cursor-pointer" style={{ color: 'var(--text-1)' }} onClick={showDetail}>
           {product.name}
         </h3>
         {product.units && (

@@ -40,9 +40,14 @@ export async function POST(request: NextRequest) {
     wholesale_price_usd: Number(body.wholesale_price_usd ?? body.price_usd) || 0,
     price_cop: numOrNull(body.price_cop),
     wholesale_price_cop: numOrNull(body.wholesale_price_cop),
+    limite_unidades_mayor:
+      body.limite_unidades_mayor == null || (body.limite_unidades_mayor as unknown) === ''
+        ? 10
+        : Math.max(1, Math.round(Number(body.limite_unidades_mayor))) || 10,
     available: body.available ?? true,
     image_url: body.image_url ?? null,
     is_best_seller: body.is_best_seller ?? false,
+    cobra_frito: body.cobra_frito ?? false,
   };
 
   const db = supabaseAdmin ?? supabase;

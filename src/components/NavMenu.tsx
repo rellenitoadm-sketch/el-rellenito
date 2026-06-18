@@ -8,6 +8,8 @@ import { useCategories } from './CategoriesContext';
 
 interface NavMenuProps {
   onMayorClick: () => void;
+  /** Vuelve al Home informativo. Si se omite, "Inicio" solo sube al tope. */
+  onHome?: () => void;
 }
 
 /**
@@ -16,7 +18,7 @@ interface NavMenuProps {
  * contacto y privacidad. Vive dentro del TopBar (solo en la vista catálogo),
  * por lo que las secciones de categoría siempre existen al abrirlo.
  */
-export default function NavMenu({ onMayorClick }: NavMenuProps) {
+export default function NavMenu({ onMayorClick, onHome }: NavMenuProps) {
   const [open, setOpen] = useState(false);
   const { order, labelOf } = useCategories();
 
@@ -35,7 +37,8 @@ export default function NavMenu({ onMayorClick }: NavMenuProps) {
 
   const goHome = () => {
     setOpen(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (onHome) onHome();
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goToCategory = (cat: string) => {
@@ -63,6 +66,7 @@ export default function NavMenu({ onMayorClick }: NavMenuProps) {
     <>
       <button
         onClick={() => setOpen(true)}
+        data-tour="menu"
         className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
         style={{ background: 'var(--surface-2)', color: 'var(--text-1)' }}
         aria-label="Abrir menú"

@@ -14,7 +14,7 @@ interface ProductListProps {
 
 export default function ProductList({ search, viewMode }: ProductListProps) {
   const { products } = useProducts();
-  const { order, labelOf, emojiOf } = useCategories();
+  const { order, labelOf } = useCategories();
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter(p => {
@@ -66,10 +66,9 @@ export default function ProductList({ search, viewMode }: ProductListProps) {
           <div className="flex items-baseline justify-between mb-3 px-0.5">
             <h2
               id={`heading-${cat}`}
-              className="t-h3 flex items-center gap-2"
+              className="t-h3"
               style={{ color: 'var(--text-1)' }}
             >
-              <span className="text-[20px] leading-none">{emojiOf(cat)}</span>
               {labelOf(cat)}
             </h2>
             <span className="text-[11px] font-medium" style={{ color: 'var(--text-3)' }}>

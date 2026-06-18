@@ -7,6 +7,7 @@ import { ArrowLeft, Minus, Plus, ShoppingBag, Check, X, CalendarDays, MapPin, Na
 import { useProducts } from './ProductsContext';
 import { useCategories } from './CategoriesContext';
 import { useCurrency } from './CurrencyContext';
+import { useProductModal } from './ProductModal';
 import WholesaleDatePicker from './WholesaleDatePicker';
 import PaymentTabs from './PaymentTabs';
 import PaymentDetails from './PaymentDetails';
@@ -30,7 +31,8 @@ interface WholesalePageProps {
 export default function WholesalePage({ onBack }: WholesalePageProps) {
   const { format, rates, currency } = useCurrency();
   const { products } = useProducts();
-  const { order, labelOf, emojiOf } = useCategories();
+  const { order, labelOf } = useCategories();
+  const { open: openDetail } = useProductModal();
 
   const WHOLESALE_BY_CAT = useMemo(() => {
     const wholesale = products.filter(p => p.type === 'mayorista' || p.type === 'ambos');
@@ -216,7 +218,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
               className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
               style={{ background: 'var(--surface)', color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
             >
-              {emojiOf(cat)} {labelOf(cat)}
+              {labelOf(cat)}
             </button>
           ))}
         </nav>
@@ -226,9 +228,8 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
       <div className="px-4 pb-28 pt-3 space-y-6">
         {WHOLESALE_BY_CAT.map(({ cat, items }) => (
           <section key={cat} id={`wmayor-${cat}`} className="scroll-mt-28">
-            <h2 className="text-sm font-bold uppercase tracking-widest mb-3 flex items-center gap-2"
+            <h2 className="text-sm font-bold uppercase tracking-widest mb-3"
               style={{ color: 'var(--brand-orange)' }}>
-              <span className="text-base">{emojiOf(cat)}</span>
               {labelOf(cat)}
             </h2>
             <div className="space-y-2.5">
@@ -236,22 +237,29 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                 const item = cart.find(i => i.id === p.id);
                 const qty = item?.qty ?? 0;
                 const priced = isPricedIn(p, currency);
+                const showDetail = () => openDetail(
+                  p,
+                  () => addToCart(p.id, p.name, p.wholesale_price_usd, p.wholesale_price_cop),
+                  { priceOverride: { price_usd: p.wholesale_price_usd, price_cop: p.wholesale_price_cop } },
+                );
                 return (
                   <div
                     key={p.id}
                     className="flex items-center gap-3 rounded-2xl p-3 border"
                     style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                   >
-                    <div className="relative w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center text-2xl flex-shrink-0"
-                      style={{ background: 'var(--surface-2)' }}>
+                    <div className="relative w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center text-2xl flex-shrink-0 cursor-pointer"
+                      style={{ background: 'var(--surface-2)' }}
+                      onClick={showDetail} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showDetail(); } }}
+                      role="button" tabIndex={0} aria-label={`Ver detalle de ${p.name}`}>
                       {p.image_url ? (
                         <Image src={p.image_url} alt={p.name} fill className="object-cover" sizes="48px" />
                       ) : (
-                        emojiOf(p.category)
+                        <span className="font-bold" style={{ color: 'var(--text-3)' }}>{p.name.charAt(0).toUpperCase()}</span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
+                      <p className="text-sm font-semibold leading-tight cursor-pointer" style={{ color: 'var(--text-primary)' }} onClick={showDetail}>{p.name}</p>
                       {priced ? (
                         <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--brand-orange)' }}>
                           {format(p.wholesale_price_usd, p.wholesale_price_cop)}

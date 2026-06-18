@@ -6,6 +6,8 @@ import { CurrencyProvider } from '@/components/CurrencyContext';
 import { BubbleProvider } from '@/components/AddToCartBubble';
 import { ProductsProvider } from '@/components/ProductsContext';
 import { CategoriesProvider } from '@/components/CategoriesContext';
+import { ProductModalProvider } from '@/components/ProductModal';
+import { OnboardingProvider } from '@/components/Onboarding';
 import StaffAlerts from '@/components/StaffAlerts';
 
 const inter = Inter({
@@ -64,8 +66,12 @@ export default function RootLayout({
           <ProductsProvider>
             <CartProvider>
               <BubbleProvider>
-                {children}
-                <StaffAlerts />
+                <ProductModalProvider>
+                  <OnboardingProvider>
+                    {children}
+                    <StaffAlerts />
+                  </OnboardingProvider>
+                </ProductModalProvider>
               </BubbleProvider>
             </CartProvider>
           </ProductsProvider>

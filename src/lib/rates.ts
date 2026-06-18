@@ -1,3 +1,5 @@
+import { type FritoChoice, fritoUnitUsd, fritoUnitCop } from './fritos';
+
 export interface ExchangeRates {
   bs_per_usd: number;
   cop_per_usd: number;
@@ -119,8 +121,9 @@ export function toCop(usd: number, cop: number | null | undefined, rates: Exchan
 }
 
 /**
- * Cantidad mínima del mismo producto que activa la tarifa al mayor.
- * cantidad >= WHOLESALE_MIN_QTY → conmuta de los campos detal a los `wholesale_*`.
+ * Cantidad mínima POR DEFECTO que activa la tarifa al mayor. Cada producto puede
+ * sobreescribirla con `limite_unidades_mayor`; este valor es el fallback cuando no
+ * está definido. cantidad >= umbral → conmuta de los campos detal a los `wholesale_*`.
  */
 export const WHOLESALE_MIN_QTY = 10;
 
@@ -130,21 +133,32 @@ export interface MirrorPrices {
   wholesale_price_usd: number;
   price_cop?: number | null;
   wholesale_price_cop?: number | null;
+  /** Umbral mayorista propio del producto; si falta, se usa WHOLESALE_MIN_QTY. */
+  limite_unidades_mayor?: number | null;
 }
 
-/** ¿La cantidad activa la tarifa al mayor? (>= 10 del mismo producto) */
-export function isWholesaleQty(qty: number): boolean {
-  return qty >= WHOLESALE_MIN_QTY;
+/** Umbral mayorista efectivo de un producto (su valor propio o el default global). */
+export function wholesaleThreshold(p: Pick<MirrorPrices, 'limite_unidades_mayor'>): number {
+  const lim = p.limite_unidades_mayor;
+  return lim != null && lim > 0 ? lim : WHOLESALE_MIN_QTY;
+}
+
+/**
+ * ¿La cantidad activa la tarifa al mayor? Compara contra el umbral indicado
+ * (default global `WHOLESALE_MIN_QTY` si no se pasa uno).
+ */
+export function isWholesaleQty(qty: number, limit: number = WHOLESALE_MIN_QTY): boolean {
+  return qty >= limit;
 }
 
 /** USD efectivo por unidad según la cantidad (detal o mayor). */
 export function unitUsd(p: MirrorPrices, qty: number): number {
-  return isWholesaleQty(qty) ? p.wholesale_price_usd : p.price_usd;
+  return isWholesaleQty(qty, wholesaleThreshold(p)) ? p.wholesale_price_usd : p.price_usd;
 }
 
 /** COP efectivo por unidad según la cantidad. COP fijado o derivado de USD × tasa. */
 export function unitCop(p: MirrorPrices, qty: number, rates: ExchangeRates): number {
-  return isWholesaleQty(qty)
+  return isWholesaleQty(qty, wholesaleThreshold(p))
     ? toCop(p.wholesale_price_usd, p.wholesale_price_cop, rates)
     : toCop(p.price_usd, p.price_cop, rates);
 }
@@ -173,8 +187,9 @@ export function isPricedIn(
 /**
  * Totales del carrito en la moneda activa, contando SOLO los ítems con precio
  * nativo en esa moneda. Los bloqueados se devuelven en `blockedIds` y NO suman.
+ * Incluye el recargo de fritos por bandeja de las líneas que lo lleven.
  */
-export function cartTotals<T extends MirrorPrices & { id: string; quantity: number }>(
+export function cartTotals<T extends MirrorPrices & FritoChoice & { id: string; quantity: number }>(
   items: T[],
   currency: 'USD' | 'COP' | 'BS',
   rates: ExchangeRates,
@@ -187,8 +202,8 @@ export function cartTotals<T extends MirrorPrices & { id: string; quantity: numb
       blockedIds.push(i.id);
       continue;
     }
-    totalUsd += unitUsd(i, i.quantity) * i.quantity;
-    totalCop += unitCop(i, i.quantity, rates) * i.quantity;
+    totalUsd += (unitUsd(i, i.quantity) + fritoUnitUsd(i)) * i.quantity;
+    totalCop += (unitCop(i, i.quantity, rates) + fritoUnitCop(i)) * i.quantity;
   }
   return { totalUsd, totalCop, blockedIds };
 }

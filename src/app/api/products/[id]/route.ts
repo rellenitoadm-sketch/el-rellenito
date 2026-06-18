@@ -27,9 +27,11 @@ export async function PATCH(
   if (body.wholesale_price_usd !== undefined) patch.wholesale_price_usd = Number(body.wholesale_price_usd) || 0;
   if (body.price_cop !== undefined) patch.price_cop = body.price_cop == null || (body.price_cop as unknown) === '' ? null : Number(body.price_cop) || null;
   if (body.wholesale_price_cop !== undefined) patch.wholesale_price_cop = body.wholesale_price_cop == null || (body.wholesale_price_cop as unknown) === '' ? null : Number(body.wholesale_price_cop) || null;
+  if (body.limite_unidades_mayor !== undefined) patch.limite_unidades_mayor = body.limite_unidades_mayor == null || (body.limite_unidades_mayor as unknown) === '' ? 10 : Math.max(1, Math.round(Number(body.limite_unidades_mayor))) || 10;
   if (body.available !== undefined) patch.available = body.available;
   if (body.image_url !== undefined) patch.image_url = body.image_url;
   if (body.is_best_seller !== undefined) patch.is_best_seller = body.is_best_seller;
+  if (body.cobra_frito !== undefined) patch.cobra_frito = !!body.cobra_frito;
 
   const db = supabaseAdmin ?? supabase;
   if (!db) {

@@ -8,6 +8,11 @@ import type { OpenStatus } from '@/lib/businessHours';
 interface HeaderProps {
   onMayorClick: () => void;
   status: OpenStatus;
+  /**
+   * Si se pasa, el hero muestra DOS CTAs (Al Detal + Al Mayor) — se usa en el
+   * Home informativo. Si se omite, muestra solo "Pedidos al Mayor" (vista detal).
+   */
+  onDetalClick?: () => void;
 }
 
 /**
@@ -15,7 +20,7 @@ interface HeaderProps {
  * height/opacity transforms, which were causing the jank). The persistent
  * brand + nav live in the sticky TopBar + CategoryTabs below it.
  */
-export default function Header({ onMayorClick, status }: HeaderProps) {
+export default function Header({ onMayorClick, status, onDetalClick }: HeaderProps) {
   return (
     <header className="relative w-full overflow-hidden" style={{ background: 'var(--grad-hero)' }}>
       {/* Subtle dot texture */}
@@ -118,17 +123,42 @@ export default function Header({ onMayorClick, status }: HeaderProps) {
           </span>
         </motion.div>
 
-        {/* Primary CTA */}
-        <motion.button
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.36 }}
-          onClick={onMayorClick}
-          className="mt-3.5 inline-flex items-center gap-1 bg-white text-[var(--brand-deep)] text-[12.5px] font-bold px-5 py-2.5 rounded-full shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
-        >
-          Pedidos al Mayor
-          <ChevronRight className="w-3.5 h-3.5" />
-        </motion.button>
+        {/* CTA(s) — en el Home se muestran dos (Al Detal + Al Mayor); en la vista
+            detal, solo el de mayor. */}
+        {onDetalClick ? (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.36 }}
+            className="mt-4 flex flex-wrap items-center justify-center gap-2.5"
+          >
+            <button
+              onClick={onDetalClick}
+              className="inline-flex items-center gap-1 bg-white text-[var(--brand-deep)] text-[13px] font-bold px-5 py-2.5 rounded-full shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
+            >
+              Ver productos
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={onMayorClick}
+              className="inline-flex items-center gap-1 bg-white/15 text-white border border-white/40 text-[13px] font-bold px-5 py-2.5 rounded-full backdrop-blur hover:bg-white/25 active:scale-[0.98] transition-all"
+            >
+              Pedidos al Mayor
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        ) : (
+          <motion.button
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.36 }}
+            onClick={onMayorClick}
+            className="mt-3.5 inline-flex items-center gap-1 bg-white text-[var(--brand-deep)] text-[12.5px] font-bold px-5 py-2.5 rounded-full shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
+          >
+            Pedidos al Mayor
+            <ChevronRight className="w-3.5 h-3.5" />
+          </motion.button>
+        )}
       </div>
     </header>
   );

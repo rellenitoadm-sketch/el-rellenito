@@ -80,6 +80,7 @@ export default function CategoryTabs({ onMayorClick, revalidationKey }: Category
   return (
     <nav
       aria-label="Categorías"
+      data-tour="categories"
       className="flex items-center gap-1 overflow-x-auto px-4 scrollbar-none border-b"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
@@ -110,7 +111,7 @@ export default function CategoryTabs({ onMayorClick, revalidationKey }: Category
       })}
 
       {/* Al Mayor — visual separation + accent */}
-      <div className="flex-shrink-0 pl-2 ml-1 border-l py-2" style={{ borderColor: 'var(--border)' }}>
+      <div data-tour="mayor" className="flex-shrink-0 pl-2 ml-1 border-l py-2" style={{ borderColor: 'var(--border)' }}>
         <button
           onClick={onMayorClick}
           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-bold transition-all

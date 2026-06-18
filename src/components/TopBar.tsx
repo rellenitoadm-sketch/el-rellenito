@@ -15,7 +15,7 @@ import NavMenu from './NavMenu';
  * 5 quick taps within 1.5s dispatch a 'staff-unlock' event (StaffUnlock listens).
  * Invisible to customers; no link, no hint.
  */
-export default function TopBar({ status, onMayorClick }: { status: OpenStatus; onMayorClick: () => void }) {
+export default function TopBar({ status, onMayorClick, onHome }: { status: OpenStatus; onMayorClick: () => void; onHome?: () => void }) {
   const taps = useRef<number[]>([]);
 
   const handleSecretTap = () => {
@@ -40,7 +40,7 @@ export default function TopBar({ status, onMayorClick }: { status: OpenStatus; o
         <Image src="/logo-circle.png" alt="El Rellenito" width={32} height={32} className="object-cover w-full h-full" draggable={false} />
       </div>
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0" data-tour="info">
         <p className="text-[13px] font-bold leading-tight" style={{ color: 'var(--text-1)', fontFamily: 'var(--font-playfair)' }}>
           El Rellenito
         </p>
@@ -55,7 +55,7 @@ export default function TopBar({ status, onMayorClick }: { status: OpenStatus; o
         4.5
       </span>
 
-      <NavMenu onMayorClick={onMayorClick} />
+      <NavMenu onMayorClick={onMayorClick} onHome={onHome} />
     </div>
   );
 }

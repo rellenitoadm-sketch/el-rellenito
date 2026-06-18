@@ -10,7 +10,8 @@ import PaymentDetails from './PaymentDetails';
 import ProofUpload, { type ProofData } from './ProofUpload';
 import { deliveryZones } from '@/lib/zones';
 import { estimateForZone, globalDeliveryRange, type DeliveryEstimate } from '@/lib/zoneDetection';
-import { unitUsd, unitCop, isWholesaleQty } from '@/lib/rates';
+import { unitUsd, unitCop, isWholesaleQty, wholesaleThreshold } from '@/lib/rates';
+import { fritoUnitCop, hasFrito } from '@/lib/fritos';
 import { type PaymentMethodId } from '@/lib/payments';
 import { useGeolocationZone } from '@/hooks/useGeolocationZone';
 
@@ -70,10 +71,10 @@ export default function Checkout({ onClose }: CheckoutProps) {
 
   const isDelivery = deliveryType === 'delivery';
 
-  // Total en COP efectivo (aplica la tarifa al mayor por ítem cuando cantidad >= 10). El envío no se suma.
-  const totalCop = items.reduce((s, i) => s + unitCop(i, i.quantity, rates) * i.quantity, 0);
+  // Total en COP efectivo (tarifa al mayor por ítem + recargo de fritos). El envío no se suma.
+  const totalCop = items.reduce((s, i) => s + (unitCop(i, i.quantity, rates) + fritoUnitCop(i)) * i.quantity, 0);
   // El pedido es al mayor si algún ítem alcanza la cantidad mínima al mayor.
-  const isWholesaleOrder = items.some(i => isWholesaleQty(i.quantity));
+  const isWholesaleOrder = items.some(i => isWholesaleQty(i.quantity, wholesaleThreshold(i)));
 
   // Estimado de envío (NO se suma al pedido; solo se le muestra al cliente un rango).
   const estimate: DeliveryEstimate | null = !isDelivery
@@ -155,8 +156,9 @@ export default function Checkout({ onClose }: CheckoutProps) {
             qty: i.quantity,
             // Precio efectivo cobrado (detal o mayor según la cantidad).
             price_usd: unitUsd(i, i.quantity),
-            price_cop: isWholesaleQty(i.quantity) ? (i.wholesale_price_cop ?? null) : (i.price_cop ?? null),
-            wholesale: isWholesaleQty(i.quantity),
+            price_cop: isWholesaleQty(i.quantity, wholesaleThreshold(i)) ? (i.wholesale_price_cop ?? null) : (i.price_cop ?? null),
+            wholesale: isWholesaleQty(i.quantity, wholesaleThreshold(i)),
+            fritos: hasFrito(i),
           })),
           total_usd: totalUsd, // solo productos — el envío no se suma
           total_cop: totalCop, // total en COP (lo que vio el cliente si compró en COP)
@@ -512,7 +514,7 @@ export default function Checkout({ onClose }: CheckoutProps) {
           <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-2)' }}>Resumen</p>
           {items.map(item => (
             <div key={item.id} className="flex justify-between text-xs" style={{ color: 'var(--text-2)' }}>
-              <span>{item.quantity}× {item.name}{isWholesaleQty(item.quantity) ? ' (mayor)' : ''}</span>
+              <span>{item.quantity}× {item.name}{isWholesaleQty(item.quantity, wholesaleThreshold(item)) ? ' (mayor)' : ''}</span>
               <span>{format(unitUsd(item, item.quantity) * item.quantity, unitCop(item, item.quantity, rates) * item.quantity)}</span>
             </div>
           ))}

@@ -157,7 +157,7 @@ export default function ProductsPanel() {
         )}
         {order.map(c => (
           <Chip key={c} active={catFilter === c} onClick={() => setCatFilter(c)}>
-            {emojiOf(c)} {labelOf(c)}
+            {labelOf(c)}
           </Chip>
         ))}
       </div>
@@ -182,7 +182,7 @@ export default function ProductsPanel() {
           {visibleCats.map(cat => (
             <section key={cat}>
               <h3 className="text-[12px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-2)' }}>
-                <span>{emojiOf(cat)}</span> {labelOf(cat)}
+                {labelOf(cat)}
                 <span className="font-normal" style={{ color: 'var(--text-3)' }}>· {grouped[cat]!.length}</span>
               </h3>
               <div className="space-y-2">

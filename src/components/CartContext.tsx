@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
 import type { Product, ProductCategory } from '@/lib/products';
 import { unitUsd } from '@/lib/rates';
+import { fritoUnitUsd } from '@/lib/fritos';
 
 export interface CartItem {
   id: string;
@@ -14,6 +15,12 @@ export interface CartItem {
   wholesale_price_usd: number;
   /** Precio al mayor en COP fijado por el cliente (null = derivar de USD × tasa). */
   wholesale_price_cop?: number | null;
+  /** Umbral mayorista propio del producto (null = usar el default global). */
+  limite_unidades_mayor?: number | null;
+  /** El producto admite servicio de fritos (recargo por bandeja). */
+  cobra_frito?: boolean | null;
+  /** El cliente eligió fritos para esta línea. */
+  fritos?: boolean;
   quantity: number;
   image_url: string | null;
   category: ProductCategory;
@@ -28,9 +35,10 @@ export interface LastAdded {
 interface CartContextValue {
   items: CartItem[];
   isOpen: boolean;
-  addItem: (product: Product) => void;
+  addItem: (product: Product, opts?: { fritos?: boolean }) => void;
   removeItem: (id: string) => void;
   updateQty: (id: string, qty: number) => void;
+  setItemFritos: (id: string, fritos: boolean) => void;
   clearCart: () => void;
   openCart: () => void;
   closeCart: () => void;
@@ -48,12 +56,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addCountRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const addItem = useCallback((product: Product) => {
+  const addItem = useCallback((product: Product, opts?: { fritos?: boolean }) => {
     setItems(prev => {
       const existing = prev.find(i => i.id === product.id);
       if (existing) {
         return prev.map(i =>
-          i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+          i.id === product.id
+            ? { ...i, quantity: i.quantity + 1, ...(opts?.fritos !== undefined ? { fritos: opts.fritos } : {}) }
+            : i
         );
       }
       return [
@@ -65,6 +75,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
           price_cop: product.price_cop ?? null,
           wholesale_price_usd: product.wholesale_price_usd,
           wholesale_price_cop: product.wholesale_price_cop ?? null,
+          limite_unidades_mayor: product.limite_unidades_mayor ?? null,
+          cobra_frito: product.cobra_frito ?? null,
+          fritos: opts?.fritos ?? false,
           quantity: 1,
           image_url: product.image_url,
           category: product.category,
@@ -91,17 +104,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const setItemFritos = useCallback((id: string, fritos: boolean) => {
+    setItems(prev => prev.map(i => (i.id === id ? { ...i, fritos } : i)));
+  }, []);
+
   const clearCart = useCallback(() => setItems([]), []);
   const openCart = useCallback(() => setIsOpen(true), []);
   const closeCart = useCallback(() => setIsOpen(false), []);
 
-  // Total efectivo: aplica la tarifa al mayor por ítem cuando cantidad >= 10.
-  const totalUsd = items.reduce((sum, i) => sum + unitUsd(i, i.quantity) * i.quantity, 0);
+  // Total efectivo: tarifa al mayor por ítem según su umbral + recargo de fritos.
+  const totalUsd = items.reduce((sum, i) => sum + (unitUsd(i, i.quantity) + fritoUnitUsd(i)) * i.quantity, 0);
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
 
   return (
     <CartContext.Provider
-      value={{ items, isOpen, addItem, removeItem, updateQty, clearCart, openCart, closeCart, totalUsd, itemCount, lastAdded }}
+      value={{ items, isOpen, addItem, removeItem, updateQty, setItemFritos, clearCart, openCart, closeCart, totalUsd, itemCount, lastAdded }}
     >
       {children}
     </CartContext.Provider>
