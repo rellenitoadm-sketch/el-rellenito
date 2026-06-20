@@ -8,6 +8,7 @@ import OrdersPanel from '@/components/admin/OrdersPanel';
 import ProductsPanel from '@/components/admin/ProductsPanel';
 import MetricsPanel from '@/components/admin/MetricsPanel';
 import CrmPanel from '@/components/admin/CrmPanel';
+import { useOnboarding } from '@/components/Onboarding';
 import type { StaffRole } from '@/lib/adminAuth';
 
 type Tab = 'pedidos' | 'productos' | 'metricas' | 'crm';
@@ -31,6 +32,7 @@ export default function AdminDashboard() {
   const [role, setRole] = useState<StaffRole | null>(null);
   const [tab, setTab] = useState<Tab>('pedidos');
   const [ready, setReady] = useState(false);
+  const { maybeStart } = useOnboarding();
 
   useEffect(() => {
     fetch('/api/admin/me')
@@ -39,6 +41,27 @@ export default function AdminDashboard() {
       .catch(() => router.replace('/'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Tutorial general del panel la primera vez que entra (distinto admin/equipo:
+  // el de admin presenta las 4 secciones, el de equipo solo Pedidos/Productos).
+  useEffect(() => {
+    if (!ready) return;
+    const t = setTimeout(() => maybeStart(role === 'admin' ? 'admin' : 'adminStaff'), 700);
+    return () => clearTimeout(t);
+  }, [ready, role, maybeStart]);
+
+  // Tutorial DETALLADO al abrir cada sección por primera vez. (Pedidos ya va
+  // incluido en el tutorial general, que parte en esa pestaña.)
+  useEffect(() => {
+    if (!ready) return;
+    const which = tab === 'productos' ? 'adminProductos'
+      : tab === 'metricas' ? 'adminMetricas'
+      : tab === 'crm' ? 'adminCrm'
+      : null;
+    if (!which) return;
+    const t = setTimeout(() => maybeStart(which), 650);
+    return () => clearTimeout(t);
+  }, [tab, ready, maybeStart]);
 
   const logout = async () => {
     await fetch('/api/admin/logout', { method: 'POST' });
@@ -62,7 +85,7 @@ export default function AdminDashboard() {
         className="sticky top-0 z-30 px-4 py-3 flex items-center justify-between border-b backdrop-blur-md"
         style={{ background: 'rgba(255,255,255,0.9)', borderColor: 'var(--border)' }}
       >
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5" data-tour="admin-title">
           <div className="w-11 h-11 rounded-full overflow-hidden shadow-sm" style={{ background: '#fff' }}>
             <Image src="/logo-circle.png" alt="" width={44} height={44} className="object-cover w-full h-full" />
           </div>
@@ -73,14 +96,14 @@ export default function AdminDashboard() {
             </p>
           </div>
         </div>
-        <button onClick={logout} className="btn btn-ghost" style={{ padding: '8px', color: 'var(--text-2)' }} aria-label="Cerrar sesión">
+        <button onClick={logout} data-tour="admin-logout" className="btn btn-ghost" style={{ padding: '8px', color: 'var(--text-2)' }} aria-label="Cerrar sesión">
           <LogOut className="w-4 h-4" />
         </button>
       </div>
 
       {/* Tab bar */}
       <div className="sticky top-[60px] z-20 px-3 py-2 border-b backdrop-blur-md" style={{ background: 'rgba(255,255,255,0.9)', borderColor: 'var(--border)' }}>
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-none max-w-2xl mx-auto">
+        <div data-tour="admin-tabs" className="flex gap-1.5 overflow-x-auto scrollbar-none max-w-2xl mx-auto">
           {tabs.map(({ id, label, Icon }) => (
             <button
               key={id}
@@ -97,7 +120,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Content */}
-      <div className="max-w-2xl mx-auto px-4 py-5">
+      <div className="max-w-2xl mx-auto px-4 py-5" data-tour="admin-content">
         {tab === 'pedidos' && <OrdersPanel role={role} />}
         {tab === 'productos' && <ProductsPanel />}
         {tab === 'metricas' && role === 'admin' && <MetricsPanel />}

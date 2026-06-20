@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Plus, Lock } from 'lucide-react';
+import { X, Plus, Lock, Flame } from 'lucide-react';
 import type { Product } from '@/lib/products';
 import { useCurrency } from './CurrencyContext';
 import { isPricedIn, CURRENCY_NAME } from '@/lib/rates';
@@ -196,10 +196,12 @@ function ProductModalView({
                 ? { background: 'var(--brand-soft)', borderColor: 'var(--brand)' }
                 : { background: 'var(--surface-2)', borderColor: 'var(--border)' }}
             >
-              <span className="text-left">
-                <span className="block text-[14px] font-semibold" style={{ color: 'var(--text-1)' }}>Servicio de fritos</span>
-                <span className="block text-[12px]" style={{ color: 'var(--text-3)' }}>
-                  +{format(FRITO_SURCHARGE.usd, FRITO_SURCHARGE.cop)} por bandeja
+              <span className="text-left flex-1">
+                <span className="flex items-center gap-1.5 text-[14px] font-semibold" style={{ color: 'var(--text-1)' }}>
+                  <Flame className="w-4 h-4" style={{ color: 'var(--brand)' }} /> Pídelo ya frito
+                </span>
+                <span className="block text-[12px] mt-0.5 leading-snug" style={{ color: 'var(--text-3)' }}>
+                  Te lo entregamos recién frito, listo para comer. +{format(FRITO_SURCHARGE.usd, FRITO_SURCHARGE.cop)} por bandeja.
                 </span>
               </span>
               <span className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors" style={{ background: fritos ? 'var(--brand)' : 'var(--surface-3)' }}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Minus, Plus, ShoppingBag, Check, X, CalendarDays, MapPin, Navigation, Loader2, AlertCircle, Lock } from 'lucide-react';
@@ -8,12 +8,15 @@ import { useProducts } from './ProductsContext';
 import { useCategories } from './CategoriesContext';
 import { useCurrency } from './CurrencyContext';
 import { useProductModal } from './ProductModal';
+import { useOnboarding } from './Onboarding';
+import NavMenu from './NavMenu';
+import FilterRow, { type ViewMode } from './FilterRow';
 import WholesaleDatePicker from './WholesaleDatePicker';
 import PaymentTabs from './PaymentTabs';
 import PaymentDetails from './PaymentDetails';
 import ProofUpload, { type ProofData } from './ProofUpload';
 import type { PaymentMethodId } from '@/lib/payments';
-import { toCop, isPricedIn, CURRENCY_NAME } from '@/lib/rates';
+import { toCop, isPricedIn, CURRENCY_NAME, wholesaleThreshold } from '@/lib/rates';
 import { useGeolocationZone } from '@/hooks/useGeolocationZone';
 
 interface WholesaleCartItem {
@@ -22,24 +25,41 @@ interface WholesaleCartItem {
   price_usd: number;
   price_cop?: number | null;
   qty: number;
+  /** Cantidad mínima de compra al mayor (umbral del producto, default 10). */
+  min: number;
 }
 
 interface WholesalePageProps {
   onBack: () => void;
+  /** Navegar a una sección informativa (footer) desde el menú. */
+  onNavInfo?: (id: string) => void;
 }
 
-export default function WholesalePage({ onBack }: WholesalePageProps) {
+export default function WholesalePage({ onBack, onNavInfo }: WholesalePageProps) {
   const { format, rates, currency } = useCurrency();
   const { products } = useProducts();
   const { order, labelOf } = useCategories();
   const { open: openDetail } = useProductModal();
+  const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const { maybeStart } = useOnboarding();
+
+  // Tutorial de la sección Al Mayor la primera vez que se entra.
+  useEffect(() => {
+    const t = setTimeout(() => maybeStart('mayor'), 600);
+    return () => clearTimeout(t);
+  }, [maybeStart]);
 
   const WHOLESALE_BY_CAT = useMemo(() => {
-    const wholesale = products.filter(p => p.type === 'mayorista' || p.type === 'ambos');
+    const q = search.trim().toLowerCase();
+    const wholesale = products.filter(p =>
+      (p.type === 'mayorista' || p.type === 'ambos') &&
+      (!q || p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)),
+    );
     return order
       .map(cat => ({ cat, items: wholesale.filter(p => p.category === cat) }))
       .filter(g => g.items.length > 0);
-  }, [products, order]);
+  }, [products, order, search]);
 
   const [cart, setCart] = useState<WholesaleCartItem[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -69,18 +89,34 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
     reset: resetLoc,
   } = useGeolocationZone();
 
-  const addToCart = (id: string, name: string, price_usd: number, price_cop?: number | null) => {
+  // Al mayor hay una cantidad MÍNIMA por producto (= su umbral mayorista, default
+  // 10). Un producto nuevo entra directamente con esa cantidad; no se puede bajar
+  // de ahí (al intentar restar por debajo del mínimo, se quita del pedido).
+  const addToCart = (id: string, name: string, price_usd: number, price_cop: number | null | undefined, min: number) => {
+    const minQty = Math.max(1, min);
     setCart(prev => {
       const existing = prev.find(i => i.id === id);
       if (existing) return prev.map(i => i.id === id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { id, name, price_usd, price_cop: price_cop ?? null, qty: 1 }];
+      return [...prev, { id, name, price_usd, price_cop: price_cop ?? null, qty: minQty, min: minQty }];
     });
   };
 
   const updateQty = (id: string, qty: number) => {
-    if (qty <= 0) setCart(prev => prev.filter(i => i.id !== id));
-    else setCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i));
+    setCart(prev => {
+      const item = prev.find(i => i.id === id);
+      if (!item) return prev;
+      if (qty < item.min) return prev.filter(i => i.id !== id); // por debajo del mínimo → quitar
+      return prev.map(i => i.id === id ? { ...i, qty } : i);
+    });
   };
+
+  // Tutorial del checkout mayorista la primera vez que se abre (tiene su propio
+  // flujo: resumen, agenda, datos+dirección, anticipo y confirmación).
+  useEffect(() => {
+    if (!checkoutOpen) return;
+    const t = setTimeout(() => maybeStart('wcheckout'), 450);
+    return () => clearTimeout(t);
+  }, [checkoutOpen, maybeStart]);
 
   const totalUsd = cart.reduce((s, i) => s + i.price_usd * i.qty, 0);
   const totalCop = cart.reduce((s, i) => s + toCop(i.price_usd, i.price_cop, rates) * i.qty, 0);
@@ -199,6 +235,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
           <button
             onClick={onBack}
             aria-label="Volver al menú"
+            data-tour="wmayor-back"
             className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors flex-shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -207,9 +244,17 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
             <p className="text-white font-bold text-sm uppercase tracking-wide">Pedidos Al Mayor</p>
             <p className="text-white/80 text-[10px]">Precios especiales · Agenda con 24h de anticipación</p>
           </div>
+          <NavMenu
+            variant="hero"
+            triggerTour="wmayor-menu"
+            onHome={onBack}
+            onMayorClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            onCategory={scrollToCat}
+            onInfo={onNavInfo}
+          />
         </div>
         {/* Category pills */}
-        <nav className="flex gap-2 overflow-x-auto scrollbar-none px-4 py-2 border-b"
+        <nav data-tour="wmayor-categories" className="flex gap-2 overflow-x-auto scrollbar-none px-4 py-2 border-b"
           style={{ background: 'var(--bg-main)', borderColor: 'var(--border)' }}>
           {WHOLESALE_BY_CAT.map(({ cat }) => (
             <button
@@ -222,26 +267,92 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
             </button>
           ))}
         </nav>
+        {/* Buscador + moneda + vista (paridad con Al Detal) */}
+        <FilterRow
+          search={search}
+          onSearchChange={setSearch}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
       </div>
 
       {/* Products by category */}
       <div className="px-4 pb-28 pt-3 space-y-6">
+        {WHOLESALE_BY_CAT.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No encontramos productos con esa búsqueda.</p>
+          </div>
+        )}
         {WHOLESALE_BY_CAT.map(({ cat, items }) => (
-          <section key={cat} id={`wmayor-${cat}`} className="scroll-mt-28">
+          <section key={cat} id={`wmayor-${cat}`} className="scroll-mt-40">
             <h2 className="text-sm font-bold uppercase tracking-widest mb-3"
               style={{ color: 'var(--brand-orange)' }}>
               {labelOf(cat)}
             </h2>
-            <div className="space-y-2.5">
+            <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-2.5'}>
               {items.map(p => {
                 const item = cart.find(i => i.id === p.id);
                 const qty = item?.qty ?? 0;
                 const priced = isPricedIn(p, currency);
+                const minQty = wholesaleThreshold(p);
                 const showDetail = () => openDetail(
                   p,
-                  () => addToCart(p.id, p.name, p.wholesale_price_usd, p.wholesale_price_cop),
+                  () => addToCart(p.id, p.name, p.wholesale_price_usd, p.wholesale_price_cop, minQty),
                   { priceOverride: { price_usd: p.wholesale_price_usd, price_cop: p.wholesale_price_cop } },
                 );
+                const placeholder = <span className="font-bold" style={{ color: 'var(--text-3)' }}>{p.name.charAt(0).toUpperCase()}</span>;
+                const priceEl = priced ? (
+                  <div>
+                    <p className="text-sm font-bold" style={{ color: 'var(--brand-orange)' }}>
+                      {format(p.wholesale_price_usd, p.wholesale_price_cop)}
+                    </p>
+                    <p className="text-[10.5px] font-medium" style={{ color: 'var(--text-muted)' }}>Mínimo {minQty} und.</p>
+                  </div>
+                ) : (
+                  <p className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                    <Lock className="w-3 h-3" /> No disp. en {CURRENCY_NAME[currency]}
+                  </p>
+                );
+                const qtyControls = !priced ? (
+                  <span className="inline-flex items-center justify-center w-11 h-11" style={{ color: 'var(--text-muted)' }}>
+                    <Lock className="w-4 h-4" />
+                  </span>
+                ) : qty > 0 ? (
+                  <div className="flex items-center gap-1.5 rounded-xl px-2 py-1.5 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                    <button onClick={() => updateQty(p.id, qty - 1)} aria-label="Restar" className="w-11 h-11 rounded-full flex items-center justify-center" style={{ color: 'var(--brand-orange)' }}>
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="text-sm font-bold w-4 text-center" style={{ color: 'var(--text-primary)' }}>{qty}</span>
+                    <button onClick={() => addToCart(p.id, p.name, p.wholesale_price_usd, p.wholesale_price_cop, minQty)} aria-label="Sumar" className="w-11 h-11 rounded-full bg-[var(--brand-orange)] flex items-center justify-center text-white">
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => addToCart(p.id, p.name, p.wholesale_price_usd, p.wholesale_price_cop, minQty)}
+                    aria-label={`Agregar ${p.name} (mínimo ${minQty})`}
+                    className="text-white text-xs font-bold px-3 py-2 rounded-xl btn-gradient"
+                    style={{ minHeight: 44 }}
+                  >
+                    + Agregar
+                  </button>
+                );
+
+                if (viewMode === 'grid') {
+                  return (
+                    <div key={p.id} className="rounded-2xl border overflow-hidden flex flex-col" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                      <div className="relative w-full aspect-square flex items-center justify-center text-4xl cursor-pointer" style={{ background: 'var(--surface-2)' }}
+                        onClick={showDetail} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showDetail(); } }} role="button" tabIndex={0} aria-label={`Ver detalle de ${p.name}`}>
+                        {p.image_url ? <Image src={p.image_url} alt={p.name} fill className="object-cover" sizes="50vw" /> : placeholder}
+                      </div>
+                      <div className="p-2.5 flex flex-col flex-1">
+                        <p className="text-[13px] font-semibold leading-tight line-clamp-2 cursor-pointer" style={{ color: 'var(--text-primary)' }} onClick={showDetail}>{p.name}</p>
+                        <div className="mt-1">{priceEl}</div>
+                        <div className="mt-auto pt-2">{qtyControls}</div>
+                      </div>
+                    </div>
+                  );
+                }
                 return (
                   <div
                     key={p.id}
@@ -254,48 +365,13 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                       role="button" tabIndex={0} aria-label={`Ver detalle de ${p.name}`}>
                       {p.image_url ? (
                         <Image src={p.image_url} alt={p.name} fill className="object-cover" sizes="48px" />
-                      ) : (
-                        <span className="font-bold" style={{ color: 'var(--text-3)' }}>{p.name.charAt(0).toUpperCase()}</span>
-                      )}
+                      ) : placeholder}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold leading-tight cursor-pointer" style={{ color: 'var(--text-primary)' }} onClick={showDetail}>{p.name}</p>
-                      {priced ? (
-                        <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--brand-orange)' }}>
-                          {format(p.wholesale_price_usd, p.wholesale_price_cop)}
-                        </p>
-                      ) : (
-                        <p className="text-xs font-semibold mt-0.5 inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                          <Lock className="w-3 h-3" /> No disp. en {CURRENCY_NAME[currency]}
-                        </p>
-                      )}
+                      <div className="mt-0.5">{priceEl}</div>
                     </div>
-                    <div className="flex-shrink-0">
-                      {!priced ? (
-                        <span className="inline-flex items-center justify-center w-11 h-11" style={{ color: 'var(--text-muted)' }}>
-                          <Lock className="w-4 h-4" />
-                        </span>
-                      ) : qty > 0 ? (
-                        <div className="flex items-center gap-1.5 rounded-xl px-2 py-1.5 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-                          <button onClick={() => updateQty(p.id, qty - 1)} aria-label="Restar" className="w-11 h-11 rounded-full flex items-center justify-center" style={{ color: 'var(--brand-orange)' }}>
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="text-sm font-bold w-4 text-center" style={{ color: 'var(--text-primary)' }}>{qty}</span>
-                          <button onClick={() => addToCart(p.id, p.name, p.wholesale_price_usd, p.wholesale_price_cop)} aria-label="Sumar" className="w-11 h-11 rounded-full bg-[var(--brand-orange)] flex items-center justify-center text-white">
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => addToCart(p.id, p.name, p.wholesale_price_usd, p.wholesale_price_cop)}
-                          aria-label={`Agregar ${p.name}`}
-                          className="text-white text-xs font-bold px-3 py-2 rounded-xl btn-gradient"
-                          style={{ minHeight: 44 }}
-                        >
-                          + Agregar
-                        </button>
-                      )}
-                    </div>
+                    <div className="flex-shrink-0">{qtyControls}</div>
                   </div>
                 );
               })}
@@ -362,7 +438,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                 <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
 
                   {/* 1. Resumen */}
-                  <section>
+                  <section data-tour="wco-summary">
                     <h3 className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--brand-orange)' }}>
                       Resumen
                     </h3>
@@ -373,7 +449,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                           <div className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
                             <button onClick={() => updateQty(i.id, i.qty - 1)} aria-label="Restar" className="w-8 h-8 flex items-center justify-center" style={{ color: 'var(--brand-orange)' }}><Minus className="w-3 h-3" /></button>
                             <span className="text-xs font-bold w-4 text-center" style={{ color: 'var(--text-primary)' }}>{i.qty}</span>
-                            <button onClick={() => addToCart(i.id, i.name, i.price_usd, i.price_cop)} aria-label="Sumar" className="w-8 h-8 rounded-full bg-[var(--brand-orange)] flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
+                            <button onClick={() => addToCart(i.id, i.name, i.price_usd, i.price_cop, i.min)} aria-label="Sumar" className="w-8 h-8 rounded-full bg-[var(--brand-orange)] flex items-center justify-center text-white"><Plus className="w-3 h-3" /></button>
                           </div>
                           {isPricedIn(i, currency) ? (
                             <span className="text-sm font-semibold w-16 text-right" style={{ color: 'var(--text-primary)' }}>{format(i.price_usd * i.qty, i.price_cop != null ? i.price_cop * i.qty : null)}</span>
@@ -390,7 +466,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                   </section>
 
                   {/* 2. Calendario */}
-                  <section>
+                  <section data-tour="wco-date">
                     <h3 className="text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5" style={{ color: 'var(--brand-orange)' }}>
                       <CalendarDays className="w-3.5 h-3.5" /> Agenda tu entrega
                     </h3>
@@ -406,7 +482,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                   </section>
 
                   {/* 3. Datos */}
-                  <section>
+                  <section data-tour="wco-data">
                     <h3 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-orange)' }}>
                       Tus datos
                     </h3>
@@ -485,7 +561,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                   </section>
 
                   {/* 4. Anticipo */}
-                  <section>
+                  <section data-tour="wco-payment">
                     <h3 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-orange)' }}>
                       Pago del anticipo
                     </h3>
@@ -544,6 +620,7 @@ export default function WholesalePage({ onBack }: WholesalePageProps) {
                   <button
                     onClick={handleConfirm}
                     disabled={!canConfirm || loading}
+                    data-tour="wco-confirm"
                     className="w-full text-white font-bold py-4 rounded-2xl text-base transition-all btn-gradient glow-orange disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Enviando...' : `Confirmar y pagar anticipo ${format(advanceUsd, advanceCop)}`}

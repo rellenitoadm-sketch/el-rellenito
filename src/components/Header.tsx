@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, type ReactNode } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ChevronRight, MapPin, Star } from 'lucide-react';
@@ -13,6 +14,8 @@ interface HeaderProps {
    * Home informativo. Si se omite, muestra solo "Pedidos al Mayor" (vista detal).
    */
   onDetalClick?: () => void;
+  /** Slot superior-izquierdo del hero (p.ej. el menú hamburguesa en Home). */
+  topLeft?: ReactNode;
 }
 
 /**
@@ -20,7 +23,18 @@ interface HeaderProps {
  * height/opacity transforms, which were causing the jank). The persistent
  * brand + nav live in the sticky TopBar + CategoryTabs below it.
  */
-export default function Header({ onMayorClick, status, onDetalClick }: HeaderProps) {
+export default function Header({ onMayorClick, status, onDetalClick, topLeft }: HeaderProps) {
+  // Gesto secreto para entrar al panel: 5 toques rápidos en el logo grande.
+  const taps = useRef<number[]>([]);
+  const handleSecretTap = () => {
+    const now = Date.now();
+    taps.current = [...taps.current.filter(t => now - t < 1500), now];
+    if (taps.current.length >= 5) {
+      taps.current = [];
+      window.dispatchEvent(new CustomEvent('staff-unlock'));
+    }
+  };
+
   return (
     <header className="relative w-full overflow-hidden" style={{ background: 'var(--grad-hero)' }}>
       {/* Subtle dot texture */}
@@ -28,6 +42,13 @@ export default function Header({ onMayorClick, status, onDetalClick }: HeaderPro
         className="absolute inset-0 opacity-[0.04] pointer-events-none"
         style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }}
       />
+
+      {/* Menú (u otro control) en la esquina superior izquierda del hero */}
+      {topLeft && (
+        <div className="absolute top-3 left-3 z-20">
+          {topLeft}
+        </div>
+      )}
 
       {/* Social icons */}
       <div className="absolute top-3 right-3 flex flex-col gap-2 z-20">
@@ -69,7 +90,8 @@ export default function Header({ onMayorClick, status, onDetalClick }: HeaderPro
           transition={{ duration: 0.45, type: 'spring', stiffness: 200, damping: 18 }}
         >
           <div
-            className="w-[196px] h-[196px] rounded-full overflow-hidden p-[3px]"
+            onClick={handleSecretTap}
+            className="w-[196px] h-[196px] rounded-full overflow-hidden p-[3px] select-none"
             style={{ background: 'var(--brand)', boxShadow: '0 14px 44px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.25)' }}
           >
             <div
@@ -98,7 +120,6 @@ export default function Header({ onMayorClick, status, onDetalClick }: HeaderPro
           <span className="inline-flex items-center gap-1">
             <Star className="w-3 h-3 fill-current" />
             <span className="font-semibold">4.5</span>
-            <span className="text-white/75">(127)</span>
           </span>
           <span className="text-white/40">·</span>
           <span className="inline-flex items-center gap-1">
@@ -134,14 +155,16 @@ export default function Header({ onMayorClick, status, onDetalClick }: HeaderPro
           >
             <button
               onClick={onDetalClick}
+              data-tour="home-detal"
               className="inline-flex items-center gap-1 bg-white text-[var(--brand-deep)] text-[13px] font-bold px-5 py-2.5 rounded-full shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
             >
-              Ver productos
+              Pedidos al Detal
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={onMayorClick}
-              className="inline-flex items-center gap-1 bg-white/15 text-white border border-white/40 text-[13px] font-bold px-5 py-2.5 rounded-full backdrop-blur hover:bg-white/25 active:scale-[0.98] transition-all"
+              data-tour="home-mayor"
+              className="inline-flex items-center gap-1 bg-white text-[var(--brand-deep)] text-[13px] font-bold px-5 py-2.5 rounded-full shadow-md hover:shadow-lg active:scale-[0.98] transition-all"
             >
               Pedidos al Mayor
               <ChevronRight className="w-3.5 h-3.5" />

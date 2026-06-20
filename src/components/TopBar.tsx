@@ -1,6 +1,5 @@
 'use client';
 
-import { useRef } from 'react';
 import Image from 'next/image';
 import { Star } from 'lucide-react';
 import type { OpenStatus } from '@/lib/businessHours';
@@ -16,26 +15,16 @@ import NavMenu from './NavMenu';
  * Invisible to customers; no link, no hint.
  */
 export default function TopBar({ status, onMayorClick, onHome }: { status: OpenStatus; onMayorClick: () => void; onHome?: () => void }) {
-  const taps = useRef<number[]>([]);
-
-  const handleSecretTap = () => {
-    const now = Date.now();
-    taps.current = [...taps.current.filter(t => now - t < 1500), now];
-    if (taps.current.length >= 5) {
-      taps.current = [];
-      window.dispatchEvent(new CustomEvent('staff-unlock'));
-    }
-  };
-
   return (
     <div
       className="flex items-center gap-2.5 px-4 py-2.5"
       style={{ background: 'var(--surface)' }}
     >
       <div
-        onClick={handleSecretTap}
-        className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 select-none"
+        onClick={onHome}
+        className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 select-none cursor-pointer"
         style={{ background: 'var(--brand-soft)' }}
+        aria-label="Inicio"
       >
         <Image src="/logo-circle.png" alt="El Rellenito" width={32} height={32} className="object-cover w-full h-full" draggable={false} />
       </div>

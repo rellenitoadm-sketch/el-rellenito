@@ -97,7 +97,7 @@ export default function ProductsPanel() {
   return (
     <div>
       {/* BCV Rate bar — siempre visible */}
-      <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 mb-3 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+      <div data-tour="products-rate" className="flex items-center gap-3 rounded-xl px-3 py-2.5 mb-3 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
         <DollarSign className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand)' }} />
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-3)' }}>Tasa BCV</p>
@@ -122,7 +122,7 @@ export default function ProductsPanel() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3" data-tour="products-toolbar">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-3)' }} />
           <input
@@ -142,7 +142,7 @@ export default function ProductsPanel() {
       </div>
 
       {/* Category chips */}
-      <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-2 mb-2">
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-2 mb-2" data-tour="products-cats">
         <Chip active={catFilter === 'ALL'} onClick={() => setCatFilter('ALL')}>Todas ({products.length})</Chip>
         {incompleteProducts.length > 0 && (
           <button
@@ -205,6 +205,7 @@ export default function ProductsPanel() {
       {/* Floating add button */}
       <button
         onClick={() => setCreating(true)}
+        data-tour="products-add"
         className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full btn-gradient glow-orange flex items-center justify-center shadow-xl"
         aria-label="Nuevo producto"
       >

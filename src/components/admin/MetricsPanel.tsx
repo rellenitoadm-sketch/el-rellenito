@@ -47,7 +47,7 @@ export default function MetricsPanel() {
       </div>
 
       {/* Revenue cards */}
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5" data-tour="metrics-revenue">
         <BigStat Icon={DollarSign} label="Ingresos hoy" value={`$${m.orders.revenueToday.toFixed(2)}`} accent />
         <BigStat Icon={ShoppingBag} label="Pedidos hoy" value={String(m.orders.today)} />
         <BigStat Icon={TrendingUp} label="Ingresos 30d" value={`$${m.orders.revenueMonth.toFixed(2)}`} />
@@ -55,7 +55,7 @@ export default function MetricsPanel() {
       </div>
 
       {/* Visits */}
-      <div className="card p-4">
+      <div className="card p-4" data-tour="metrics-visits">
         <div className="flex items-center gap-2 mb-1">
           <Eye className="w-4 h-4" style={{ color: 'var(--brand)' }} />
           <p className="text-[13px] font-semibold" style={{ color: 'var(--text-1)' }}>Visitas a la página</p>
@@ -75,7 +75,7 @@ export default function MetricsPanel() {
       </div>
 
       {/* Top products */}
-      <div className="card p-4">
+      <div className="card p-4" data-tour="metrics-top">
         <p className="text-[13px] font-semibold mb-3" style={{ color: 'var(--text-1)' }}>Productos más vendidos (30d)</p>
         {m.topProducts.length === 0 ? (
           <p className="text-[12px]" style={{ color: 'var(--text-3)' }}>Aún no hay datos suficientes.</p>

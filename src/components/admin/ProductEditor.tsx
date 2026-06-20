@@ -314,7 +314,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
                 </div>
               </div>
               <div className="mt-2.5">
-                <label className="text-[12px] font-semibold block mb-1" style={{ color: 'var(--text-2)' }}>Mínimo de unidades para precio al mayor</label>
+                <label className="text-[12px] font-semibold block mb-1" style={{ color: 'var(--text-2)' }}>Mínimo de unidades al mayor</label>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -323,11 +323,12 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
                   value={limiteUnidadesMayor}
                   onChange={e => setLimiteUnidadesMayor(e.target.value)}
                   placeholder="10"
-                  aria-label="Mínimo de unidades para precio al mayor"
+                  aria-label="Mínimo de unidades al mayor"
                   className="field"
                 />
                 <p className="text-[10.5px] mt-1" style={{ color: 'var(--text-3)' }}>
-                  A partir de esta cantidad del mismo producto se cobra el precio al mayor. Si lo dejas vacío, se usa 10.
+                  Es la cantidad MÍNIMA de compra al mayor de este producto y, a la vez, la cantidad
+                  desde la que se aplica el precio al mayor. En la tienda Al Mayor no se puede pedir menos. Si lo dejas vacío, se usa 10.
                 </p>
               </div>
             </div>

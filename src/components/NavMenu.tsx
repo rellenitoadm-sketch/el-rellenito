@@ -10,15 +10,30 @@ interface NavMenuProps {
   onMayorClick: () => void;
   /** Vuelve al Home informativo. Si se omite, "Inicio" solo sube al tope. */
   onHome?: () => void;
+  /**
+   * Navegación a una categoría. Si se omite, hace scroll a `section-{cat}` en la
+   * página actual (comportamiento del catálogo Al Detal). En Home/Al Mayor se
+   * pasa para cambiar de vista o desplazarse a la sección correcta.
+   */
+  onCategory?: (cat: string) => void;
+  /**
+   * Navegación a una sección informativa del footer (quienes-somos, faq, pqrs).
+   * Si se omite, hace scroll a ese id en la página actual.
+   */
+  onInfo?: (id: string) => void;
+  /** Estilo del botón disparador. `hero` = claro/translúcido sobre fondo de marca. */
+  variant?: 'default' | 'hero';
+  /** Valor de data-tour del disparador (para anclar tutoriales distintos por vista). */
+  triggerTour?: string;
 }
 
 /**
- * Menú de navegación (hamburguesa) para la barra superior.
- * Drawer lateral con: inicio, categorías (scroll a su sección), pedidos al mayor,
- * contacto y privacidad. Vive dentro del TopBar (solo en la vista catálogo),
- * por lo que las secciones de categoría siempre existen al abrirlo.
+ * Menú de navegación (hamburguesa) para la barra superior. Drawer lateral con:
+ * inicio, categorías, pedidos al mayor, contacto e información. Se usa en las tres
+ * vistas (Home, Al Detal y Al Mayor); las callbacks `onCategory`/`onInfo` permiten
+ * que cada vista resuelva la navegación a su manera.
  */
-export default function NavMenu({ onMayorClick, onHome }: NavMenuProps) {
+export default function NavMenu({ onMayorClick, onHome, onCategory, onInfo, variant = 'default', triggerTour = 'menu' }: NavMenuProps) {
   const [open, setOpen] = useState(false);
   const { order, labelOf } = useCategories();
 
@@ -43,9 +58,10 @@ export default function NavMenu({ onMayorClick, onHome }: NavMenuProps) {
 
   const goToCategory = (cat: string) => {
     setOpen(false);
-    // Espera a que cierre el drawer (desbloquea el scroll) antes de desplazar.
+    // Espera a que cierre el drawer (desbloquea el scroll) antes de desplazar/navegar.
     setTimeout(() => {
-      document.getElementById(`section-${cat}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (onCategory) onCategory(cat);
+      else document.getElementById(`section-${cat}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 220);
   };
 
@@ -53,7 +69,8 @@ export default function NavMenu({ onMayorClick, onHome }: NavMenuProps) {
   const goToSection = (id: string) => {
     setOpen(false);
     setTimeout(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (onInfo) onInfo(id);
+      else document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 220);
   };
 
@@ -66,9 +83,11 @@ export default function NavMenu({ onMayorClick, onHome }: NavMenuProps) {
     <>
       <button
         onClick={() => setOpen(true)}
-        data-tour="menu"
+        data-tour={triggerTour}
         className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
-        style={{ background: 'var(--surface-2)', color: 'var(--text-1)' }}
+        style={variant === 'hero'
+          ? { background: 'rgba(255,255,255,0.2)', color: '#fff', backdropFilter: 'blur(4px)' }
+          : { background: 'var(--surface-2)', color: 'var(--text-1)' }}
         aria-label="Abrir menú"
         aria-expanded={open}
       >

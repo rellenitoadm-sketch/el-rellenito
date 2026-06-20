@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Download, X, Share } from 'lucide-react';
+import { useOnboarding } from './Onboarding';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -34,6 +35,7 @@ export default function InstallPrompt() {
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [show, setShow] = useState(false);
   const [iosHint, setIosHint] = useState(false);
+  const { activeTour } = useOnboarding();
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -71,7 +73,8 @@ export default function InstallPrompt() {
     setDeferred(null);
   };
 
-  if (!show) return null;
+  // Se oculta durante un tutorial y reaparece al terminarlo (no se descarta solo).
+  if (!show || activeTour) return null;
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-1.5rem)] max-w-md">

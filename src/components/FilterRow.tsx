@@ -40,7 +40,7 @@ export default function FilterRow({ search, onSearchChange, viewMode, onViewMode
     <div className="px-4 py-2.5 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="flex items-center gap-2">
         {/* Search */}
-        <div className="relative flex-1 min-w-0">
+        <div className="relative flex-1 min-w-0" data-tour="search">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none"
             strokeWidth={2.25}

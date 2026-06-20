@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Truck, Store, X, Loader2, MapPin, CheckCircle, Navigation, AlertCircle } from 'lucide-react';
 import { useCart } from './CartContext';
@@ -12,6 +12,7 @@ import { deliveryZones } from '@/lib/zones';
 import { estimateForZone, globalDeliveryRange, type DeliveryEstimate } from '@/lib/zoneDetection';
 import { unitUsd, unitCop, isWholesaleQty, wholesaleThreshold } from '@/lib/rates';
 import { fritoUnitCop, hasFrito } from '@/lib/fritos';
+import { useOnboarding } from './Onboarding';
 import { type PaymentMethodId } from '@/lib/payments';
 import { useGeolocationZone } from '@/hooks/useGeolocationZone';
 
@@ -36,6 +37,13 @@ function fadeUp(delay: number) {
 
 export default function Checkout({ onClose }: CheckoutProps) {
   const { items, totalUsd, clearCart } = useCart();
+  const { maybeStart } = useOnboarding();
+
+  // Tutorial al momento de hacer el pedido (primera vez que se abre el checkout).
+  useEffect(() => {
+    const t = setTimeout(() => maybeStart('checkout'), 500);
+    return () => clearTimeout(t);
+  }, [maybeStart]);
   const { rates, currency, format } = useCurrency();
 
   const [step, setStep] = useState<Step>('form');
@@ -235,7 +243,7 @@ export default function Checkout({ onClose }: CheckoutProps) {
       <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-5 pt-4">
 
         {/* Delivery type */}
-        <motion.div {...fadeUp(0)}>
+        <motion.div {...fadeUp(0)} data-tour="checkout-delivery">
           <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-2)' }}>Método de entrega</p>
           <div className="grid grid-cols-2 gap-2">
             {[
@@ -259,7 +267,7 @@ export default function Checkout({ onClose }: CheckoutProps) {
 
         {/* Location (delivery) */}
         {isDelivery && (
-          <motion.div {...fadeUp(0.06)}>
+          <motion.div {...fadeUp(0.06)} data-tour="checkout-location">
             <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-2)' }}>
               ¿Dónde te llevamos el pedido?
             </p>
@@ -459,7 +467,7 @@ export default function Checkout({ onClose }: CheckoutProps) {
         )}
 
         {/* Customer data */}
-        <motion.div {...fadeUp(0.12)} className="space-y-3">
+        <motion.div {...fadeUp(0.12)} data-tour="checkout-data" className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-2)' }}>Tus datos</p>
 
           <div>
@@ -492,7 +500,7 @@ export default function Checkout({ onClose }: CheckoutProps) {
         </motion.div>
 
         {/* Payment */}
-        <motion.div {...fadeUp(0.18)}>
+        <motion.div {...fadeUp(0.18)} data-tour="checkout-payment">
           <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-2)' }}>Método de pago</p>
           <PaymentTabs selected={paymentMethod} onSelect={(m) => { setPaymentMethod(m); setProof(null); }} />
           <div className="mt-2"><PaymentDetails methodId={paymentMethod} /></div>
@@ -507,7 +515,7 @@ export default function Checkout({ onClose }: CheckoutProps) {
         )}
 
         {/* Order summary */}
-        <motion.div {...fadeUp(0.3)}
+        <motion.div {...fadeUp(0.3)} data-tour="checkout-summary"
           className="rounded-xl p-3 border space-y-1.5"
           style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
         >
@@ -550,6 +558,7 @@ export default function Checkout({ onClose }: CheckoutProps) {
           onClick={handleConfirm}
           disabled={loading || !proofValid}
           whileTap={{ scale: 0.97 }}
+          data-tour="checkout-confirm"
           className="w-full flex items-center justify-center gap-2 text-white font-bold py-4 rounded-2xl text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed btn-gradient glow-orange"
         >
           {loading

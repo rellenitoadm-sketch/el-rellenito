@@ -1,5 +1,56 @@
 # HANDOFF — El Rellenito (→ nueva sesión)
 
+> **Actualizado 2026-06-18.** La sección ⭐ de abajo es lo VIGENTE. El resto del archivo (desde "Fecha: 2026-06-14") es historial.
+
+---
+
+## ⭐ ESTADO 2026-06-18 — Ampliación Fase 1+2 + lote UI HECHOS (sin commitear) · 6 pendientes nuevos
+
+### Hecho esta sesión (todo verificado con `next build` exit 0; NO verificado a fondo en navegador salvo el Home)
+**Fase 1 — datos/lógica:**
+- `products.limite_unidades_mayor` (int NOT NULL default 10) = umbral mayorista POR PRODUCTO. Helpers en `lib/rates.ts`: `wholesaleThreshold(p)`, `isWholesaleQty(qty, limit)`; threaded en `unitUsd/unitCop/cartTotals`, `CartItem`, `Cart.tsx`, `Checkout.tsx`. Editable en `admin/ProductEditor.tsx` ("Mínimo de unidades para precio al mayor") + whitelist en API.
+- Categoría `PIZZERIA` + 6 pizzas; 6 combos de evento `combo-evento-1..6` (precio fijo). USD derivado de COP (~3500), editable en admin.
+
+**Fase 2 — IA/UX:**
+- 3 vistas en `app/page.tsx`: `home|detal|mayor` (default `home`). `Home.tsx` informativo: hero con 2 CTAs SÓLIDAS "Pedidos al Detal" / "Pedidos al Mayor" + descripción + Footer. SIN tarjetas, SIN video, SIN conteo de reseñas.
+- **Acceso admin = 5 toques en el LOGO GRANDE del hero** (`Header.tsx`); el logo pequeño del `TopBar` ahora va a Inicio.
+- Modal de producto `ProductModal.tsx` (detal + mayor con precio correcto; toggle de fritos).
+- Recargo de fritos: columna `products.cobra_frito` (default Tequeños+Pasapalos; exentos `tequeno-mini-combo` y `cafetin-pastelitos`). `lib/fritos.ts` → `FRITO_SURCHARGE {usd:0.8, cop:2000}`. Toggle en modal + por línea en carrito; suma en totales/checkout; flag `fritos` en order items; toggle "Cobra servicio de fritos" en admin.
+- Al Mayor (`WholesalePage.tsx`) con paridad: **buscador + selector de moneda + toggle lista/cuadrícula** (reusa `FilterRow`) + vista grid + estado vacío.
+- Onboarding `Onboarding.tsx`: tours `home, catalog, mayor, cart, checkout, admin` (LocalStorage `rl_tour_{id}_v2`, una vez c/u). Con motion (spotlight resorte + anillo que late + tarjeta por paso). Triggers: `page.tsx` (home/catalog), `WholesalePage` (mayor), `Cart` (cart), `Checkout` (checkout), `admin/dashboard` (admin). Anclas `data-tour=...`.
+- Gravix: headings de categoría a solo texto; placeholders sin foto = inicial del nombre; sin emoji al crear categoría.
+
+**Migraciones Supabase YA APLICADAS** (proyecto `cbmkqumcsgieivffiody`): `limite_unidades_mayor`, `cobra_frito`, categoría PIZZERIA + 12 productos. `database.types.ts` regenerado a mano (incluye tabla `categories`).
+
+### GIT — IMPORTANTE
+- Commit `35dd713` (main) tiene Fase 1+2 **PERO con un bug de tipos `cobra_frito` que ROMPE `next build`**.
+- El **working tree tiene el FIX + TODO el lote UI, sin commitear** → la nueva sesión debe **commitear el working tree** (incluye el fix y `HANDOFF.md`).
+- Autor configurado: `rellenito.adm@gmail.com` (requerido para deploy Vercel Hobby — ver memoria). Repo `site/` = `github.com/rellenitoadm-sketch/el-rellenito`; push a `main` → auto-deploy Vercel (elrellenito.com). **NO se ha hecho push.**
+
+### CÓMO CORRER / PREVIEW (clave en esta máquina)
+- El **dev server (`next dev` Turbopack) es INESTABLE aquí**: se reinicia por umbral de memoria + disco D: lento → la pestaña del navegador queda en `chrome-error`. El preview MCP (`preview_start`) NO es fiable.
+- **Usar BUILD DE PRODUCCIÓN para preview:** `& "C:\Program Files\nodejs\npm.cmd" run build` y luego `... run start` (en background) → **http://localhost:3000 estable** (next start, sin recompilaciones). Verificar con `node -e "fetch('http://localhost:3000/').then(r=>r.text()).then(...)"`.
+- **`next build` es MÁS ESTRICTO que `tsc --noEmit`** (atrapó el bug `cobra_frito`). SIEMPRE validar con `next build`, no solo tsc.
+- **Gotcha de tipos:** columnas NOT NULL de Supabase (`cobra_frito`, `limite_unidades_mayor`) NO tiparlas `| null` en el tipo `Product` (rompe el `.update(patch)` tipado de supabase-js en `next build`).
+- Antes de tocar código: `site/AGENTS.md` advierte que este Next 16 tiene breaking changes (leer `node_modules/next/dist/docs/` si se tocan rutas/SSR).
+
+### PENDIENTES NUEVOS (2026-06-18) — ✅ TODOS HECHOS (parte 2, sin commitear; `next build` exit 0)
+Verificado con `tsc --noEmit` + `next build` (ambos exit 0) y smoke test del build de producción (Home/Admin → 200, ancla `home-menu` presente en el HTML). NO probado a fondo en navegador (tours son gated por localStorage `rl_tour_*_v2` + animaciones).
+1. ✅ **Tours de carrito/checkout completos, detal Y mayor.** `Onboarding.tsx`: tour `cart` ampliado (incluye explicación de fritos), tour `checkout` (detal) ampliado a 6 pasos (entrega, ubicación, datos, pago, resumen, confirmar) con anclas nuevas en `Checkout.tsx` (`checkout-delivery/location/data/summary`). Nuevo tour `wcheckout` para el checkout mayorista inline con anclas `wco-summary/date/data/payment/confirm` en `WholesalePage.tsx`; se dispara al abrir el checkout (`checkoutOpen`).
+2. ✅ **Menú hamburguesa en Home y Al Mayor.** `NavMenu` ahora acepta `onCategory`/`onInfo`/`variant`/`triggerTour`. `Header` tiene slot `topLeft` (Home mete el menú ahí, anclaje `home-menu`). `WholesalePage` lo monta en su cabecera (anclaje `wmayor-menu`). `page.tsx` resuelve navegación cruzada: `goToDetalCategory` (categoría → abre detal y hace scroll) y `goToInfoSection` (info del footer; desde mayor vuelve a home).
+3. ✅ **CookieBanner + InstallPrompt persisten.** Causa: compartían `z-90` con el overlay del tour y no había coordinación. Fix: `Onboarding` expone `activeTour`; ambos banners se ocultan SOLO mientras hay un tour activo y reaparecen al terminar (no se descartan). Overlay del tour subido a `z-100`; banners a `z-88`. Ya estaban montados en todas las vistas (`page.tsx` fuera del switch de vista).
+4. ✅ **Tours admin por sección + panel STAFF.** `Onboarding`: tours `admin` (overview admin, presenta 4 secciones + recorre Pedidos), `adminStaff` (overview equipo, solo Pedidos/Productos), `adminProductos`, `adminMetricas`, `adminCrm`. Anclas añadidas en los 4 paneles (`orders-*`, `products-*`, `metrics-*`, `crm-*`). El dashboard arranca `admin` o `adminStaff` según rol y dispara el tour de sección al abrir cada pestaña (métricas/crm nunca para staff: las pestañas están ocultas).
+5. ✅ **Toggle de fritos mejorado + aclaración.** `ProductModal`: "Pídelo ya frito · Te lo entregamos recién frito, listo para comer" con icono `Flame`. `Cart`: "Pedirlo frito" con icono + `aria-label`/`title` que aclaran "listo para comer". El tour `cart` explica que fritos = recibirlo YA FRITO.
+6. ✅ **Mínimo de unidades al mayor.** `WholesalePage`: un producto nuevo entra con `wholesaleThreshold(p)` como cantidad (default 10); al restar por debajo del mínimo se quita. `WholesaleCartItem` guarda `min`. Pista "Mínimo N und." bajo el precio. `ProductEditor`: texto del campo actualizado (es el mínimo de compra al mayor, no solo el umbral de precio).
+
+### Issue conocido (de la revisión de código)
+- Los **items del pedido NO incluyen el recargo de fritos en su `price_usd`/`price_cop` por línea** (los TOTALES sí). Si el admin/WhatsApp reconstruye desde líneas, no cuadra. Fix: meter el recargo en el precio de línea o añadir campo `frito_*`. Pendiente.
+
+### Pendientes de datos del cliente
+- USD exactos de pizzas/combos · precio de cada opción del Combo 2 · (pastelitos exento está a 7.000, no 8.000) · valor USD del recargo de fritos (hoy 0.8).
+
+---
+
 > Fecha: 2026-06-14 · Estado: feature **"bloqueo por moneda" SIN commitear** (typecheck verde, verificado en vivo). Build base: commit `221b72e`.
 
 Lee esto primero para no re-explorar. Para el detalle histórico (PWA, alertas admin, a11y) ver `git show 221b72e`.

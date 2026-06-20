@@ -35,8 +35,9 @@ export interface Product {
   /**
    * Si true, el producto admite servicio de fritos (recargo por bandeja) en
    * venta individual. Por defecto Tequeños y Pasapalos. Combos exentos.
+   * La columna en Supabase es NOT NULL (default false), por eso no admite null.
    */
-  cobra_frito?: boolean | null;
+  cobra_frito?: boolean;
 }
 
 /*

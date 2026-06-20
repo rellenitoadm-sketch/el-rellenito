@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Trash2, Plus, Minus, Lock } from 'lucide-react';
+import { X, Trash2, Plus, Minus, Lock, Flame } from 'lucide-react';
 import Image from 'next/image';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
@@ -15,7 +15,7 @@ import { useOnboarding } from './Onboarding';
 export default function Cart() {
   const { items, isOpen, closeCart, removeItem, updateQty, setItemFritos, itemCount } = useCart();
   const { format, rates, currency } = useCurrency();
-  const { maybeStartCart } = useOnboarding();
+  const { maybeStart } = useOnboarding();
   const [showCheckout, setShowCheckout] = useState(false);
 
   // Cerrar con tecla Escape (accesibilidad / teclado).
@@ -29,10 +29,10 @@ export default function Cart() {
   // Tutorial del carrito: la primera vez que se abre con productos (UI congelada).
   useEffect(() => {
     if (isOpen && items.length > 0 && !showCheckout) {
-      const t = setTimeout(() => maybeStartCart(), 450);
+      const t = setTimeout(() => maybeStart('cart'), 450);
       return () => clearTimeout(t);
     }
-  }, [isOpen, items.length, showCheckout, maybeStartCart]);
+  }, [isOpen, items.length, showCheckout, maybeStart]);
 
   // Totales SOLO de ítems con precio nativo en la moneda activa. Los bloqueados
   // (sin precio en esta moneda) no suman y no dejan finalizar el pedido.
@@ -181,13 +181,16 @@ export default function Cart() {
                                 type="button"
                                 onClick={() => setItemFritos(item.id, !item.fritos)}
                                 aria-pressed={!!item.fritos}
+                                aria-label={`Pedir ${item.name} ya frito, listo para comer`}
+                                title="Entrega recién frito, listo para comer"
                                 className="flex items-center gap-2 text-[12px] font-medium self-start"
                                 style={{ color: item.fritos ? 'var(--brand-deep)' : 'var(--text-muted)' }}
                               >
                                 <span className="relative w-8 h-[18px] rounded-full transition-colors flex-shrink-0" style={{ background: item.fritos ? 'var(--brand)' : 'var(--surface-3)' }}>
                                   <span className="absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white transition-all" style={{ left: item.fritos ? '16px' : '2px' }} />
                                 </span>
-                                Fritos +{format(FRITO_SURCHARGE.usd, FRITO_SURCHARGE.cop)}
+                                <Flame className="w-3.5 h-3.5" />
+                                Pedirlo frito +{format(FRITO_SURCHARGE.usd, FRITO_SURCHARGE.cop)}
                               </button>
                             )}
                           </div>

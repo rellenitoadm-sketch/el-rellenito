@@ -28,7 +28,7 @@ export default function HomePage() {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [status, setStatus] = useState<OpenStatus>({ open: true, label: 'Abierto · Hasta las 7 PM' });
-  const { maybeStartCatalog } = useOnboarding();
+  const { maybeStart } = useOnboarding();
 
   // Compute open/closed client-side (TZ-correct) and refresh every minute.
   useEffect(() => {
@@ -37,12 +37,25 @@ export default function HomePage() {
     return () => clearInterval(t);
   }, []);
 
-  // Tutorial del catálogo: la primera vez que el usuario entra a "Al Detal".
+  // Tutoriales: Home la primera vez que se entra; catálogo al entrar a "Al Detal".
   useEffect(() => {
-    if (view !== 'detal') return;
-    const t = setTimeout(() => maybeStartCatalog(), 700);
+    const which = view === 'home' ? 'home' : view === 'detal' ? 'catalog' : null;
+    if (!which) return;
+    const t = setTimeout(() => maybeStart(which), 700);
     return () => clearTimeout(t);
-  }, [view, maybeStartCatalog]);
+  }, [view, maybeStart]);
+
+  // Navegación desde el menú hamburguesa de Home/Al Mayor.
+  // Categoría → abre el catálogo Al Detal y se desplaza a su sección.
+  const goToDetalCategory = (cat: string) => {
+    setView('detal');
+    setTimeout(() => document.getElementById(`section-${cat}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 360);
+  };
+  // Sección informativa (footer) → vive en Home/Detal; desde Al Mayor vuelve a Home.
+  const goToInfoSection = (id: string) => {
+    setView(v => (v === 'mayor' ? 'home' : v));
+    setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 360);
+  };
 
   return (
     <MotionConfig reducedMotion="user">
@@ -60,6 +73,8 @@ export default function HomePage() {
               status={status}
               onDetal={() => setView('detal')}
               onMayor={() => setView('mayor')}
+              onNavCategory={goToDetalCategory}
+              onNavInfo={goToInfoSection}
             />
           </motion.div>
         ) : view === 'detal' ? (
@@ -100,7 +115,7 @@ export default function HomePage() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <WholesalePage onBack={() => setView('home')} />
+            <WholesalePage onBack={() => setView('home')} onNavInfo={goToInfoSection} />
           </motion.div>
         )}
       </AnimatePresence>

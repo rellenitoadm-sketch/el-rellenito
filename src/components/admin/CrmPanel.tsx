@@ -49,7 +49,7 @@ export default function CrmPanel() {
 
   return (
     <div className="pb-10">
-      <div className="grid grid-cols-2 gap-2.5 mb-4">
+      <div className="grid grid-cols-2 gap-2.5 mb-4" data-tour="crm-stats">
         <div className="card p-3.5">
           <Users className="w-4 h-4 mb-1.5" style={{ color: 'var(--text-3)' }} />
           <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>Clientes</p>
@@ -62,7 +62,7 @@ export default function CrmPanel() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3" data-tour="crm-search">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-3)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente o teléfono…" className="field" style={{ paddingLeft: '2.25rem' }} />
@@ -72,6 +72,7 @@ export default function CrmPanel() {
         </button>
       </div>
 
+      <div data-tour="crm-list">
       {loading ? (
         <div className="flex justify-center py-16"><RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--brand)' }} /></div>
       ) : filtered.length === 0 ? (
@@ -122,6 +123,7 @@ export default function CrmPanel() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cookie } from 'lucide-react';
+import { useOnboarding } from './Onboarding';
 
 const STORAGE_KEY = 'rl_cookie_consent';
 
@@ -15,6 +16,7 @@ const STORAGE_KEY = 'rl_cookie_consent';
  */
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
+  const { activeTour } = useOnboarding();
 
   useEffect(() => {
     try {
@@ -31,13 +33,15 @@ export default function CookieBanner() {
 
   return (
     <AnimatePresence>
-      {visible && (
+      {/* Se oculta mientras un tutorial está en curso y vuelve a aparecer al
+          terminarlo (no se descarta). Persiste en todas las vistas. */}
+      {visible && !activeTour && (
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-          className="fixed bottom-3 left-3 right-3 z-[90] mx-auto max-w-md rounded-2xl border p-4 shadow-xl"
+          className="fixed bottom-3 left-3 right-3 z-[88] mx-auto max-w-md rounded-2xl border p-4 shadow-xl"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           role="dialog"
           aria-label="Aviso de cookies"

@@ -169,7 +169,7 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
   return (
     <div>
       {/* Sub-view switch */}
-      <div className="flex gap-1.5 mb-4">
+      <div className="flex gap-1.5 mb-4" data-tour="orders-views">
         {VIEWS.map(v => (
           <button
             key={v.id}
@@ -184,6 +184,7 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
         ))}
         <button
           onClick={toggleAlerts}
+          data-tour="orders-alerts"
           className="ml-auto btn btn-ghost"
           style={{ padding: '8px', minWidth: 44, minHeight: 44, color: alertsOn ? 'var(--brand)' : 'var(--text-3)' }}
           aria-label={alertsOn ? 'Alertas activadas' : 'Activar alertas de pedidos'}
@@ -208,12 +209,13 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
       )}
 
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-2.5 mb-5">
+      <div className="grid grid-cols-3 gap-2.5 mb-5" data-tour="orders-kpis">
         <KPI label="Pedidos" value={String(orders.length)} color="var(--text-1)" />
         <KPI label="Por verificar" value={String(pendingCount)} color="#B45309" />
         <KPI label="Total" value={`$${totalSum.toFixed(2)}`} color="var(--brand)" />
       </div>
 
+      <div data-tour="orders-list">
       {loading ? (
         <div className="flex justify-center py-16"><RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--brand)' }} /></div>
       ) : orders.length === 0 ? (
@@ -350,6 +352,7 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
           })}
         </div>
       )}
+      </div>
 
       {/* Image lightbox */}
       {zoomImg && (
