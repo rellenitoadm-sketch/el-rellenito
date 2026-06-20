@@ -7,6 +7,7 @@ import { X, Upload, Loader2, Trash2, Star, Plus } from 'lucide-react';
 import { type Product, type ProductCategory, type ProductType } from '@/lib/products';
 import type { ExchangeRates } from '@/lib/rates';
 import { useCategories } from '../CategoriesContext';
+import { useOnboarding } from '../Onboarding';
 
 interface ProductEditorProps {
   product: Product | null; // null = creating new
@@ -25,6 +26,13 @@ const TYPE_OPTIONS: { id: ProductType; label: string }[] = [
 export default function ProductEditor({ product, rates, onClose, onSaved, onDeleted }: ProductEditorProps) {
   const isNew = product === null;
   const { order, labelOf, reload: reloadCats } = useCategories();
+  const { maybeStart } = useOnboarding();
+
+  // Tutorial del editor la primera vez que se abre (crear o editar un producto).
+  useEffect(() => {
+    const t = setTimeout(() => maybeStart('productEditor'), 450);
+    return () => clearTimeout(t);
+  }, [maybeStart]);
   const [name, setName] = useState(product?.name ?? '');
   const [units, setUnits] = useState(product?.units ?? '');
   const [category, setCategory] = useState<ProductCategory>(product?.category ?? order[0] ?? 'TEQUEÑOS');
@@ -185,7 +193,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           {/* Image */}
-          <div>
+          <div data-tour="pe-image">
             <label className="text-[12px] font-semibold block mb-1.5" style={{ color: 'var(--text-2)' }}>Imagen</label>
             <div className="flex items-center gap-3">
               <div
@@ -216,7 +224,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
           </div>
 
           {/* Name */}
-          <div>
+          <div data-tour="pe-name">
             <label className="text-[12px] font-semibold block mb-1" style={{ color: 'var(--text-2)' }}>Nombre *</label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="Ej. Tequeño Super Queso" className="field" />
           </div>
@@ -228,7 +236,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
           </div>
 
           {/* Category */}
-          <div>
+          <div data-tour="pe-category">
             <label className="text-[12px] font-semibold block mb-1" style={{ color: 'var(--text-2)' }}>Categoría</label>
             <div className="flex gap-2">
               <select value={category} onChange={e => setCategory(e.target.value)} className="field flex-1">
@@ -279,7 +287,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
           </div>
 
           {/* Precio al detal: USD y COP los define el cliente; Bs se calcula solo con la tasa BCV */}
-          <div>
+          <div data-tour="pe-price">
             <label className="text-[12px] font-semibold block mb-1.5" style={{ color: 'var(--text-2)' }}>Precio al detal *</label>
             <div className="grid grid-cols-2 gap-2">
               <div className="relative">
@@ -334,7 +342,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
           )}
 
           {/* Servicio de fritos */}
-          <div>
+          <div data-tour="pe-fritos">
             <button
               type="button"
               onClick={() => setCobraFrito(v => !v)}
@@ -355,7 +363,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
           </div>
 
           {/* Type */}
-          <div>
+          <div data-tour="pe-type">
             <label className="text-[12px] font-semibold block mb-1.5" style={{ color: 'var(--text-2)' }}>Disponible para</label>
             <div className="grid grid-cols-3 gap-2">
               {TYPE_OPTIONS.map(t => (
@@ -374,7 +382,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
           </div>
 
           {/* Toggles */}
-          <div className="flex gap-2">
+          <div className="flex gap-2" data-tour="pe-flags">
             <button
               onClick={() => setAvailable(a => !a)}
               className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold border transition-all"
@@ -414,6 +422,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
           <button
             onClick={handleSave}
             disabled={saving || uploading}
+            data-tour="pe-save"
             className="flex-1 btn-gradient text-white font-bold py-3 rounded-xl disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando…</> : (isNew ? 'Crear producto' : 'Guardar cambios')}

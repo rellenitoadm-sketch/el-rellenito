@@ -8,6 +8,7 @@ import { ProductsProvider } from '@/components/ProductsContext';
 import { CategoriesProvider } from '@/components/CategoriesContext';
 import { ProductModalProvider } from '@/components/ProductModal';
 import { OnboardingProvider } from '@/components/Onboarding';
+import { PwaInstallProvider } from '@/components/PwaInstall';
 import StaffAlerts from '@/components/StaffAlerts';
 
 const inter = Inter({
@@ -68,8 +69,10 @@ export default function RootLayout({
               <BubbleProvider>
                 <ProductModalProvider>
                   <OnboardingProvider>
-                    {children}
-                    <StaffAlerts />
+                    <PwaInstallProvider>
+                      {children}
+                      <StaffAlerts />
+                    </PwaInstallProvider>
                   </OnboardingProvider>
                 </ProductModalProvider>
               </BubbleProvider>

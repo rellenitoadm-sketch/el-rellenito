@@ -49,18 +49,18 @@ const STEPS: Record<TourId, Step[]> = {
   ],
   checkout: [
     { target: 'checkout-delivery', title: 'Cómo lo recibes', body: 'Elige entre entrega a domicilio o retiro en la tienda.' },
-    { target: 'checkout-location', title: '¿Dónde te lo llevamos?', body: 'Comparte tu ubicación por GPS o escribe tu dirección. El costo del envío se confirma por WhatsApp.' },
-    { target: 'checkout-data', title: 'Tus datos', body: 'Tu nombre y WhatsApp para confirmar el pedido y coordinar la entrega.' },
+    { target: 'checkout-location', title: '¿Dónde te lo llevamos?', body: 'Comparte tu ubicación por GPS o escribe tu dirección. El costo del envío se confirma en la app antes de la entrega.' },
+    { target: 'checkout-data', title: 'Tus datos', body: 'Tu nombre y número de contacto para identificar tu pedido y la entrega.' },
     { target: 'checkout-payment', title: 'Método de pago', body: 'Elige pago móvil, transferencia, efectivo u otra opción y verás los datos para pagar.' },
     { target: 'checkout-summary', title: 'Resumen', body: 'Revisa los productos, el subtotal y el total antes de confirmar.' },
-    { target: 'checkout-confirm', title: 'Confirmar pedido', body: 'Confirma. Quedará registrado y te contactaremos por WhatsApp.' },
+    { target: 'checkout-confirm', title: 'Confirmar pedido', body: 'Confirma. Tu pedido queda registrado y le das seguimiento aquí mismo, en la app.' },
   ],
   wcheckout: [
     { target: 'wco-summary', title: 'Tu pedido al mayor', body: 'Revisa los productos y ajusta las cantidades antes de continuar.' },
     { target: 'wco-date', title: 'Agenda la entrega', body: 'Elige la fecha y hora. Los pedidos al mayor se agendan con mínimo 24 horas de anticipación.' },
-    { target: 'wco-data', title: 'Tus datos y dirección', body: 'Tu nombre, WhatsApp y la dirección de entrega. Puedes precisar la ubicación con GPS (opcional).' },
+    { target: 'wco-data', title: 'Tus datos y dirección', body: 'Tu nombre, número de contacto y la dirección de entrega. Puedes precisar la ubicación con GPS (opcional).' },
     { target: 'wco-payment', title: 'Anticipo y pago', body: 'Elige cuánto adelantar (mínimo 50%) y el método de pago. Sube el comprobante para continuar.' },
-    { target: 'wco-confirm', title: 'Confirmar y pagar anticipo', body: 'Confirma tu pedido al mayor. Te contactaremos por WhatsApp para terminar de coordinar.' },
+    { target: 'wco-confirm', title: 'Confirmar y pagar anticipo', body: 'Confirma tu pedido al mayor. Le das seguimiento a tu pedido desde la app.' },
   ],
   admin: [
     { target: 'admin-title', title: 'Panel El Rellenito', body: 'Desde aquí gestionas todo el negocio. Te muestro lo principal.' },
@@ -68,7 +68,7 @@ const STEPS: Record<TourId, Step[]> = {
     { target: 'orders-views', title: 'Pedidos: filtros', body: 'Filtra entre pedidos de hoy, al mayor o el historial de 30 días.' },
     { target: 'orders-alerts', title: 'Alertas de pedidos', body: 'Actívalas para oír un sonido y recibir notificación en el celular cuando entre un pedido nuevo.' },
     { target: 'orders-kpis', title: 'Resumen del día', body: 'Cuántos pedidos hay, cuántos están por verificar y el total facturado.' },
-    { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido apruebas el pago, lo marcas en camino o entregado y abres el mapa o el WhatsApp del cliente.' },
+    { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido apruebas el pago, lo marcas en camino o entregado y abres el mapa o el contacto del cliente.' },
     { target: 'admin-logout', title: 'Cerrar sesión', body: 'Sal del panel de forma segura cuando termines.' },
   ],
   adminStaff: [
@@ -77,7 +77,7 @@ const STEPS: Record<TourId, Step[]> = {
     { target: 'orders-views', title: 'Pedidos: filtros', body: 'Filtra entre pedidos de hoy, al mayor o el historial de 30 días.' },
     { target: 'orders-alerts', title: 'Alertas de pedidos', body: 'Actívalas para oír un sonido y recibir notificación en el celular cuando entre un pedido nuevo.' },
     { target: 'orders-kpis', title: 'Resumen del día', body: 'Cuántos pedidos hay, cuántos están por verificar y el total facturado.' },
-    { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido verificas el pago, lo marcas en camino o entregado y contactas al cliente por WhatsApp.' },
+    { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido verificas el pago, lo marcas en camino o entregado y contactas al cliente desde su ficha.' },
     { target: 'admin-logout', title: 'Cerrar sesión', body: 'Sal del panel de forma segura cuando termines tu turno.' },
   ],
   adminProductos: [
@@ -94,13 +94,32 @@ const STEPS: Record<TourId, Step[]> = {
   adminCrm: [
     { target: 'crm-stats', title: 'Tus clientes', body: 'Cuántos clientes tienes y el valor total que han comprado.' },
     { target: 'crm-search', title: 'Buscar cliente', body: 'Encuentra un cliente por su nombre o número de teléfono.' },
-    { target: 'crm-list', title: 'Ficha del cliente', body: 'De cada cliente ves cuánto ha gastado, sus pedidos y su WhatsApp directo.' },
+    { target: 'crm-list', title: 'Ficha del cliente', body: 'De cada cliente ves cuánto ha gastado, sus pedidos y su contacto directo.' },
+  ],
+  // Mismo recorrido de Productos pero con su propia clave, para que el equipo lo
+  // vea aunque el administrador ya haya visto el suyo en este dispositivo.
+  adminStaffProductos: [
+    { target: 'products-rate', title: 'Tasa del día', body: 'La tasa BCV (Bs y COP) del día. Recárgala con el botón cuando lo necesites.' },
+    { target: 'products-toolbar', title: 'Buscar y categorías', body: 'Busca un producto por nombre o entra a gestionar las categorías.' },
+    { target: 'products-cats', title: 'Filtrar por categoría', body: 'Filtra por categoría. “Incompletos” reúne los productos a los que les falta información.' },
+    { target: 'products-add', title: 'Crear y editar', body: 'Crea un producto nuevo con +. Toca uno existente para editar precios, foto, umbral al mayor y fritos.' },
+  ],
+  productEditor: [
+    { target: 'pe-image', title: 'Foto del producto', body: 'Sube una foto: es la que se ve en el catálogo. Puedes quitarla o cambiarla cuando quieras.' },
+    { target: 'pe-name', title: 'Nombre y presentación', body: 'El nombre del producto y, debajo, las unidades o presentación (ej. “25 unidades · 1 kg”).' },
+    { target: 'pe-category', title: 'Categoría', body: 'Elige su categoría. Con el botón + creas una categoría nueva sin salir de aquí.' },
+    { target: 'pe-price', title: 'Precio al detal', body: 'Defines el USD y el COP. El Bs se calcula solo con la tasa BCV. Si dejas el COP vacío, se estima del USD.' },
+    { target: 'pe-type', title: 'Detal, mayor o ambos', body: 'Elige dónde se vende. Al activar “Al Mayor” o “Ambos” aparece su precio al mayor y el umbral de unidades.' },
+    { target: 'pe-fritos', title: 'Servicio de fritos', body: 'Actívalo si el producto puede pedirse ya frito (listo para comer): suma un recargo por bandeja en la tienda.' },
+    { target: 'pe-flags', title: 'Disponible y destacado', body: 'Marca si está disponible o agotado, y si quieres destacarlo como recomendado.' },
+    { target: 'pe-save', title: 'Guardar', body: 'Guarda los cambios o crea el producto. Aparece al instante en el catálogo.' },
   ],
 };
 
 type TourId =
   | 'home' | 'catalog' | 'mayor' | 'cart' | 'checkout' | 'wcheckout'
-  | 'admin' | 'adminStaff' | 'adminProductos' | 'adminMetricas' | 'adminCrm';
+  | 'admin' | 'adminStaff' | 'adminProductos' | 'adminMetricas' | 'adminCrm'
+  | 'adminStaffProductos' | 'productEditor';
 
 const KEY_PREFIX = 'rl_tour_';
 const VERSION = 'v2';

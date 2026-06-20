@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, Home, Sparkles, ChevronRight, Shield, Info, HelpCircle, MessageSquareWarning } from 'lucide-react';
+import { Menu, X, Home, Sparkles, ChevronRight, Shield, Info, HelpCircle, MessageSquareWarning, Download, Share } from 'lucide-react';
 import { useCategories } from './CategoriesContext';
+import { usePwaInstall } from './PwaInstall';
 
 interface NavMenuProps {
   onMayorClick: () => void;
@@ -35,11 +36,13 @@ interface NavMenuProps {
  */
 export default function NavMenu({ onMayorClick, onHome, onCategory, onInfo, variant = 'default', triggerTour = 'menu' }: NavMenuProps) {
   const [open, setOpen] = useState(false);
+  const [installHint, setInstallHint] = useState<'ios' | 'generic' | null>(null);
   const { order, labelOf } = useCategories();
+  const pwa = usePwaInstall();
 
   // Cerrar con Escape + bloquear el scroll del fondo mientras está abierto.
   useEffect(() => {
-    if (!open) return;
+    if (!open) { setInstallHint(null); return; }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
     window.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
@@ -49,6 +52,18 @@ export default function NavMenu({ onMayorClick, onHome, onCategory, onInfo, vari
       document.body.style.overflow = prevOverflow;
     };
   }, [open]);
+
+  // Instalar la PWA: lanza el prompt nativo (Android) o muestra instrucciones
+  // (iOS / navegadores sin prompt). Botón permanente: no se descarta.
+  const handleInstall = async () => {
+    if (!pwa) return;
+    if (pwa.canPrompt) {
+      const outcome = await pwa.promptInstall();
+      if (outcome === 'accepted') setOpen(false);
+      return;
+    }
+    setInstallHint(pwa.isIos ? 'ios' : 'generic');
+  };
 
   const goHome = () => {
     setOpen(false);
@@ -150,6 +165,25 @@ export default function NavMenu({ onMayorClick, onHome, onCategory, onInfo, vari
                   <span style={{ color: 'var(--brand-deep)', fontWeight: 700 }}>Pedidos al Mayor</span>
                   <ChevronRight className="w-4 h-4 ml-auto" style={{ color: 'var(--text-3)' }} />
                 </button>
+
+                {/* Instalar la app (PWA) — botón permanente, salvo si ya está instalada. */}
+                {pwa && !pwa.isStandalone && (
+                  <>
+                    <button onClick={handleInstall} className="nav-row">
+                      <Download className="w-[18px] h-[18px]" style={{ color: 'var(--brand)' }} />
+                      <span style={{ fontWeight: 600 }}>Instalar app</span>
+                    </button>
+                    {installHint && (
+                      <p className="px-4 pb-2 -mt-0.5 text-[11.5px] leading-snug" style={{ color: 'var(--text-3)' }}>
+                        {installHint === 'ios' ? (
+                          <>Toca <Share className="inline w-3.5 h-3.5 align-text-bottom" /> en la barra del navegador y luego “Agregar a inicio”.</>
+                        ) : (
+                          'Abre el menú de tu navegador (⋮) y elige “Instalar app” o “Agregar a pantalla de inicio”.'
+                        )}
+                      </p>
+                    )}
+                  </>
+                )}
 
                 <p className="px-4 pt-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
                   Categorías

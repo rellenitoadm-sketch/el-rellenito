@@ -3,81 +3,44 @@
 import { useEffect, useState } from 'react';
 import { Download, X, Share } from 'lucide-react';
 import { useOnboarding } from './Onboarding';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
+import { usePwaInstall } from './PwaInstall';
 
 const DISMISS_KEY = 'rl_install_dismissed';
 
-function isStandalone(): boolean {
-  if (typeof window === 'undefined') return false;
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as unknown as { standalone?: boolean }).standalone === true
-  );
-}
-
-function isIos(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
-}
-
 /**
  * Banner para instalar la PWA en la pantalla de inicio.
- * - Android/Chrome: usa el evento beforeinstallprompt → botón "Instalar".
+ * - Android/Chrome: usa el evento beforeinstallprompt (vía PwaInstallProvider) → botón "Instalar".
  * - iOS/Safari: no hay prompt nativo → muestra instrucciones (Compartir → Agregar a inicio).
- * Se oculta si ya está instalada (standalone) o si el usuario lo descartó.
- * También registra el service worker (requisito para instalar / offline básico).
+ * Se oculta si ya está instalada (standalone), si el usuario lo descartó, o mientras
+ * hay un tutorial en curso. El botón permanente del menú (NavMenu) no se descarta.
  */
 export default function InstallPrompt() {
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [show, setShow] = useState(false);
-  const [iosHint, setIosHint] = useState(false);
   const { activeTour } = useOnboarding();
+  const pwa = usePwaInstall();
+  const [dismissed, setDismissed] = useState(true); // true hasta leer localStorage
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
-    }
-
-    if (isStandalone()) return;
-    let dismissed = false;
-    try { dismissed = localStorage.getItem(DISMISS_KEY) === '1'; } catch {}
-    if (dismissed) return;
-
-    const onBIP = (e: Event) => {
-      e.preventDefault();
-      setDeferred(e as BeforeInstallPromptEvent);
-      setShow(true);
-    };
-    window.addEventListener('beforeinstallprompt', onBIP);
-
-    // iOS no dispara beforeinstallprompt.
-    if (isIos()) { setIosHint(true); setShow(true); }
-
-    return () => window.removeEventListener('beforeinstallprompt', onBIP);
+    try { setDismissed(localStorage.getItem(DISMISS_KEY) === '1'); } catch { setDismissed(false); }
   }, []);
 
   const dismiss = () => {
-    setShow(false);
+    setDismissed(true);
     try { localStorage.setItem(DISMISS_KEY, '1'); } catch {}
   };
 
   const install = async () => {
-    if (!deferred) return;
-    await deferred.prompt();
-    const { outcome } = await deferred.userChoice;
-    if (outcome === 'accepted') setShow(false);
-    setDeferred(null);
+    if (!pwa) return;
+    const outcome = await pwa.promptInstall();
+    if (outcome === 'accepted') setDismissed(true);
   };
 
-  // Se oculta durante un tutorial y reaparece al terminarlo (no se descarta solo).
-  if (!show || activeTour) return null;
+  if (!pwa || pwa.isStandalone || dismissed || activeTour) return null;
+  const iosHint = pwa.isIos && !pwa.canPrompt;
+  // Solo tiene sentido el banner si se puede lanzar el prompt (Android) o instruir (iOS).
+  if (!pwa.canPrompt && !iosHint) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-1.5rem)] max-w-md">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[84] w-[calc(100%-1.5rem)] max-w-md">
       <div className="card flex items-center gap-3 p-3" style={{ boxShadow: 'var(--sh-3)' }}>
         <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0" style={{ background: 'var(--brand-soft)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}

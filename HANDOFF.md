@@ -43,6 +43,23 @@ Verificado con `tsc --noEmit` + `next build` (ambos exit 0) y smoke test del bui
 5. ✅ **Toggle de fritos mejorado + aclaración.** `ProductModal`: "Pídelo ya frito · Te lo entregamos recién frito, listo para comer" con icono `Flame`. `Cart`: "Pedirlo frito" con icono + `aria-label`/`title` que aclaran "listo para comer". El tour `cart` explica que fritos = recibirlo YA FRITO.
 6. ⛔ **Mínimo de unidades al mayor — REVERTIDO a pedido del usuario (2026-06-19).** Se había hecho (qty inicial = umbral, no bajar de ahí, pista "Mínimo N und.") pero el usuario pidió quitar la obligación de pedir el mínimo al mayor. El carrito mayorista volvió a su comportamiento original (empieza en 1, baja libremente). El campo `limite_unidades_mayor` SIGUE existiendo con su uso original: a partir de cuántas unidades aplica el precio al mayor (no es compra mínima).
 
+### AJUSTES 2026-06-19 (pedidos del usuario; sin commitear hasta build verde)
+- **Botón permanente "Instalar app" en el menú hamburguesa.** Nuevo contexto `components/PwaInstall.tsx` (`PwaInstallProvider` en `layout.tsx`, hook `usePwaInstall`) que captura UNA vez `beforeinstallprompt` y registra el SW. `NavMenu` muestra fila "Instalar app" (salvo standalone): Android lanza el prompt; iOS/otros muestran instrucciones inline. `InstallPrompt` (el banner) refactorizado para consumir el mismo contexto (ya no registra el SW él).
+- **Tutorial de Productos también para STAFF.** Antes el tour `adminProductos` se marcaba visto por el admin y el equipo ya no lo veía (misma clave localStorage). Nuevo tour `adminStaffProductos` (clave propia); el dashboard dispara según rol (`role==='admin' ? adminProductos : adminStaffProductos`).
+- **Tutorial dentro del editor de producto (nuevo/editar).** Nuevo tour `productEditor` con anclas `pe-image/name/category/price/type/fritos/flags/save` en `ProductEditor.tsx`; se dispara al abrir el editor (una vez).
+
+### ⭐ DIRECCIÓN ESTRATÉGICA 2026-06-19 — dejar WhatsApp, la app como único canal
+**Decisión del usuario:** dejar de usar WhatsApp como medio para manejar pedidos. **La página/app pasa a ser el ÚNICO canal** de gestión de pedidos (registro, seguimiento, confirmación de envío, cambios, incidencias). La automatización que viene **se hará en n8n**: un **agente** que responda PQRS, FAQs, problemas en pedidos y cambios, y que **escale a un humano cuando sea necesario**.
+
+- **Hecho ahora:** se quitaron del **tutorial** (tours en `Onboarding.tsx`) todas las menciones de "te contactaremos por WhatsApp"/coordinar por WhatsApp → ahora dicen que el seguimiento es "en la app"/"aquí mismo"; los campos pasan a "número de contacto"; en admin, "contacto del cliente" en vez de "WhatsApp del cliente".
+- **PENDIENTE (migración fuera de WhatsApp, NO hecho aún — es trabajo futuro):** todavía quedan referencias a WhatsApp en la app real fuera del tutorial:
+  - Pantallas de éxito: `Checkout.tsx` ("te contactaremos ... por WhatsApp") y `WholesalePage.tsx` ("Te contactaremos por WhatsApp").
+  - Copys de envío "se confirma por WhatsApp" en `Checkout.tsx`.
+  - Enlaces `wa.me` en `Header.tsx`, `NavMenu.tsx` (Contacto), `Footer.tsx`, y botones de contacto en `OrdersPanel.tsx`/`CrmPanel.tsx` (admin).
+  - El formulario sigue pidiendo "WhatsApp" como campo de contacto.
+  Reemplazar por seguimiento/avisos in-app (estado del pedido en la app, notificaciones push ya existentes vía `StaffAlerts`/`web-push`) + el agente n8n. Definir con el usuario el flujo in-app antes de tocar esto.
+- **Agente n8n (futuro):** responder PQRS/FAQs/incidencias/cambios de pedido y escalar a humano. Se conecta a los datos de pedidos (Supabase) y a la app como canal. Aún por diseñar.
+
 ### Issue conocido (de la revisión de código)
 - Los **items del pedido NO incluyen el recargo de fritos en su `price_usd`/`price_cop` por línea** (los TOTALES sí). Si el admin/WhatsApp reconstruye desde líneas, no cuadra. Fix: meter el recargo en el precio de línea o añadir campo `frito_*`. Pendiente.
 
