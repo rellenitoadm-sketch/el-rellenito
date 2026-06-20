@@ -18,6 +18,13 @@ interface Step {
   body: string;
 }
 
+// Pasos de Pedidos compartidos por el tour de admin y el de equipo (idénticos).
+const ORDERS_FILTER_STEPS: Step[] = [
+  { target: 'orders-views', title: 'Pedidos: filtros', body: 'Filtra entre pedidos de hoy, al mayor o el historial de 30 días.' },
+  { target: 'orders-alerts', title: 'Alertas de pedidos', body: 'Actívalas para oír un sonido y recibir notificación en el celular cuando entre un pedido nuevo.' },
+  { target: 'orders-kpis', title: 'Resumen del día', body: 'Cuántos pedidos hay, cuántos están por verificar y el total facturado.' },
+];
+
 const STEPS: Record<TourId, Step[]> = {
   home: [
     { target: 'home-detal', title: 'Compra Al Detal', body: 'Pide por unidad para tu casa: tequeños, pan, postres y más.' },
@@ -65,18 +72,14 @@ const STEPS: Record<TourId, Step[]> = {
   admin: [
     { target: 'admin-title', title: 'Panel El Rellenito', body: 'Desde aquí gestionas todo el negocio. Te muestro lo principal.' },
     { target: 'admin-tabs', title: 'Secciones', body: 'Pedidos, Productos, Métricas y Clientes. Toca cada una para gestionarla; te guío dentro de cada sección al abrirla.' },
-    { target: 'orders-views', title: 'Pedidos: filtros', body: 'Filtra entre pedidos de hoy, al mayor o el historial de 30 días.' },
-    { target: 'orders-alerts', title: 'Alertas de pedidos', body: 'Actívalas para oír un sonido y recibir notificación en el celular cuando entre un pedido nuevo.' },
-    { target: 'orders-kpis', title: 'Resumen del día', body: 'Cuántos pedidos hay, cuántos están por verificar y el total facturado.' },
+    ...ORDERS_FILTER_STEPS,
     { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido apruebas el pago, lo marcas en camino o entregado y abres el mapa o el contacto del cliente.' },
     { target: 'admin-logout', title: 'Cerrar sesión', body: 'Sal del panel de forma segura cuando termines.' },
   ],
   adminStaff: [
     { target: 'admin-title', title: 'Panel del equipo', body: 'Bienvenido. Aquí atiendes los pedidos y mantienes los productos al día.' },
     { target: 'admin-tabs', title: 'Tus secciones', body: 'Como equipo ves Pedidos y Productos. (Métricas y Clientes son solo del administrador.)' },
-    { target: 'orders-views', title: 'Pedidos: filtros', body: 'Filtra entre pedidos de hoy, al mayor o el historial de 30 días.' },
-    { target: 'orders-alerts', title: 'Alertas de pedidos', body: 'Actívalas para oír un sonido y recibir notificación en el celular cuando entre un pedido nuevo.' },
-    { target: 'orders-kpis', title: 'Resumen del día', body: 'Cuántos pedidos hay, cuántos están por verificar y el total facturado.' },
+    ...ORDERS_FILTER_STEPS,
     { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido verificas el pago, lo marcas en camino o entregado y contactas al cliente desde su ficha.' },
     { target: 'admin-logout', title: 'Cerrar sesión', body: 'Sal del panel de forma segura cuando termines tu turno.' },
   ],
@@ -96,14 +99,6 @@ const STEPS: Record<TourId, Step[]> = {
     { target: 'crm-search', title: 'Buscar cliente', body: 'Encuentra un cliente por su nombre o número de teléfono.' },
     { target: 'crm-list', title: 'Ficha del cliente', body: 'De cada cliente ves cuánto ha gastado, sus pedidos y su contacto directo.' },
   ],
-  // Mismo recorrido de Productos pero con su propia clave, para que el equipo lo
-  // vea aunque el administrador ya haya visto el suyo en este dispositivo.
-  adminStaffProductos: [
-    { target: 'products-rate', title: 'Tasa del día', body: 'La tasa BCV (Bs y COP) del día. Recárgala con el botón cuando lo necesites.' },
-    { target: 'products-toolbar', title: 'Buscar y categorías', body: 'Busca un producto por nombre o entra a gestionar las categorías.' },
-    { target: 'products-cats', title: 'Filtrar por categoría', body: 'Filtra por categoría. “Incompletos” reúne los productos a los que les falta información.' },
-    { target: 'products-add', title: 'Crear y editar', body: 'Crea un producto nuevo con +. Toca uno existente para editar precios, foto, umbral al mayor y fritos.' },
-  ],
   productEditor: [
     { target: 'pe-image', title: 'Foto del producto', body: 'Sube una foto: es la que se ve en el catálogo. Puedes quitarla o cambiarla cuando quieras.' },
     { target: 'pe-name', title: 'Nombre y presentación', body: 'El nombre del producto y, debajo, las unidades o presentación (ej. “25 unidades · 1 kg”).' },
@@ -119,13 +114,26 @@ const STEPS: Record<TourId, Step[]> = {
 type TourId =
   | 'home' | 'catalog' | 'mayor' | 'cart' | 'checkout' | 'wcheckout'
   | 'admin' | 'adminStaff' | 'adminProductos' | 'adminMetricas' | 'adminCrm'
-  | 'adminStaffProductos' | 'productEditor';
+  | 'productEditor';
 
 const KEY_PREFIX = 'rl_tour_';
 const VERSION = 'v2';
 
+/**
+ * Clave de "visto" en LocalStorage. El `scope` opcional permite que un mismo tour
+ * se muestre una vez por contexto — p. ej. el tour de Productos por rol, para que
+ * el equipo lo vea aunque el administrador ya haya visto el suyo en el dispositivo.
+ */
+const seenKey = (which: TourId, scope?: string) =>
+  `${KEY_PREFIX}${which}${scope ? `_${scope}` : ''}_${VERSION}`;
+
+interface ActiveTour {
+  which: TourId;
+  scope?: string;
+}
+
 interface OnboardingContextValue {
-  maybeStart: (which: TourId) => void;
+  maybeStart: (which: TourId, scope?: string) => void;
   /** Tutorial en curso (o null). Lo usan banners/overlays para no estorbar. */
   activeTour: TourId | null;
 }
@@ -133,27 +141,27 @@ interface OnboardingContextValue {
 const OnboardingContext = createContext<OnboardingContextValue | null>(null);
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
-  const [active, setActive] = useState<TourId | null>(null);
+  const [active, setActive] = useState<ActiveTour | null>(null);
 
-  const maybeStart = useCallback((which: TourId) => {
+  const maybeStart = useCallback((which: TourId, scope?: string) => {
     if (typeof window === 'undefined') return;
     setActive(prev => {
       if (prev) return prev; // no interrumpir un tutorial en curso
-      try { if (localStorage.getItem(`${KEY_PREFIX}${which}_${VERSION}`)) return prev; } catch { return prev; }
-      return which;
+      try { if (localStorage.getItem(seenKey(which, scope))) return prev; } catch { return prev; }
+      return { which, scope };
     });
   }, []);
 
-  const finish = useCallback((which: TourId) => {
-    try { localStorage.setItem(`${KEY_PREFIX}${which}_${VERSION}`, '1'); } catch { /* ignore */ }
+  const finish = useCallback((t: ActiveTour) => {
+    try { localStorage.setItem(seenKey(t.which, t.scope), '1'); } catch { /* ignore */ }
     setActive(null);
   }, []);
 
   return (
-    <OnboardingContext.Provider value={{ maybeStart, activeTour: active }}>
+    <OnboardingContext.Provider value={{ maybeStart, activeTour: active?.which ?? null }}>
       {children}
       <AnimatePresence>
-        {active && <Tour key={active} steps={STEPS[active]} onClose={() => finish(active)} />}
+        {active && <Tour key={`${active.which}_${active.scope ?? ''}`} steps={STEPS[active.which]} onClose={() => finish(active)} />}
       </AnimatePresence>
     </OnboardingContext.Provider>
   );

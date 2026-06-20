@@ -54,14 +54,15 @@ export default function AdminDashboard() {
   // incluido en el tutorial general, que parte en esa pestaña.)
   useEffect(() => {
     if (!ready) return;
-    // El tour de Productos tiene clave propia por rol, para que el equipo lo vea
-    // aunque el administrador ya haya visto el suyo en este mismo dispositivo.
-    const which = tab === 'productos' ? (role === 'admin' ? 'adminProductos' : 'adminStaffProductos')
+    // El tour de Productos se guarda con clave por rol (scope), para que el equipo
+    // lo vea aunque el administrador ya haya visto el suyo en este mismo dispositivo.
+    const which = tab === 'productos' ? 'adminProductos'
       : tab === 'metricas' ? 'adminMetricas'
       : tab === 'crm' ? 'adminCrm'
       : null;
     if (!which) return;
-    const t = setTimeout(() => maybeStart(which), 650);
+    const scope = which === 'adminProductos' ? (role ?? undefined) : undefined;
+    const t = setTimeout(() => maybeStart(which, scope), 650);
     return () => clearTimeout(t);
   }, [tab, ready, role, maybeStart]);
 

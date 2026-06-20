@@ -35,9 +35,9 @@ export default function InstallPrompt() {
   };
 
   if (!pwa || pwa.isStandalone || dismissed || activeTour) return null;
-  const iosHint = pwa.isIos && !pwa.canPrompt;
   // Solo tiene sentido el banner si se puede lanzar el prompt (Android) o instruir (iOS).
-  if (!pwa.canPrompt && !iosHint) return null;
+  if (!pwa.canPrompt && !pwa.isIos) return null;
+  const iosHint = !pwa.canPrompt; // aquí, sin prompt nativo ⇒ es iOS
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[84] w-[calc(100%-1.5rem)] max-w-md">

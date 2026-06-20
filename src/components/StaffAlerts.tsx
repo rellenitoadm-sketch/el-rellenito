@@ -176,8 +176,8 @@ export default function StaffAlerts() {
     let interval: ReturnType<typeof setInterval> | null = null;
     const cleanups: Array<() => void> = [];
 
-    // Registrar el SW app-wide (idempotente) para garantizar el push también
-    // fuera de la home (donde InstallPrompt no se monta).
+    // Punto único de registro del service worker (app-wide). Lo necesitan tanto
+    // el push de pedidos como la instalación de la PWA (PwaInstall solo observa).
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }

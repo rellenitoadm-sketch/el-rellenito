@@ -47,10 +47,8 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setIsStandalone(detectStandalone());
     setIsIos(detectIos());
-
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
-    }
+    // El service worker lo registra StaffAlerts app-wide (idempotente); aquí solo
+    // observamos el estado de instalación para no duplicar el registro.
 
     const onBIP = (e: Event) => {
       e.preventDefault();
