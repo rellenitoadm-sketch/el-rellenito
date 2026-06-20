@@ -56,7 +56,7 @@ const STEPS: Record<TourId, Step[]> = {
     { target: 'checkout-confirm', title: 'Confirmar pedido', body: 'Confirma. Quedará registrado y te contactaremos por WhatsApp.' },
   ],
   wcheckout: [
-    { target: 'wco-summary', title: 'Tu pedido al mayor', body: 'Revisa los productos y ajusta cantidades. Recuerda: al mayor hay una cantidad mínima por producto.' },
+    { target: 'wco-summary', title: 'Tu pedido al mayor', body: 'Revisa los productos y ajusta las cantidades antes de continuar.' },
     { target: 'wco-date', title: 'Agenda la entrega', body: 'Elige la fecha y hora. Los pedidos al mayor se agendan con mínimo 24 horas de anticipación.' },
     { target: 'wco-data', title: 'Tus datos y dirección', body: 'Tu nombre, WhatsApp y la dirección de entrega. Puedes precisar la ubicación con GPS (opcional).' },
     { target: 'wco-payment', title: 'Anticipo y pago', body: 'Elige cuánto adelantar (mínimo 50%) y el método de pago. Sube el comprobante para continuar.' },
