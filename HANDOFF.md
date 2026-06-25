@@ -4,10 +4,10 @@
 
 ---
 
-## ⭐ ESTADO 2026-06-24 — Plan de 8 requerimientos IMPLEMENTADO (sin commitear)
+## ⭐ ESTADO 2026-06-24 — Plan de 8 requerimientos COMMITEADO + DEPLOYADO ✅
 
 ### Resumen
-Se ejecutó el plan completo de `prompt.md` (Escritorio del usuario): auditoría + **8 requerimientos**. Todo verificado con `tsc --noEmit` (exit 0) y `next build` (exit 0; las 8 features compilan). **NADA commiteado ni deployado.** Las **migraciones de Supabase SÍ están aplicadas en producción** (proyecto `cbmkqumcsgieivffiody`) → datos/esquema vivos; el **código** (pantallas nuevas) NO está deployado.
+Se ejecutó el plan completo de `prompt.md` (Escritorio del usuario): auditoría + **8 requerimientos**. Todo verificado con `tsc --noEmit` (exit 0), `next build` (exit 0) y **smoke test runtime en verde** (todos los endpoints nuevos, con limpieza de datos de prueba). **COMMITEADO y DEPLOYADO el 2026-06-24:** commit `2b95ff5` en `main` (38 archivos, +3693/−340), push hecho → auto-deploy de Vercel **EN VIVO en elrellenito.com** (verificado: `/`=200, `/ruta`=200, `/api/admin/drivers`=401). Migraciones de Supabase ya estaban aplicadas en prod (proyecto `cbmkqumcsgieivffiody`). **Working tree limpio.**
 
 ### Hecho esta sesión (8 features)
 1. **#8 Bebidas "Combínalo con"** — `components/Upsell.tsx`: sin tope de 6; orden de upsell por patrón de nombre (Coca-Cola→Zero→Postobón→Malta→Jugos→Merengadas→otras).
@@ -28,7 +28,7 @@ Pedidos · Productos · **Sabores** · Métricas · Clientes · **Mayoristas** �
 ### PENDIENTE (próxima sesión)
 1. ✅ **Smoke test runtime de los endpoints nuevos — HECHO 2026-06-24, todo verde.** Corrido contra el build de producción (`npm run start`, 3000) con login PIN 150101. Probados (con limpieza total, sin datos residuales): login+me (admin), flavors GET/POST/DELETE, product-flavors PUT + **trigger `has_flavors`** (pasa a True al asignar y vuelve a False al limpiar), `/api/products/[id]/flavors` público, drivers GET/POST/DELETE, orders `range=all` + `orders/[id]` (detalle), wholesale-clients (43), y ciclo de ruta `start`(con destino)→`ping`(distancia haversine OK ~248m)→`end`→`DELETE`. **Gotcha del entorno:** en `npm run start` NODE_ENV=production → la cookie `staff_session` va con flag `Secure` y NO viaja sobre http://localhost; para smoke por consola hay que capturar el token del `Set-Cookie` del login y mandarlo a mano como header `Cookie`. **Gotcha PowerShell:** `$pid` es variable de solo-lectura (PID del proceso) → no usarla como nombre de variable.
 2. **Revisión visual en navegador**: Home, modal de sabores, instalación iOS, Historial/badges, pestañas Sabores y Rutas, `/ruta?order=ID`.
-3. **Commit + deploy** (decisión del usuario). `site/` → push a `main` = auto-deploy producción a **elrellenito.com**. **Autor obligatorio `rellenito.adm@gmail.com`** (Vercel Hobby). Confirmar ANTES de push.
+3. ✅ **Commit + deploy — HECHO 2026-06-24.** Commit `2b95ff5` en `main` (autor `rellenito.adm@gmail.com`), push hecho → Vercel deployó a **elrellenito.com** (verificado en vivo). Para la próxima entrega: mismo flujo, push a `main` = auto-deploy prod; el MCP de Vercel está en otro scope (no ve el proyecto) → confirmar deploy sondeando el sitio en vivo (p.ej. una ruta nueva que pase de 404 a 401/200).
 4. **Datos del cliente a confirmar**: teléfono de **Zenaida** (dañado en el .md) y **Yanilka** (faltante) en la cartera; qué bebidas vende realmente (no hay Coca Zero ni Postobón en el catálogo; #8 las mapea por patrón con fallback).
 5. **Diferido / opcional**: lote de optimización de imágenes ya subidas; "ruta sugerida" turn-by-turn (OpenRouteService/Mapbox free, $0 a este volumen); sabores en página Al Mayor; tracking en 2º plano real = app nativa (Capacitor). El plan completo (formato auditoría) está en el chat de esta sesión.
 
