@@ -11,9 +11,6 @@ export interface RoutePoint {
   t: number;
 }
 
-/** Domiciliarios por defecto (el cliente tiene dos). El nombre es editable. */
-export const DRIVERS = ['Domiciliario 1', 'Domiciliario 2'] as const;
-
 const EARTH_RADIUS_M = 6371000;
 
 /** Distancia en metros entre dos puntos (fórmula de Haversine). */

@@ -8,6 +8,7 @@ import { type Product, type ProductCategory, type ProductType } from '@/lib/prod
 import type { ExchangeRates } from '@/lib/rates';
 import { useCategories } from '../CategoriesContext';
 import { useOnboarding } from '../Onboarding';
+import ProductFlavorsEditor from './ProductFlavorsEditor';
 
 interface ProductEditorProps {
   product: Product | null; // null = creating new
@@ -402,6 +403,11 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
               <Star className={`w-3.5 h-3.5 ${bestSeller ? 'fill-current' : ''}`} /> Destacado
             </button>
           </div>
+
+          {/* Sabores con precio (productos existentes) */}
+          {!isNew && product && (
+            <ProductFlavorsEditor productId={product.id} type={type} />
+          )}
 
           {error && <p className="text-[12px]" style={{ color: 'var(--danger)' }}>{error}</p>}
         </div>

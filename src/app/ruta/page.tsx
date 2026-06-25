@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigation, Play, Square, Loader2, MapPin, AlertCircle, Lock, Satellite, Package } from 'lucide-react';
-import { DRIVERS, haversineMeters, pathDistance, formatDistance, type RoutePoint } from '@/lib/routes';
+import { haversineMeters, pathDistance, formatDistance, type RoutePoint } from '@/lib/routes';
 
 type Phase = 'checking' | 'login' | 'idle' | 'tracking';
 type DriverChoice = { id: string | null; name: string };
@@ -34,7 +34,7 @@ export default function DriverRoutePage() {
   const [loggingIn, setLoggingIn] = useState(false);
 
   const [activeDrivers, setActiveDrivers] = useState<DriverChoice[]>([]);
-  const [driverChoice, setDriverChoice] = useState<DriverChoice>({ id: null, name: DRIVERS[0] });
+  const [driverChoice, setDriverChoice] = useState<DriverChoice>({ id: null, name: '' });
   const [customName, setCustomName] = useState('');
 
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -254,7 +254,7 @@ export default function DriverRoutePage() {
   const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
   const ss = String(elapsed % 60).padStart(2, '0');
 
-  const driverList: DriverChoice[] = activeDrivers.length ? activeDrivers : DRIVERS.map(n => ({ id: null, name: n }));
+  const driverList: DriverChoice[] = activeDrivers;
 
   // ── cargando ──
   if (phase === 'checking') {
@@ -375,27 +375,29 @@ export default function DriverRoutePage() {
       )}
 
       <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-secondary)' }}>Domiciliario</p>
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        {driverList.map(d => {
-          const active = !customName.trim() && driverChoice.id === d.id && driverChoice.name === d.name;
-          return (
-            <button
-              key={d.id ?? d.name}
-              onClick={() => { setDriverChoice(d); setCustomName(''); }}
-              className="py-3 rounded-2xl text-sm font-bold border transition-all"
-              style={active
-                ? { background: 'var(--gradient-button)', color: '#fff', borderColor: 'transparent' }
-                : { background: 'var(--surface)', color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
-            >
-              {d.name}
-            </button>
-          );
-        })}
-      </div>
+      {driverList.length > 0 && (
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {driverList.map(d => {
+            const active = !customName.trim() && driverChoice.id === d.id && driverChoice.name === d.name;
+            return (
+              <button
+                key={d.id ?? d.name}
+                onClick={() => { setDriverChoice(d); setCustomName(''); }}
+                className="py-3 rounded-2xl text-sm font-bold border transition-all"
+                style={active
+                  ? { background: 'var(--gradient-button)', color: '#fff', borderColor: 'transparent' }
+                  : { background: 'var(--surface)', color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
+              >
+                {d.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <input
         type="text" value={customName}
         onChange={e => setCustomName(e.target.value)}
-        placeholder="…o escribe otro nombre"
+        placeholder={driverList.length > 0 ? '…o escribe otro nombre' : 'Escribe tu nombre'}
         className="field mb-6"
       />
 

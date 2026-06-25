@@ -24,7 +24,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
 
   const showDetail = () => openDetail(
     product,
-    ({ fritos }) => addItem(product, { fritos }),
+    ({ fritos, flavor, quantity }) => addItem(product, { fritos, flavor, quantity }),
     { allowFritos: !!product.cobra_frito, allowFlavors: !!product.has_flavors },
   );
   const onDetailKey = (e: React.KeyboardEvent) => {
@@ -96,6 +96,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
           )}
           {priced ? (
             <p className="text-[15px] font-bold mt-1.5 t-num" style={{ color: 'var(--text-1)' }}>
+              {flavored && <span className="text-[11px] font-semibold mr-0.5" style={{ color: 'var(--text-3)' }}>Desde</span>}
               {format(product.price_usd, product.price_cop)}
             </p>
           ) : (
@@ -206,6 +207,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
         <div className="mt-1.5">
           {priced ? (
             <p className="text-[17px] font-bold t-num leading-none" style={{ color: 'var(--text-1)' }}>
+              {flavored && <span className="text-[12px] font-semibold mr-0.5" style={{ color: 'var(--text-3)' }}>Desde</span>}
               {format(product.price_usd, product.price_cop)}
             </p>
           ) : (

@@ -87,11 +87,11 @@ export default function WholesalePage({ onBack, onNavInfo }: WholesalePageProps)
     reset: resetLoc,
   } = useGeolocationZone();
 
-  const addToCart = (id: string, name: string, price_usd: number, price_cop?: number | null) => {
+  const addToCart = (id: string, name: string, price_usd: number, price_cop?: number | null, qty = 1) => {
     setCart(prev => {
       const existing = prev.find(i => i.id === id);
-      if (existing) return prev.map(i => i.id === id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { id, name, price_usd, price_cop: price_cop ?? null, qty: 1 }];
+      if (existing) return prev.map(i => i.id === id ? { ...i, qty: i.qty + qty } : i);
+      return [...prev, { id, name, price_usd, price_cop: price_cop ?? null, qty }];
     });
   };
 
@@ -284,14 +284,32 @@ export default function WholesalePage({ onBack, onNavInfo }: WholesalePageProps)
                 const item = cart.find(i => i.id === p.id);
                 const qty = item?.qty ?? 0;
                 const priced = isPricedIn(p, currency);
+                const flavored = !!p.has_flavors;
                 const showDetail = () => openDetail(
                   p,
-                  () => addToCart(p.id, p.name, p.wholesale_price_usd, p.wholesale_price_cop),
-                  { priceOverride: { price_usd: p.wholesale_price_usd, price_cop: p.wholesale_price_cop } },
+                  ({ flavor, quantity }) => {
+                    if (flavor) {
+                      addToCart(
+                        `${p.id}::${flavor.id}`,
+                        `${p.name} · ${flavor.name}`,
+                        flavor.wholesale_price_usd ?? flavor.price_usd ?? p.wholesale_price_usd,
+                        flavor.wholesale_price_cop ?? flavor.price_cop ?? p.wholesale_price_cop,
+                        quantity ?? 1,
+                      );
+                    } else {
+                      addToCart(p.id, p.name, p.wholesale_price_usd, p.wholesale_price_cop);
+                    }
+                  },
+                  {
+                    priceOverride: { price_usd: p.wholesale_price_usd, price_cop: p.wholesale_price_cop },
+                    allowFlavors: flavored,
+                    wholesale: true,
+                  },
                 );
                 const placeholder = <span className="font-bold" style={{ color: 'var(--text-3)' }}>{p.name.charAt(0).toUpperCase()}</span>;
                 const priceEl = priced ? (
                   <p className="text-sm font-bold" style={{ color: 'var(--brand-orange)' }}>
+                    {flavored && <span className="text-[11px] font-semibold mr-0.5" style={{ color: 'var(--text-muted)' }}>Desde</span>}
                     {format(p.wholesale_price_usd, p.wholesale_price_cop)}
                   </p>
                 ) : (
@@ -303,6 +321,15 @@ export default function WholesalePage({ onBack, onNavInfo }: WholesalePageProps)
                   <span className="inline-flex items-center justify-center w-11 h-11" style={{ color: 'var(--text-muted)' }}>
                     <Lock className="w-4 h-4" />
                   </span>
+                ) : flavored ? (
+                  <button
+                    onClick={showDetail}
+                    aria-label={`Elegir sabores de ${p.name}`}
+                    className="text-white text-xs font-bold px-3 py-2 rounded-xl btn-gradient"
+                    style={{ minHeight: 44 }}
+                  >
+                    Elegir sabores
+                  </button>
                 ) : qty > 0 ? (
                   <div className="flex items-center gap-1.5 rounded-xl px-2 py-1.5 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
                     <button onClick={() => updateQty(p.id, qty - 1)} aria-label="Restar" className="w-11 h-11 rounded-full flex items-center justify-center" style={{ color: 'var(--brand-orange)' }}>

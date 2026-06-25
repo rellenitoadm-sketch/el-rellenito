@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, MapPin, Trash2, Radio, Route as RouteIcon, Clock, Navigation, Plus, Users } from 'lucide-react';
+import { RefreshCw, MapPin, Trash2, Radio, Route as RouteIcon, Clock, Plus, Users } from 'lucide-react';
 import RouteMap, { type MapRoute } from './RouteMap';
 import { formatDistance, type RoutePoint } from '@/lib/routes';
 
@@ -171,16 +171,11 @@ export default function RoutesPanel() {
         <RouteMap routes={drawn} height={360} />
       </div>
 
-      {/* Rastrear ruta libre (sin pedido) */}
-      <a
-        href="/ruta"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full mb-5 flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-[13px] font-semibold"
-        style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)', border: '1px solid var(--brand)' }}
-      >
-        <Navigation className="w-4 h-4" /> Rastrear una ruta (sin pedido)
-      </a>
+      {/* Nota: este panel es solo de monitoreo. Las rutas las inician los
+          domiciliarios desde el panel del equipo (pestaña "Reparto"). */}
+      <p className="mb-5 text-[12px] leading-snug px-1" style={{ color: 'var(--text-3)' }}>
+        Monitoreo en vivo del reparto. Los domiciliarios inician sus rutas desde la pestaña <b>Reparto</b> del equipo o desde un pedido.
+      </p>
 
       {/* Domiciliarios en ruta */}
       <div className="flex items-center justify-between mb-2">
@@ -196,7 +191,7 @@ export default function RoutesPanel() {
         <div className="flex justify-center py-10"><RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--brand)' }} /></div>
       ) : active.length === 0 ? (
         <div className="card p-4 mb-5 text-[12.5px]" style={{ color: 'var(--text-2)' }}>
-          Ningún domiciliario en ruta ahora. Inicia desde un pedido (botón “Iniciar ruta”) o con “Rastrear una ruta”.
+          Ningún domiciliario en ruta ahora. Aparecerán aquí en cuanto el equipo inicie un reparto.
         </div>
       ) : (
         <div className="space-y-2 mb-5">

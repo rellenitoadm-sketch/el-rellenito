@@ -35,10 +35,20 @@ export interface LastAdded {
   key: number;
 }
 
+/** Sabor elegido en el modal, con su precio propio (override del producto). */
+export interface PickedFlavor {
+  id: string;
+  name: string;
+  price_usd?: number | null;
+  price_cop?: number | null;
+  wholesale_price_usd?: number | null;
+  wholesale_price_cop?: number | null;
+}
+
 interface CartContextValue {
   items: CartItem[];
   isOpen: boolean;
-  addItem: (product: Product, opts?: { fritos?: boolean; flavor?: { id: string; name: string }; quantity?: number }) => void;
+  addItem: (product: Product, opts?: { fritos?: boolean; flavor?: PickedFlavor; quantity?: number }) => void;
   removeItem: (id: string) => void;
   updateQty: (id: string, qty: number) => void;
   setItemFritos: (id: string, fritos: boolean) => void;
@@ -59,11 +69,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addCountRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const addItem = useCallback((product: Product, opts?: { fritos?: boolean; flavor?: { id: string; name: string }; quantity?: number }) => {
+  const addItem = useCallback((product: Product, opts?: { fritos?: boolean; flavor?: PickedFlavor; quantity?: number }) => {
     const qty = Math.max(1, Math.round(opts?.quantity ?? 1));
+    const flavor = opts?.flavor;
     // Cada (producto + sabor) es una línea propia del carrito.
-    const lineId = opts?.flavor ? `${product.id}::${opts.flavor.id}` : product.id;
-    const displayName = opts?.flavor ? `${product.name} · ${opts.flavor.name}` : product.name;
+    const lineId = flavor ? `${product.id}::${flavor.id}` : product.id;
+    const displayName = flavor ? `${product.name} · ${flavor.name}` : product.name;
+    // El sabor puede traer su propio precio; si viene null/ausente, usa el del producto.
+    const priceUsd = flavor?.price_usd ?? product.price_usd;
+    const priceCop = flavor?.price_cop ?? product.price_cop ?? null;
+    const wholesaleUsd = flavor?.wholesale_price_usd ?? product.wholesale_price_usd;
+    const wholesaleCop = flavor?.wholesale_price_cop ?? product.wholesale_price_cop ?? null;
     setItems(prev => {
       const existing = prev.find(i => i.id === lineId);
       if (existing) {
@@ -78,10 +94,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         {
           id: lineId,
           name: displayName,
-          price_usd: product.price_usd,
-          price_cop: product.price_cop ?? null,
-          wholesale_price_usd: product.wholesale_price_usd,
-          wholesale_price_cop: product.wholesale_price_cop ?? null,
+          price_usd: priceUsd,
+          price_cop: priceCop,
+          wholesale_price_usd: wholesaleUsd,
+          wholesale_price_cop: wholesaleCop,
           limite_unidades_mayor: product.limite_unidades_mayor ?? null,
           cobra_frito: product.cobra_frito ?? null,
           fritos: opts?.fritos ?? false,

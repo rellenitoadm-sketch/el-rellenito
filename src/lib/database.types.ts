@@ -309,20 +309,32 @@ export type Database = {
         Row: {
           available: boolean
           flavor_id: string
+          price_cop: number | null
+          price_usd: number | null
           product_id: string
           sort_order: number
+          wholesale_price_cop: number | null
+          wholesale_price_usd: number | null
         }
         Insert: {
           available?: boolean
           flavor_id: string
+          price_cop?: number | null
+          price_usd?: number | null
           product_id: string
           sort_order?: number
+          wholesale_price_cop?: number | null
+          wholesale_price_usd?: number | null
         }
         Update: {
           available?: boolean
           flavor_id?: string
+          price_cop?: number | null
+          price_usd?: number | null
           product_id?: string
           sort_order?: number
+          wholesale_price_cop?: number | null
+          wholesale_price_usd?: number | null
         }
         Relationships: []
       }
