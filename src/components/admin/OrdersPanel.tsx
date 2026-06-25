@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import {
   RefreshCw, Package, CheckCircle, Truck, XCircle, Clock, CalendarDays,
-  Receipt, ImageIcon, BadgeCheck, Banknote, X, Bell, BellOff, AlertCircle, Trash2, MapPin,
+  Receipt, ImageIcon, BadgeCheck, Banknote, X, Bell, BellOff, AlertCircle, Trash2, MapPin, Search, Navigation,
 } from 'lucide-react';
 import type { StaffRole } from '@/lib/adminAuth';
 
@@ -55,30 +55,45 @@ const STEP_LABEL: Record<string, string> = {
 };
 
 type View = 'hoy' | 'mayor' | 'historial';
+type RangeDays = '30' | '90' | 'all';
+const PAGE = 40;
 
-const VIEWS: { id: View; label: string; query: string }[] = [
-  { id: 'hoy', label: 'Hoy', query: '' },
-  { id: 'mayor', label: 'Al Mayor', query: '?wholesale=true' },
-  { id: 'historial', label: 'Historial 30d', query: '?days=30' },
+const VIEWS: { id: View; label: string }[] = [
+  { id: 'hoy', label: 'Hoy' },
+  { id: 'mayor', label: 'Al Mayor' },
+  { id: 'historial', label: 'Historial' },
 ];
+
+const RANGES: { id: RangeDays; label: string }[] = [
+  { id: '30', label: '30 días' },
+  { id: '90', label: '90 días' },
+  { id: 'all', label: 'Todo' },
+];
+
+/** Fecha y hora exactas del pedido (ej. "24 jun, 2:45 p. m."). */
+function fmtDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
 
 export default function OrdersPanel({ role }: { role: StaffRole | null }) {
   const [view, setView] = useState<View>('hoy');
+  const [rangeDays, setRangeDays] = useState<RangeDays>('30');
+  const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [zoomImg, setZoomImg] = useState<string | null>(null);
 
-  // ── Alertas de pedidos nuevos ──
-  // El sonido, el push al celular y el badge los maneja el provider global
-  // <StaffAlerts/> (así funcionan también en el catálogo, no sólo aquí). Este
-  // botón sólo conmuta el interruptor compartido.
+  // ── Alertas de pedidos nuevos (las maneja el provider global StaffAlerts) ──
   const [alertsOn, setAlertsOn] = useState<boolean>(() => {
     try { return localStorage.getItem('rl_admin_alerts') === '1'; } catch { return false; }
   });
   const [toast, setToast] = useState('');
 
-  // Sincroniza el icono si el estado cambia desde el provider.
   useEffect(() => {
     const sync = () => {
       try { setAlertsOn(localStorage.getItem('rl_admin_alerts') === '1'); } catch { /* ignore */ }
@@ -88,18 +103,15 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
   }, []);
 
   const toggleAlerts = () => {
-    // Delegar al provider: pide permiso, suscribe push y desbloquea el audio.
     window.dispatchEvent(new Event(alertsOn ? 'rl-disable-alerts' : 'rl-enable-alerts'));
   };
 
-  // Auto-descartar el toast de error.
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(''), 4000);
     return () => clearTimeout(t);
   }, [toast]);
 
-  // Cerrar el visor de comprobante con Escape.
   useEffect(() => {
     if (!zoomImg) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoomImg(null); };
@@ -107,26 +119,63 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [zoomImg]);
 
-  const load = useCallback(async (v: View, silent = false) => {
-    if (!silent) setLoading(true);
-    const q = VIEWS.find(x => x.id === v)!.query;
-    try {
-      const res = await fetch(`/api/admin/orders${q}`);
-      if (res.ok) setOrders(await res.json());
-      else if (!silent) setOrders([]);
-    } catch { if (!silent) setOrders([]); } finally { if (!silent) setLoading(false); }
-  }, []);
-
-  useEffect(() => { load(view); }, [view, load]);
-
-  // Auto-actualización cada 25s (sin spinner) para detectar pedidos nuevos.
+  // Debounce de la búsqueda (solo aplica en Historial).
   useEffect(() => {
-    const t = setInterval(() => { load(view, true); }, 25000);
+    const t = setTimeout(() => setAppliedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const buildQuery = (v: View, off: number): string => {
+    const p = new URLSearchParams();
+    if (v === 'mayor') {
+      p.set('wholesale', 'true');
+    } else if (v === 'historial') {
+      if (rangeDays === 'all') p.set('range', 'all'); else p.set('days', rangeDays);
+      if (appliedSearch.trim()) p.set('q', appliedSearch.trim());
+      p.set('limit', String(PAGE));
+      p.set('offset', String(off));
+    }
+    const s = p.toString();
+    return s ? `?${s}` : '';
+  };
+
+  const load = useCallback(async (v: View, off = 0, append = false, silent = false) => {
+    if (!silent && !append) setLoading(true);
+    if (append) setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/admin/orders${buildQuery(v, off)}`);
+      if (res.ok) {
+        const data = await res.json() as Order[];
+        setOrders(prev => append ? [...prev, ...data] : data);
+        if (v === 'historial') {
+          setHasMore(data.length === PAGE);
+          setOffset(off + data.length);
+        } else {
+          setHasMore(false);
+        }
+      } else if (!append) {
+        setOrders([]);
+      }
+    } catch {
+      if (!append) setOrders([]);
+    } finally {
+      if (!silent && !append) setLoading(false);
+      if (append) setLoadingMore(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeDays, appliedSearch]);
+
+  // Recargar al cambiar de vista, rango o búsqueda.
+  useEffect(() => { setOffset(0); load(view, 0, false); }, [view, rangeDays, appliedSearch, load]);
+
+  // Auto-actualización cada 25s (sin spinner) — solo en vistas "vivas", no en historial.
+  useEffect(() => {
+    if (view === 'historial') return;
+    const t = setInterval(() => { load(view, 0, false, true); }, 25000);
     return () => clearInterval(t);
   }, [view, load]);
 
   const updateStatus = async (id: string, status: string) => {
-    // Confirmación antes de una acción destructiva.
     if (status === 'cancelado' && !confirm('¿Cancelar este pedido? Esta acción no se puede deshacer.')) return;
     const prev = orders;
     setBusyId(id);
@@ -139,14 +188,13 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
       });
       if (!res.ok) throw new Error();
     } catch {
-      setOrders(prev); // revierte si falla
+      setOrders(prev);
       setToast('No se pudo actualizar el pedido. Revisa tu conexión e intenta de nuevo.');
     } finally {
       setBusyId(null);
     }
   };
 
-  // Eliminar un pedido — SOLO admin (la ruta también lo exige en el servidor).
   const deleteOrder = async (id: string) => {
     if (!confirm('¿Eliminar este pedido de forma permanente? Esta acción no se puede deshacer.')) return;
     const prev = orders;
@@ -156,7 +204,7 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
       const res = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
     } catch {
-      setOrders(prev); // revierte si falla
+      setOrders(prev);
       setToast('No se pudo eliminar el pedido. Revisa tu conexión e intenta de nuevo.');
     } finally {
       setBusyId(null);
@@ -197,7 +245,37 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
         </button>
       </div>
 
-      {/* CTA para activar alertas (sirve como gesto que habilita audio + permiso de notificación) */}
+      {/* Controles del Historial: rango + búsqueda */}
+      {view === 'historial' && (
+        <div className="mb-4 space-y-2.5">
+          <div className="flex gap-1.5">
+            {RANGES.map(r => (
+              <button
+                key={r.id}
+                onClick={() => setRangeDays(r.id)}
+                className="px-3 py-1.5 min-h-10 rounded-lg text-[12px] font-semibold transition-all"
+                style={rangeDays === r.id
+                  ? { background: 'var(--brand)', color: '#fff' }
+                  : { background: 'var(--surface-2)', color: 'var(--text-2)', border: '1px solid var(--border)' }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-3)' }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por nombre o teléfono…"
+              className="field"
+              style={{ paddingLeft: '2.25rem' }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* CTA para activar alertas */}
       {!alertsOn && (
         <button
           onClick={toggleAlerts}
@@ -222,7 +300,9 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
         <div className="card text-center py-16 px-6">
           <Package className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-3)' }} />
           <p className="text-[14px] font-semibold" style={{ color: 'var(--text-1)' }}>No hay pedidos</p>
-          <p className="text-[12px] mt-1" style={{ color: 'var(--text-3)' }}>Aparecerán aquí en cuanto lleguen.</p>
+          <p className="text-[12px] mt-1" style={{ color: 'var(--text-3)' }}>
+            {view === 'historial' ? 'Prueba con otro rango o búsqueda.' : 'Aparecerán aquí en cuanto lleguen.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-2.5">
@@ -234,12 +314,36 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
             const isCash = order.payment_method === 'efectivo';
             const isPending = order.status === 'pendiente';
             const busy = busyId === order.id;
-            // For pending orders the approval CTA already covers 'confirmado',
-            // so drop it from the secondary buttons (computed once).
             const followUps = (NEXT_STEPS[order.status] ?? []).filter(s => !(isPending && s === 'confirmado'));
 
             return (
               <div key={order.id} className="card p-4">
+                {/* Meta: N° de pedido + fecha/hora exacta · estado a la derecha */}
+                <div className="flex items-center justify-between gap-2 mb-2.5">
+                  <span className="text-[11px] font-mono" style={{ color: 'var(--text-3)' }}>
+                    #{order.id.slice(-6).toUpperCase()} · {fmtDateTime(order.created_at)}
+                  </span>
+                  <span className="chip flex-shrink-0" style={{ background: meta.bg, color: meta.fg }}>
+                    <StatusIcon className="w-3 h-3" /> {meta.label}
+                  </span>
+                </div>
+
+                {/* Badges: mayor / moneda */}
+                {(order.is_wholesale || order.currency_shown) && (
+                  <div className="flex items-center gap-1.5 mb-2">
+                    {order.is_wholesale && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}>
+                        AL MAYOR
+                      </span>
+                    )}
+                    {order.currency_shown && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text-2)' }}>
+                        {order.currency_shown}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="min-w-0">
                     <p className="text-[14px] font-semibold" style={{ color: 'var(--text-1)' }}>{order.customer_name}</p>
@@ -267,7 +371,7 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
                     )}
                     {order.scheduled_date && (
                       <p className="text-[12px] mt-0.5 inline-flex items-center gap-1" style={{ color: 'var(--text-2)' }}>
-                        <CalendarDays className="w-3 h-3" /> {order.scheduled_date} {order.scheduled_time ?? ''}
+                        <CalendarDays className="w-3 h-3" /> Agendado: {order.scheduled_date} {order.scheduled_time ?? ''}
                       </p>
                     )}
                   </div>
@@ -289,13 +393,6 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
 
                 {/* Payment proof block */}
                 <PaymentProof order={order} isCash={isCash} onZoom={setZoomImg} />
-
-                {/* Status + actions */}
-                <div className="flex items-center gap-2 flex-wrap mt-3">
-                  <span className="chip" style={{ background: meta.bg, color: meta.fg }}>
-                    <StatusIcon className="w-3 h-3" /> {meta.label}
-                  </span>
-                </div>
 
                 {/* Primary approval CTA for pending orders */}
                 {isPending && (
@@ -334,6 +431,17 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
                   </div>
                 )}
 
+                {/* Iniciar ruta de entrega (pedidos a domicilio confirmados / en camino) */}
+                {(order.status === 'confirmado' || order.status === 'en_camino') && order.delivery_type !== 'retiro' && (
+                  <a
+                    href={`/ruta?order=${order.id}`}
+                    className="mt-2 w-full inline-flex items-center justify-center gap-2 text-[13px] font-bold py-2.5 rounded-xl transition-colors"
+                    style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)', border: '1px solid var(--brand)' }}
+                  >
+                    <Navigation className="w-4 h-4" /> Iniciar ruta de entrega
+                  </a>
+                )}
+
                 {/* Eliminar pedido — solo admin */}
                 {role === 'admin' && (
                   <div className="mt-3 pt-3 border-t flex justify-end" style={{ borderColor: 'var(--border)' }}>
@@ -350,6 +458,18 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
               </div>
             );
           })}
+
+          {/* Paginación del historial */}
+          {view === 'historial' && hasMore && (
+            <button
+              onClick={() => load(view, offset, true)}
+              disabled={loadingMore}
+              className="w-full mt-1 py-3 rounded-xl text-[13px] font-semibold transition-colors disabled:opacity-60"
+              style={{ background: 'var(--surface-2)', color: 'var(--text-2)', border: '1px solid var(--border)' }}
+            >
+              {loadingMore ? 'Cargando…' : 'Cargar más'}
+            </button>
+          )}
         </div>
       )}
       </div>
@@ -416,7 +536,7 @@ function PaymentProof({
     return (
       <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-[12px]" style={{ background: 'var(--warning-soft)', color: '#B45309' }}>
         <Receipt className="w-4 h-4 flex-shrink-0" />
-        El cliente no adjuntó comprobante. Verifica el pago por WhatsApp antes de aprobar.
+        El cliente no adjuntó comprobante. Verifica el pago antes de aprobar.
       </div>
     );
   }

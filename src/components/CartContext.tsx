@@ -21,6 +21,9 @@ export interface CartItem {
   cobra_frito?: boolean | null;
   /** El cliente eligió fritos para esta línea. */
   fritos?: boolean;
+  /** Sabor elegido (si el producto se vende por sabores). */
+  flavorId?: string | null;
+  flavorName?: string | null;
   quantity: number;
   image_url: string | null;
   category: ProductCategory;
@@ -35,7 +38,7 @@ export interface LastAdded {
 interface CartContextValue {
   items: CartItem[];
   isOpen: boolean;
-  addItem: (product: Product, opts?: { fritos?: boolean }) => void;
+  addItem: (product: Product, opts?: { fritos?: boolean; flavor?: { id: string; name: string }; quantity?: number }) => void;
   removeItem: (id: string) => void;
   updateQty: (id: string, qty: number) => void;
   setItemFritos: (id: string, fritos: boolean) => void;
@@ -56,21 +59,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addCountRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const addItem = useCallback((product: Product, opts?: { fritos?: boolean }) => {
+  const addItem = useCallback((product: Product, opts?: { fritos?: boolean; flavor?: { id: string; name: string }; quantity?: number }) => {
+    const qty = Math.max(1, Math.round(opts?.quantity ?? 1));
+    // Cada (producto + sabor) es una línea propia del carrito.
+    const lineId = opts?.flavor ? `${product.id}::${opts.flavor.id}` : product.id;
+    const displayName = opts?.flavor ? `${product.name} · ${opts.flavor.name}` : product.name;
     setItems(prev => {
-      const existing = prev.find(i => i.id === product.id);
+      const existing = prev.find(i => i.id === lineId);
       if (existing) {
         return prev.map(i =>
-          i.id === product.id
-            ? { ...i, quantity: i.quantity + 1, ...(opts?.fritos !== undefined ? { fritos: opts.fritos } : {}) }
+          i.id === lineId
+            ? { ...i, quantity: i.quantity + qty, ...(opts?.fritos !== undefined ? { fritos: opts.fritos } : {}) }
             : i
         );
       }
       return [
         ...prev,
         {
-          id: product.id,
-          name: product.name,
+          id: lineId,
+          name: displayName,
           price_usd: product.price_usd,
           price_cop: product.price_cop ?? null,
           wholesale_price_usd: product.wholesale_price_usd,
@@ -78,14 +85,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
           limite_unidades_mayor: product.limite_unidades_mayor ?? null,
           cobra_frito: product.cobra_frito ?? null,
           fritos: opts?.fritos ?? false,
-          quantity: 1,
+          flavorId: opts?.flavor?.id ?? null,
+          flavorName: opts?.flavor?.name ?? null,
+          quantity: qty,
           image_url: product.image_url,
           category: product.category,
         },
       ];
     });
     addCountRef.current += 1;
-    setLastAdded({ id: product.id, name: product.name, key: addCountRef.current });
+    setLastAdded({ id: lineId, name: displayName, key: addCountRef.current });
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setLastAdded(null), 1500);
   }, []);

@@ -1,6 +1,44 @@
 # HANDOFF — El Rellenito (→ nueva sesión)
 
-> **Actualizado 2026-06-18.** La sección ⭐ de abajo es lo VIGENTE. El resto del archivo (desde "Fecha: 2026-06-14") es historial.
+> **Actualizado 2026-06-24.** La sección ⭐ de abajo es lo VIGENTE. El resto del archivo es historial.
+
+---
+
+## ⭐ ESTADO 2026-06-24 — Plan de 8 requerimientos IMPLEMENTADO (sin commitear)
+
+### Resumen
+Se ejecutó el plan completo de `prompt.md` (Escritorio del usuario): auditoría + **8 requerimientos**. Todo verificado con `tsc --noEmit` (exit 0) y `next build` (exit 0; las 8 features compilan). **NADA commiteado ni deployado.** Las **migraciones de Supabase SÍ están aplicadas en producción** (proyecto `cbmkqumcsgieivffiody`) → datos/esquema vivos; el **código** (pantallas nuevas) NO está deployado.
+
+### Hecho esta sesión (8 features)
+1. **#8 Bebidas "Combínalo con"** — `components/Upsell.tsx`: sin tope de 6; orden de upsell por patrón de nombre (Coca-Cola→Zero→Postobón→Malta→Jugos→Merengadas→otras).
+2. **#2 Home** — `components/Header.tsx` (prop nuevo `fullHeight`: hero 92svh + tagline "Pasapalos y Panadería Artesanal" + chevron de scroll) y `components/Home.tsx` (info+Footer con `whileInView`, respeta `prefers-reduced-motion`).
+3. **#6 iOS install** — `components/InstallPrompt.tsx`: modal de 4 pasos (Compartir→deslizar→Agregar a inicio→Confirmar); oculto en navegadores in-app (Instagram/FB).
+4. **#1 Imágenes** — `api/admin/upload/route.ts`: comprime con **sharp** a WebP (cap 1600px, q80, autorrotación EXIF); GIF intacto. `sharp` agregado a `package.json`. (`next/image` ya optimizaba al SERVIR; esto era la subida.)
+5. **#4 Historial completo** — `api/admin/orders/route.ts` (params `range=all`, `q`, `limit`/`offset`) + `OrdersPanel.tsx` (Historial 30d/90d/**Todo** + buscador + "Cargar más" + fecha/hora `created_at`). Índices: `orders(created_at desc)`, `orders(customer_whatsapp)`, GIN trgm `customer_name`.
+6. **#5 Claridad** — `OrdersPanel.tsx` (N° + fecha/hora + estado arriba, badges AL MAYOR/moneda) y `CrmPanel.tsx` (badge "TOP", última compra, rótulo "gastado").
+7. **#7 Sabores dinámicos** — tablas `flavors` + `product_flavors` + `products.has_flavors` + **trigger** `sync_product_has_flavors`. APIs: `api/admin/flavors`(+`[id]`), `api/admin/product-flavors` (GET/PUT), público `api/products/[id]/flavors`. UI: `ProductModal.tsx` (steppers por sabor, opción `allowFlavors`), `CartContext.tsx` (línea por sabor, id `producto::sabor`, `quantity`), `ProductCard.tsx` ("Elegir sabores" → modal), `admin/FlavorsPanel.tsx` + pestaña "Sabores". **Solo flujo al detal** (mayor pendiente).
+8. **#3 Rutas avanzadas** — tabla `drivers`; `delivery_routes` += `order_id/driver_id/dest_lat/dest_lng`. APIs `api/admin/drivers`(+`[id]`); `api/route/start` ligado a pedido/destino/domiciliario; GET en `api/admin/orders/[id]`. UI: `OrdersPanel` botón "Iniciar ruta de entrega" (`/ruta?order=ID`); `/ruta` (modo pedido: carga cliente+destino, marca `en_camino`, elige domiciliario registrado); `RoutesPanel` (gestión de domiciliarios + "Rastrear ruta libre" + destino en mapa); `RouteMap` (marcador de destino rojo).
+
+### Base previa (sesión anterior, también sin commitear)
+Fix de precio (umbral mayorista 9 productos 1→10; **ya vivo en DB**), cartera "Clientes al Mayor" (`wholesale_clients`, 43 importados, `WholesaleClientsPanel`, pestaña Mayoristas) y rutas base. Detalle en la memoria `rellenito-rutas-cartera-features`.
+
+### Pestañas del panel admin ahora
+Pedidos · Productos · **Sabores** · Métricas · Clientes · **Mayoristas** · **Rutas**  (todas salvo Pedidos/Productos son adminOnly). Admin PIN `150101`.
+
+### PENDIENTE (próxima sesión)
+1. ✅ **Smoke test runtime de los endpoints nuevos — HECHO 2026-06-24, todo verde.** Corrido contra el build de producción (`npm run start`, 3000) con login PIN 150101. Probados (con limpieza total, sin datos residuales): login+me (admin), flavors GET/POST/DELETE, product-flavors PUT + **trigger `has_flavors`** (pasa a True al asignar y vuelve a False al limpiar), `/api/products/[id]/flavors` público, drivers GET/POST/DELETE, orders `range=all` + `orders/[id]` (detalle), wholesale-clients (43), y ciclo de ruta `start`(con destino)→`ping`(distancia haversine OK ~248m)→`end`→`DELETE`. **Gotcha del entorno:** en `npm run start` NODE_ENV=production → la cookie `staff_session` va con flag `Secure` y NO viaja sobre http://localhost; para smoke por consola hay que capturar el token del `Set-Cookie` del login y mandarlo a mano como header `Cookie`. **Gotcha PowerShell:** `$pid` es variable de solo-lectura (PID del proceso) → no usarla como nombre de variable.
+2. **Revisión visual en navegador**: Home, modal de sabores, instalación iOS, Historial/badges, pestañas Sabores y Rutas, `/ruta?order=ID`.
+3. **Commit + deploy** (decisión del usuario). `site/` → push a `main` = auto-deploy producción a **elrellenito.com**. **Autor obligatorio `rellenito.adm@gmail.com`** (Vercel Hobby). Confirmar ANTES de push.
+4. **Datos del cliente a confirmar**: teléfono de **Zenaida** (dañado en el .md) y **Yanilka** (faltante) en la cartera; qué bebidas vende realmente (no hay Coca Zero ni Postobón en el catálogo; #8 las mapea por patrón con fallback).
+5. **Diferido / opcional**: lote de optimización de imágenes ya subidas; "ruta sugerida" turn-by-turn (OpenRouteService/Mapbox free, $0 a este volumen); sabores en página Al Mayor; tracking en 2º plano real = app nativa (Capacitor). El plan completo (formato auditoría) está en el chat de esta sesión.
+
+### Gotchas confirmados esta sesión
+- `next build` necesita **red** para bajar fuentes de Google (Inter/Playfair); en sandbox falla → correr con red. `tsc --noEmit` NO la necesita y atrapa casi todo.
+- **Bug recurrente:** NO usar `await` dentro del callback de `setState` (`setX(curr => [...curr, await res.json()])`) → extraer el `await` a una variable antes. (Rompió `tsc` 2 veces.)
+- Leaflet: import dinámico dentro de `useEffect`; anotar con `typeof import('leaflet')` (no `['default']`).
+- Migraciones aplicadas en prod esta sesión: `orders_history_indexes`, `create_flavors`, `sync_has_flavors_trigger`, `drivers_and_route_links`.
+
+> **Aparte (pausado):** la automatización WhatsApp/n8n quedó en pausa a mitad (conector **WAHA** desplegado en el VPS Hostinger vía Administrador de Docker; faltaba enlazar el número por QR y reescribir los flujos n8n para WAHA). No es parte de este lote web. Ver memorias `rellenito-n8n-flujos-creados` y `rellenito-sin-whatsapp-agente-n8n`.
 
 ---
 

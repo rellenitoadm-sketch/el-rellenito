@@ -1,5 +1,6 @@
 'use client';
 
+import { motion, useReducedMotion } from 'framer-motion';
 import Header from './Header';
 import Footer from './Footer';
 import NavMenu from './NavMenu';
@@ -17,15 +18,26 @@ interface HomeProps {
 
 /**
  * Página principal (Home) puramente informativa y de marca. NO muestra el
- * catálogo: invita a elegir entre comprar Al Detal o pedir Al Mayor desde el
- * hero. El detalle informativo (quiénes somos, FAQ, horarios, contacto) vive en
- * el Footer.
+ * catálogo: el hero ocupa casi toda la pantalla, enfocado en la marca y los dos
+ * accesos (Al Detal / Al Mayor). La sección informativa (descripción + Footer)
+ * vive más abajo y aparece con una animación suave al hacer scroll.
  */
 export default function Home({ status, onDetal, onMayor, onNavCategory, onNavInfo }: HomeProps) {
+  const reduce = useReducedMotion();
+  // Aparición suave al entrar en viewport (desactivada si el usuario prefiere
+  // menos movimiento). Easing de salida sin rebote.
+  const reveal = {
+    initial: reduce ? false : { opacity: 0, y: 24 },
+    whileInView: reduce ? undefined : { opacity: 1, y: 0 },
+    viewport: { once: true, amount: 0.3 },
+    transition: reduce ? undefined : { duration: 0.6, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
+  };
+
   return (
     <div>
-      {/* Hero de marca con los dos accesos + menú hamburguesa */}
+      {/* Hero de marca a casi pantalla completa con los dos accesos + menú */}
       <Header
+        fullHeight
         status={status}
         onDetalClick={onDetal}
         onMayorClick={onMayor}
@@ -40,8 +52,8 @@ export default function Home({ status, onDetal, onMayor, onNavCategory, onNavInf
         }
       />
 
-      {/* Presentación breve */}
-      <section data-tour="home-intro" className="px-5 pt-7 pb-2 text-center">
+      {/* Presentación breve — se descubre al hacer scroll */}
+      <motion.section {...reveal} data-tour="home-intro" className="px-5 pt-10 pb-4 text-center">
         <h2 className="t-h2" style={{ color: 'var(--text-1)' }}>
           Pasapalos y panadería artesanal
         </h2>
@@ -49,9 +61,11 @@ export default function Home({ status, onDetal, onMayor, onNavCategory, onNavInf
           Tequeños, masas, pan, postres y combos hechos con recetas propias en La Concordia.
           Elige cómo quieres comprar.
         </p>
-      </section>
+      </motion.section>
 
-      <Footer />
+      <motion.div {...reveal}>
+        <Footer />
+      </motion.div>
     </div>
   );
 }

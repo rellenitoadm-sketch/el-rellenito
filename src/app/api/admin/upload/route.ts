@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import sharp from 'sharp';
 import { supabaseAdmin } from '@/lib/supabase';
 import { isAuthorized } from '@/lib/adminAuth';
 
-const MAX_BYTES = 4 * 1024 * 1024; // 4 MB
+const MAX_BYTES = 4 * 1024 * 1024; // 4 MB de entrada
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const BUCKET = 'product-images';
+const MAX_DIM = 1600; // px (lado mayor)
 
 /**
  * Image upload for product photos — staff or admin.
- * With Supabase configured: uploads to the `product-images` storage bucket and
- * returns its public URL. Without it (mock mode): returns a base64 data URL so
- * the panel still works end-to-end in dev.
+ * Comprime automáticamente: convierte a WebP, corrige la orientación EXIF y
+ * limita el tamaño a 1600px → fotos mucho más livianas en storage y al servir.
+ * Los GIF se dejan tal cual para preservar la animación. Si Supabase no está
+ * configurado (modo mock) devuelve un data URL (ya comprimido).
  */
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
@@ -29,20 +32,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'La imagen supera 4 MB' }, { status: 400 });
   }
 
-  const bytes = Buffer.from(await file.arrayBuffer());
+  const original = Buffer.from(await file.arrayBuffer());
+
+  // Compresión automática (excepto GIF, para no perder la animación).
+  let outBytes: Buffer = original;
+  let outType = file.type;
+  let outExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  if (file.type !== 'image/gif') {
+    try {
+      outBytes = await sharp(original)
+        .rotate() // respeta la orientación EXIF
+        .resize({ width: MAX_DIM, height: MAX_DIM, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toBuffer();
+      outType = 'image/webp';
+      outExt = 'webp';
+    } catch {
+      // Si sharp no puede procesarla, se sube el original sin comprimir.
+    }
+  }
 
   if (!supabaseAdmin) {
-    // Mock mode — return a data URL (works in dev, no storage needed).
-    const dataUrl = `data:${file.type};base64,${bytes.toString('base64')}`;
+    // Modo mock — devuelve un data URL (funciona en dev, sin storage).
+    const dataUrl = `data:${outType};base64,${outBytes.toString('base64')}`;
     return NextResponse.json({ url: dataUrl, mock: true });
   }
 
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${outExt}`;
 
   const { error } = await supabaseAdmin.storage
     .from(BUCKET)
-    .upload(path, bytes, { contentType: file.type, upsert: false });
+    .upload(path, outBytes, { contentType: outType, upsert: false });
 
   if (error) {
     return NextResponse.json(
@@ -52,5 +72,5 @@ export async function POST(request: NextRequest) {
   }
 
   const { data } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
-  return NextResponse.json({ url: data.publicUrl });
+  return NextResponse.json({ url: data.publicUrl, optimized: outType === 'image/webp' });
 }

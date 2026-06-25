@@ -98,6 +98,108 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_routes: {
+        Row: {
+          dest_lat: number | null
+          dest_lng: number | null
+          distance_m: number
+          driver: string
+          driver_id: string | null
+          order_id: string | null
+          ended_at: string | null
+          id: string
+          last_at: string | null
+          last_lat: number | null
+          last_lng: number | null
+          note: string | null
+          points: Json
+          started_at: string
+          status: string
+        }
+        Insert: {
+          dest_lat?: number | null
+          dest_lng?: number | null
+          distance_m?: number
+          driver: string
+          driver_id?: string | null
+          order_id?: string | null
+          ended_at?: string | null
+          id?: string
+          last_at?: string | null
+          last_lat?: number | null
+          last_lng?: number | null
+          note?: string | null
+          points?: Json
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          dest_lat?: number | null
+          dest_lng?: number | null
+          distance_m?: number
+          driver?: string
+          driver_id?: string | null
+          order_id?: string | null
+          ended_at?: string | null
+          id?: string
+          last_at?: string | null
+          last_lat?: number | null
+          last_lng?: number | null
+          note?: string | null
+          points?: Json
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      drivers: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      flavors: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           advance_pct: number | null
@@ -203,6 +305,27 @@ export type Database = {
         }
         Relationships: []
       }
+      product_flavors: {
+        Row: {
+          available: boolean
+          flavor_id: string
+          product_id: string
+          sort_order: number
+        }
+        Insert: {
+          available?: boolean
+          flavor_id: string
+          product_id: string
+          sort_order?: number
+        }
+        Update: {
+          available?: boolean
+          flavor_id?: string
+          product_id?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           available: boolean
@@ -210,6 +333,7 @@ export type Database = {
           cobra_frito: boolean
           created_at: string
           description: string
+          has_flavors: boolean
           id: string
           image_url: string | null
           is_best_seller: boolean
@@ -229,6 +353,7 @@ export type Database = {
           cobra_frito?: boolean
           created_at?: string
           description?: string
+          has_flavors?: boolean
           id: string
           image_url?: string | null
           is_best_seller?: boolean
@@ -248,6 +373,7 @@ export type Database = {
           cobra_frito?: boolean
           created_at?: string
           description?: string
+          has_flavors?: boolean
           id?: string
           image_url?: string | null
           is_best_seller?: boolean
@@ -290,6 +416,45 @@ export type Database = {
           p256dh?: string
           role?: string | null
           user_agent?: string | null
+        }
+        Relationships: []
+      }
+      wholesale_clients: {
+        Row: {
+          active: boolean
+          address: string | null
+          area: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          route: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          area?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          route?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          area?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          route?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

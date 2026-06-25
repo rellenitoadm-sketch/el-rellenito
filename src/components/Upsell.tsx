@@ -8,21 +8,41 @@ import { useCart } from './CartContext';
 import { useProducts } from './ProductsContext';
 import { isPricedIn } from '@/lib/rates';
 
+/**
+ * Orden estratégico de upsell de bebidas (sube el ticket promedio):
+ * Coca-Cola → Coca-Cola Zero → Postobón → Malta → Jugos → Merengadas → otras.
+ * Se mapea por patrón del nombre; lo no reconocido va al final.
+ */
+function upsellRank(name: string): number {
+  const n = name.toLowerCase();
+  if (n.includes('coca')) return /zero|light|sin az|cero/.test(n) ? 2 : 1;
+  if (n.includes('postob')) return 3;
+  if (n.includes('malta') || n.includes('masato')) return 4;
+  if (n.includes('jugo')) return 5;
+  if (n.includes('mereng')) return 6;
+  return 7;
+}
+
 export default function Upsell() {
   const { format, currency } = useCurrency();
   const { addItem, items } = useCart();
   const { products } = useProducts();
 
-  // Bebidas disponibles y con precio en la moneda activa, best-sellers primero.
+  // Bebidas disponibles y con precio en la moneda activa. Se muestran TODAS,
+  // ordenadas por prioridad de upsell (no se cortan a un número fijo).
   const beveragePool = useMemo(
     () => products
       .filter(p => p.available && p.category === 'BEBIDAS' && isPricedIn(p, currency))
-      .sort((a, b) => Number(b.is_best_seller) - Number(a.is_best_seller)),
+      .sort((a, b) =>
+        upsellRank(a.name) - upsellRank(b.name) ||
+        Number(b.is_best_seller) - Number(a.is_best_seller) ||
+        a.name.localeCompare(b.name, 'es'),
+      ),
     [products, currency],
   );
 
   const cartIds = new Set(items.map(i => i.id));
-  const upsell = beveragePool.filter(p => !cartIds.has(p.id)).slice(0, 6);
+  const upsell = beveragePool.filter(p => !cartIds.has(p.id));
 
   if (upsell.length === 0) return null;
 

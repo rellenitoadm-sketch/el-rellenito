@@ -8,6 +8,25 @@ import { fireOrderEvent } from '@/lib/webhook';
 const VALID_STATUSES = ['pendiente', 'confirmado', 'en_camino', 'entregado', 'cancelado'] as const;
 type Status = (typeof VALID_STATUSES)[number];
 
+/** Detalle de un pedido (para la página del domiciliario) — equipo o admin. */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!requireRole(request, 'admin', 'staff')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const { id } = await params;
+  const db = supabaseAdmin ?? supabase;
+  if (!db) {
+    const o = mockStore.getAll().find(r => r.id === id);
+    return o ? NextResponse.json(o) : NextResponse.json({ error: 'No encontrado' }, { status: 404 });
+  }
+  const { data, error } = await db.from('orders').select('*').eq('id', id).single();
+  if (error) return NextResponse.json({ error: 'No encontrado' }, { status: 404 });
+  return NextResponse.json(data);
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

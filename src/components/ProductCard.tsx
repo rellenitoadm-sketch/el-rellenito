@@ -25,7 +25,7 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
   const showDetail = () => openDetail(
     product,
     ({ fritos }) => addItem(product, { fritos }),
-    { allowFritos: !!product.cobra_frito },
+    { allowFritos: !!product.cobra_frito, allowFlavors: !!product.has_flavors },
   );
   const onDetailKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showDetail(); }
@@ -33,6 +33,8 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
 
   const cartItem = items.find(i => i.id === product.id);
   const qty = cartItem?.quantity ?? 0;
+  // Productos con sabores: se eligen en el modal (no se agregan con el +).
+  const flavored = !!product.has_flavors;
 
   // Bloqueo por moneda: si el producto no tiene precio nativo en la moneda
   // activa, NO se convierte — queda bloqueado (no se puede agregar).
@@ -126,14 +128,14 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
                 </div>
               ) : (
                 <motion.button
-                  onClick={handleAdd}
+                  onClick={flavored ? showDetail : handleAdd}
                   whileTap={{ scale: 0.96 }}
-                  aria-label={`Agregar ${product.name}`}
+                  aria-label={flavored ? `Elegir sabores de ${product.name}` : `Agregar ${product.name}`}
                   className="btn btn-primary w-full"
                   style={{ padding: '6px 10px', fontSize: '12px', minHeight: 44 }}
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Agregar
+                  {flavored ? 'Elegir sabores' : 'Agregar'}
                 </motion.button>
               )
             ) : !product.available ? (
@@ -242,14 +244,14 @@ export default function ProductCard({ product, index = 0, viewMode = 'list' }: P
             </div>
           ) : (
             <motion.button
-              onClick={handleAdd}
+              onClick={flavored ? showDetail : handleAdd}
               whileTap={{ scale: 0.94 }}
-              aria-label={`Agregar ${product.name}`}
+              aria-label={flavored ? `Elegir sabores de ${product.name}` : `Agregar ${product.name}`}
               className="btn btn-primary"
               style={{ padding: '8px 14px', fontSize: '13px', minHeight: 44 }}
             >
               <Plus className="w-4 h-4" />
-              Agregar
+              {flavored ? 'Elegir sabores' : 'Agregar'}
             </motion.button>
           )
         ) : !product.available ? (

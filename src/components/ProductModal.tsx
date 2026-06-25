@@ -3,9 +3,11 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Plus, Lock, Flame } from 'lucide-react';
+import { X, Plus, Minus, Lock, Flame, Loader2 } from 'lucide-react';
 import type { Product } from '@/lib/products';
+import type { Flavor } from '@/lib/flavors';
 import { useCurrency } from './CurrencyContext';
+import { useCart } from './CartContext';
 import { isPricedIn, CURRENCY_NAME } from '@/lib/rates';
 import { FRITO_SURCHARGE } from '@/lib/fritos';
 
@@ -13,6 +15,8 @@ import { FRITO_SURCHARGE } from '@/lib/fritos';
  * Modal de descripción de producto, compartido por el catálogo Al Detal y la
  * página Al Mayor. Cada flujo abre el modal con su propia acción de "agregar"
  * (carrito global vs. carrito mayorista) vía `open(product, onAdd)`.
+ * Si el producto usa sabores (y se permite con `allowFlavors`), el modal muestra
+ * selección de cantidades por sabor y agrega cada sabor como su propia línea.
  */
 /** Precio a mostrar en el modal cuando difiere del detal (p.ej. al mayor). */
 interface PriceOverride {
@@ -24,6 +28,8 @@ interface OpenOptions {
   priceOverride?: PriceOverride;
   /** Mostrar el interruptor de servicio de fritos (solo venta individual). */
   allowFritos?: boolean;
+  /** Permitir elegir sabores (solo flujo al detal con el carrito global). */
+  allowFlavors?: boolean;
 }
 
 interface ProductModalContextValue {
@@ -38,6 +44,7 @@ interface ModalState {
   onAdd: (opts: { fritos: boolean }) => void;
   priceOverride?: PriceOverride;
   allowFritos?: boolean;
+  allowFlavors?: boolean;
 }
 
 export function ProductModalProvider({ children }: { children: ReactNode }) {
@@ -45,7 +52,7 @@ export function ProductModalProvider({ children }: { children: ReactNode }) {
 
   const open = useCallback(
     (product: Product, onAdd: (opts: { fritos: boolean }) => void, opts?: OpenOptions) =>
-      setState({ product, onAdd, priceOverride: opts?.priceOverride, allowFritos: opts?.allowFritos }),
+      setState({ product, onAdd, priceOverride: opts?.priceOverride, allowFritos: opts?.allowFritos, allowFlavors: opts?.allowFlavors }),
     [],
   );
   const close = useCallback(() => setState(null), []);
@@ -60,6 +67,7 @@ export function ProductModalProvider({ children }: { children: ReactNode }) {
             onAdd={state.onAdd}
             priceOverride={state.priceOverride}
             allowFritos={state.allowFritos}
+            allowFlavors={state.allowFlavors}
             onClose={close}
           />
         )}
@@ -79,15 +87,18 @@ function ProductModalView({
   onAdd,
   priceOverride,
   allowFritos,
+  allowFlavors,
   onClose,
 }: {
   product: Product;
   onAdd: (opts: { fritos: boolean }) => void;
   priceOverride?: PriceOverride;
   allowFritos?: boolean;
+  allowFlavors?: boolean;
   onClose: () => void;
 }) {
   const { format, currency } = useCurrency();
+  const { addItem } = useCart();
   const [fritos, setFritos] = useState(false);
 
   const priced = isPricedIn(product, currency);
@@ -95,6 +106,25 @@ function ProductModalView({
   const showFritos = !!allowFritos && !!product.cobra_frito;
   const displayUsd = priceOverride ? priceOverride.price_usd : product.price_usd;
   const displayCop = priceOverride ? priceOverride.price_cop : product.price_cop;
+
+  // Sabores (solo flujo al detal). Se cargan al abrir si el producto los usa.
+  const flavorsRequested = !!allowFlavors && !!product.has_flavors;
+  const [flavors, setFlavors] = useState<Flavor[] | null>(flavorsRequested ? null : []);
+  const [qtys, setQtys] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!flavorsRequested) return;
+    let cancelled = false;
+    fetch(`/api/products/${product.id}/flavors`)
+      .then(r => (r.ok ? r.json() : []))
+      .then((data: Flavor[]) => { if (!cancelled) setFlavors(Array.isArray(data) ? data : []); })
+      .catch(() => { if (!cancelled) setFlavors([]); });
+    return () => { cancelled = true; };
+  }, [flavorsRequested, product.id]);
+
+  const hasFlavorUI = flavorsRequested && flavors !== null && flavors.length > 0;
+  const totalFlavorQty = Object.values(qtys).reduce((s, n) => s + n, 0);
+  const setQty = (id: string, n: number) => setQtys(q => ({ ...q, [id]: Math.max(0, n) }));
 
   // Cerrar con Escape + bloquear el scroll del fondo.
   useEffect(() => {
@@ -108,6 +138,15 @@ function ProductModalView({
   const handleAdd = () => {
     if (!purchasable) return;
     onAdd({ fritos: showFritos ? fritos : false });
+    onClose();
+  };
+
+  const handleAddFlavors = () => {
+    if (!purchasable || totalFlavorQty === 0) return;
+    for (const f of flavors ?? []) {
+      const n = qtys[f.id] ?? 0;
+      if (n > 0) addItem(product, { flavor: { id: f.id, name: f.name }, quantity: n, fritos: showFritos ? fritos : false });
+    }
     onClose();
   };
 
@@ -182,6 +221,53 @@ function ProductModalView({
               </p>
             )}
           </div>
+
+          {/* Selección de sabores */}
+          {flavorsRequested && purchasable && (
+            <div className="mt-5">
+              <p className="text-[12px] font-bold uppercase tracking-wider mb-2.5" style={{ color: 'var(--text-3)' }}>
+                Elige tus sabores
+              </p>
+              {flavors === null ? (
+                <div className="flex items-center gap-2 text-[13px] py-2" style={{ color: 'var(--text-3)' }}>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Cargando sabores…
+                </div>
+              ) : flavors.length === 0 ? (
+                <p className="text-[13px]" style={{ color: 'var(--text-3)' }}>Este producto aún no tiene sabores configurados.</p>
+              ) : (
+                <div className="space-y-2">
+                  {flavors.map(f => {
+                    const n = qtys[f.id] ?? 0;
+                    return (
+                      <div key={f.id} className="flex items-center justify-between gap-3 rounded-xl p-2.5 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+                        <span className="text-[14px] font-medium" style={{ color: 'var(--text-1)' }}>{f.name}</span>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={() => setQty(f.id, n - 1)}
+                            disabled={n === 0}
+                            className="w-9 h-9 rounded-full flex items-center justify-center disabled:opacity-40"
+                            style={{ background: 'var(--surface)', color: 'var(--brand)', border: '1px solid var(--border)' }}
+                            aria-label={`Quitar ${f.name}`}
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-[14px] font-bold w-5 text-center t-num" style={{ color: 'var(--text-1)' }}>{n}</span>
+                          <button
+                            onClick={() => setQty(f.id, n + 1)}
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-white"
+                            style={{ background: 'var(--brand)' }}
+                            aria-label={`Agregar ${f.name}`}
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer acción */}
@@ -209,7 +295,25 @@ function ProductModalView({
               </span>
             </button>
           )}
-          {purchasable ? (
+          {!purchasable ? (
+            !product.available ? (
+              <div className="text-center text-[13px] py-2" style={{ color: 'var(--text-3)' }}>Producto agotado</div>
+            ) : (
+              <div className="text-center text-[13px] py-2 inline-flex items-center justify-center gap-1.5 w-full" style={{ color: 'var(--text-3)' }}>
+                <Lock className="w-4 h-4" /> No disponible en {CURRENCY_NAME[currency]}
+              </div>
+            )
+          ) : hasFlavorUI ? (
+            <button
+              onClick={handleAddFlavors}
+              disabled={totalFlavorQty === 0}
+              className="btn btn-primary w-full disabled:opacity-50"
+              style={{ minHeight: 48, fontSize: 15 }}
+            >
+              <Plus className="w-4 h-4" />
+              {totalFlavorQty > 0 ? `Agregar ${totalFlavorQty} al carrito` : 'Elige al menos un sabor'}
+            </button>
+          ) : (
             <button
               onClick={handleAdd}
               className="btn btn-primary w-full"
@@ -218,12 +322,6 @@ function ProductModalView({
               <Plus className="w-4 h-4" />
               Agregar al carrito
             </button>
-          ) : !product.available ? (
-            <div className="text-center text-[13px] py-2" style={{ color: 'var(--text-3)' }}>Producto agotado</div>
-          ) : (
-            <div className="text-center text-[13px] py-2 inline-flex items-center justify-center gap-1.5 w-full" style={{ color: 'var(--text-3)' }}>
-              <Lock className="w-4 h-4" /> No disponible en {CURRENCY_NAME[currency]}
-            </div>
           )}
         </div>
       </motion.div>

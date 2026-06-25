@@ -92,13 +92,23 @@ export default function CrmPanel() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <p className="text-[13.5px] font-semibold truncate" style={{ color: 'var(--text-1)' }}>{c.name}</p>
-                  {i === 0 && <Crown className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--accent)' }} />}
+                  {i === 0 && (
+                    <span className="inline-flex items-center gap-0.5 text-[9.5px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}>
+                      <Crown className="w-3 h-3" /> TOP
+                    </span>
+                  )}
                 </div>
                 <p className="text-[11.5px]" style={{ color: 'var(--text-3)' }}>{c.whatsapp}{c.last_zone ? ` · ${c.last_zone}` : ''}</p>
+                {c.last_order_at && (
+                  <p className="text-[10.5px] mt-0.5" style={{ color: 'var(--text-3)' }}>
+                    Última compra: {new Date(c.last_order_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
+                )}
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-[13px] font-bold t-num" style={{ color: 'var(--brand)' }}>${c.total_spent_usd.toFixed(2)}</p>
-                <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>{c.order_count} {c.order_count === 1 ? 'pedido' : 'pedidos'}</p>
+                <p className="text-[9.5px] -mt-0.5" style={{ color: 'var(--text-3)' }}>gastado</p>
+                <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>{c.order_count} {c.order_count === 1 ? 'pedido' : 'pedidos'}</p>
               </div>
               <a
                 href={`https://wa.me/${c.whatsapp.replace(/[^0-9]/g, '')}`}

@@ -3,15 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { LogOut, ShoppingBag, Boxes, BarChart3, Users } from 'lucide-react';
+import { LogOut, ShoppingBag, Boxes, BarChart3, Users, Store, Truck, Candy } from 'lucide-react';
 import OrdersPanel from '@/components/admin/OrdersPanel';
 import ProductsPanel from '@/components/admin/ProductsPanel';
 import MetricsPanel from '@/components/admin/MetricsPanel';
 import CrmPanel from '@/components/admin/CrmPanel';
+import WholesaleClientsPanel from '@/components/admin/WholesaleClientsPanel';
+import RoutesPanel from '@/components/admin/RoutesPanel';
+import FlavorsPanel from '@/components/admin/FlavorsPanel';
 import { useOnboarding } from '@/components/Onboarding';
 import type { StaffRole } from '@/lib/adminAuth';
 
-type Tab = 'pedidos' | 'productos' | 'metricas' | 'crm';
+type Tab = 'pedidos' | 'productos' | 'sabores' | 'metricas' | 'crm' | 'mayoristas' | 'rutas';
 
 interface TabDef {
   id: Tab;
@@ -23,8 +26,11 @@ interface TabDef {
 const TABS: TabDef[] = [
   { id: 'pedidos', label: 'Pedidos', Icon: ShoppingBag },
   { id: 'productos', label: 'Productos', Icon: Boxes },
+  { id: 'sabores', label: 'Sabores', Icon: Candy, adminOnly: true },
   { id: 'metricas', label: 'Métricas', Icon: BarChart3, adminOnly: true },
   { id: 'crm', label: 'Clientes', Icon: Users, adminOnly: true },
+  { id: 'mayoristas', label: 'Mayoristas', Icon: Store, adminOnly: true },
+  { id: 'rutas', label: 'Rutas', Icon: Truck, adminOnly: true },
 ];
 
 export default function AdminDashboard() {
@@ -126,8 +132,11 @@ export default function AdminDashboard() {
       <div className="max-w-2xl mx-auto px-4 py-5" data-tour="admin-content">
         {tab === 'pedidos' && <OrdersPanel role={role} />}
         {tab === 'productos' && <ProductsPanel />}
+        {tab === 'sabores' && role === 'admin' && <FlavorsPanel />}
         {tab === 'metricas' && role === 'admin' && <MetricsPanel />}
         {tab === 'crm' && role === 'admin' && <CrmPanel />}
+        {tab === 'mayoristas' && role === 'admin' && <WholesaleClientsPanel />}
+        {tab === 'rutas' && role === 'admin' && <RoutesPanel />}
       </div>
     </div>
   );

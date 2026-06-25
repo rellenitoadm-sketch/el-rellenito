@@ -38,6 +38,11 @@ export interface Product {
    * La columna en Supabase es NOT NULL (default false), por eso no admite null.
    */
   cobra_frito?: boolean;
+  /**
+   * Si true, el producto se pide eligiendo sabores en el modal (ver tabla
+   * `product_flavors`). NOT NULL en Supabase (default false).
+   */
+  has_flavors?: boolean;
 }
 
 /*

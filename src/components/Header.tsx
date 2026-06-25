@@ -2,8 +2,8 @@
 
 import { useRef, type ReactNode } from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
-import { ChevronRight, MapPin, Star } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { ChevronRight, ChevronDown, MapPin, Star } from 'lucide-react';
 import type { OpenStatus } from '@/lib/businessHours';
 
 interface HeaderProps {
@@ -16,6 +16,8 @@ interface HeaderProps {
   onDetalClick?: () => void;
   /** Slot superior-izquierdo del hero (p.ej. el menú hamburguesa en Home). */
   topLeft?: ReactNode;
+  /** Hero a casi pantalla completa con tagline + indicador de scroll (Home). */
+  fullHeight?: boolean;
 }
 
 /**
@@ -23,7 +25,8 @@ interface HeaderProps {
  * height/opacity transforms, which were causing the jank). The persistent
  * brand + nav live in the sticky TopBar + CategoryTabs below it.
  */
-export default function Header({ onMayorClick, status, onDetalClick, topLeft }: HeaderProps) {
+export default function Header({ onMayorClick, status, onDetalClick, topLeft, fullHeight }: HeaderProps) {
+  const reduce = useReducedMotion();
   // Gesto secreto para entrar al panel: 5 toques rápidos en el logo grande.
   const taps = useRef<number[]>([]);
   const handleSecretTap = () => {
@@ -36,7 +39,10 @@ export default function Header({ onMayorClick, status, onDetalClick, topLeft }: 
   };
 
   return (
-    <header className="relative w-full overflow-hidden" style={{ background: 'var(--grad-hero)' }}>
+    <header
+      className={`relative w-full overflow-hidden ${fullHeight ? 'min-h-[92svh] flex flex-col' : ''}`}
+      style={{ background: 'var(--grad-hero)' }}
+    >
       {/* Subtle dot texture */}
       <div
         className="absolute inset-0 opacity-[0.04] pointer-events-none"
@@ -78,7 +84,7 @@ export default function Header({ onMayorClick, status, onDetalClick, topLeft }: 
       </div>
 
       {/* Hero content — normal flow */}
-      <div className="relative flex flex-col items-center text-center text-white px-5 pt-7 pb-6">
+      <div className={`relative flex flex-col items-center text-center text-white px-5 pt-7 pb-6 ${fullHeight ? 'flex-1 justify-center' : ''}`}>
         {/* H1 de la página (oculto visualmente; SEO + lectores de pantalla).
             La marca ya se comunica por el logo. */}
         <h1 className="sr-only">Pasapalos El Rellenito — Tequeños y pasapalos en La Concordia</h1>
@@ -109,6 +115,18 @@ export default function Header({ onMayorClick, status, onDetalClick, topLeft }: 
             </div>
           </div>
         </motion.div>
+
+        {/* Tagline del hero (solo en Home) */}
+        {fullHeight && (
+          <motion.p
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.14 }}
+            className="mt-3 text-[16px] font-bold tracking-wide text-white"
+          >
+            Pasapalos y Panadería Artesanal
+          </motion.p>
+        )}
 
         {/* Rating + location */}
         <motion.div
@@ -183,6 +201,19 @@ export default function Header({ onMayorClick, status, onDetalClick, topLeft }: 
           </motion.button>
         )}
       </div>
+
+      {/* Indicador de "desliza para ver más" (solo en Home) */}
+      {fullHeight && (
+        <motion.div
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80"
+          initial={{ opacity: 0 }}
+          animate={reduce ? { opacity: 1 } : { opacity: 1, y: [0, 7, 0] }}
+          transition={reduce ? { delay: 0.6 } : { delay: 0.6, y: { repeat: Infinity, duration: 1.7, ease: 'easeInOut' } }}
+          aria-hidden="true"
+        >
+          <ChevronDown className="w-6 h-6" />
+        </motion.div>
+      )}
     </header>
   );
 }
