@@ -18,12 +18,14 @@ export interface MapRoute {
 interface Props {
   routes: MapRoute[];
   height?: number;
+  /** Modo conductor: sigue la posición actual y traza una línea al destino. */
+  follow?: boolean;
 }
 
 // Centro por defecto: zona de San Cristóbal / Táchira (donde están las rutas).
 const DEFAULT_CENTER: [number, number] = [7.767, -72.225];
 
-export default function RouteMap({ routes, height = 420 }: Props) {
+export default function RouteMap({ routes, height = 420, follow = false }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const layerRef = useRef<LayerGroup | null>(null);
@@ -108,6 +110,24 @@ export default function RouteMap({ routes, height = 420 }: Props) {
       }
     }
 
+    // Modo conductor: línea punteada de la posición actual al destino + seguir.
+    if (follow && routes.length > 0) {
+      const r = routes[0];
+      const pts = r.points.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+      const cur = pts.length ? ([pts[pts.length - 1].lat, pts[pts.length - 1].lng] as [number, number]) : null;
+      const dest = r.dest && Number.isFinite(r.dest.lat) && Number.isFinite(r.dest.lng)
+        ? ([r.dest.lat, r.dest.lng] as [number, number]) : null;
+      if (cur && dest) {
+        L.polyline([cur, dest], { color: '#dc2626', weight: 2, opacity: 0.6, dashArray: '6 8' }).addTo(layer);
+        map.fitBounds([cur, dest], { padding: [40, 40], maxZoom: 16 });
+      } else if (cur) {
+        map.setView(cur, Math.max(map.getZoom(), 15));
+      } else if (dest) {
+        map.setView(dest, 15);
+      }
+      return;
+    }
+
     // Ajusta el encuadre solo cuando cambia el conjunto de rutas mostradas
     // (no en cada actualización de posición, para no marear al verlo en vivo).
     const sig = routes.map(r => r.id).sort().join(',');
@@ -115,7 +135,7 @@ export default function RouteMap({ routes, height = 420 }: Props) {
       map.fitBounds(all, { padding: [30, 30], maxZoom: 16 });
       fittedRef.current = sig;
     }
-  }, [routes, ready]);
+  }, [routes, ready, follow]);
 
   return (
     <div
