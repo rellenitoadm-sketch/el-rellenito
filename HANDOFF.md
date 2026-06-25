@@ -4,6 +4,28 @@
 
 ---
 
+## ⭐⭐ ESTADO 2026-06-24 (tarde) — Sabores con precio + reorg de rutas DEPLOYADO ✅
+
+Commit `c1fc178` en `main`, **en vivo en elrellenito.com**. Migración `004` aplicada en prod + catálogo consolidado en Supabase. `tsc` + `next build` exit 0.
+
+### Sabores (rediseño completo — el modelo viejo de "sabores globales sin precio" se reemplazó)
+- **Cada sabor tiene su PROPIO precio** (detal y mayor). Columnas nuevas en `product_flavors`: `price_usd/price_cop/wholesale_price_usd/wholesale_price_cop` (NULL = usar precio del producto base). Migración `004_product_flavors_pricing.sql`.
+- **Sabores por-producto** (no globales): el endpoint `PUT /api/admin/product-flavors` recibe `{product_id, flavors:[{name, price_usd, price_cop, wholesale_price_usd, wholesale_price_cop}]}`, crea una fila `flavors` por nombre + su `product_flavors` con precio, y borra los huérfanos. El trigger `sync_product_has_flavors` mantiene `products.has_flavors`.
+- **Admin:** la gestión de sabores vive DENTRO del editor del producto (`ProductFlavorsEditor.tsx`, embebido en `ProductEditor`). **Se eliminó la pestaña global "Sabores" y `FlavorsPanel.tsx`.**
+- **Cliente:** `ProductModal` es genérico — muestra precio por sabor, total en el botón, "Desde X" en cabecera; reporta cada sabor vía `onAdd(sabor+cantidad)`. Sirve al carrito detal **y** al mayor (`WholesalePage` pasa `wholesale:true` y usa el precio de mayor del sabor). `CartContext.addItem` usa el precio del sabor como precio de línea. Tarjetas (`ProductCard` + cards de `WholesalePage`): "Desde X" + "Elegir sabores" abre el modal.
+- **Catálogo consolidado en vivo** (migración `consolidate_tequenos_pastelon_flavors`): Tequeños 14→6 tarjetas (Super 3 sab, Tradicional 2, Escolar 2, Doble 2, Normal 4, + Mini Combo sin sabores) y Pastelón 3→1 (Pizza/Arroz Carne/Arroz Pollo). Se borraron 9 productos hermanos (pedidos históricos guardan ítems como texto, sin FK → intactos). Se reutilizó el producto "…Queso/Pizza" como base (conserva id e imagen). Precios tomados de la BD EN VIVO (respetando ediciones del cliente: Doble Surtido mayor 8.40/19.500, Escolar ByQ mayor 6.20/14.500).
+
+### Rutas (flujo coherente por rol)
+- **Staff registra, admin monitorea.** Nueva pestaña **"Reparto"** (`RepartoPanel.tsx`, visible a staff y admin): inicia ruta libre (`/ruta`) o entrega de un pedido confirmado. El admin "Rutas" (`RoutesPanel`) quedó **solo monitoreo** (mapa + en vivo + historial) + roster de domiciliarios; se le quitó el botón de iniciar/rastrear ruta.
+- **Sin tope de 2 domiciliarios:** se eliminó el `DRIVERS` hardcodeado de `lib/routes.ts`; el roster (ilimitado, tabla `drivers`) alimenta la pantalla del domiciliario.
+
+### Pendiente / notas
+- `site/src/lib/products.ts` (fallback estático) quedó con el catálogo VIEJO (16 productos sin consolidar). Es solo fallback si Supabase cae; los productos sin `has_flavors` se mostrarían normales (no rompen). Actualizarlo es opcional/cosmético.
+- Revisión visual en navegador la hace el usuario en elrellenito.com (modal de sabores en detal y mayor, tarjetas "Desde", pestaña Reparto del equipo, Rutas solo-monitoreo del admin).
+- Sabores de Empanadas/Pan de Perro NO se consolidaron (son tamaño, no sabor) — decisión confirmada con el usuario.
+
+---
+
 ## ⭐ ESTADO 2026-06-24 — Plan de 8 requerimientos COMMITEADO + DEPLOYADO ✅
 
 ### Resumen
