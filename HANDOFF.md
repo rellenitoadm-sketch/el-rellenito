@@ -4,6 +4,17 @@
 
 ---
 
+## ⭐⭐⭐ ESTADO 2026-06-25 — Rastreo de reparto embebido + mapa GPS DEPLOYADO ✅
+
+Commit `64bde48` en `main`, **en vivo**. `tsc` + `next build` exit 0. Solo código (sin tocar datos).
+
+- **Rastreo DENTRO del panel** (arregla "se elimina la sección"): antes el panel navegaba a `/ruta` (página aparte) y al terminar dejaba al domiciliario fuera del dashboard. Ahora el rastreo se monta inline en el panel de Reparto vía el componente compartido **`RouteTracker.tsx`** (extraído de la lógica de la pantalla de ruta). `RepartoPanel` cambia `<a href>` por estado (`tracking`) → no sale de la app; al finalizar vuelve a la lista. La pantalla `/ruta` se conserva solo para el acceso directo por PIN (deep-link desde un pedido) y también usa `RouteTracker`.
+- **Mapa GPS al destino** (#1): la vista de rastreo muestra un mapa en vivo (posición actual verde + destino rojo + línea punteada + "X al destino"). `RouteMap` ganó prop `follow` (sigue la posición y encuadra posición+destino).
+- **Domiciliario recordado** (#4): se guarda en `localStorage` (`rl_route_driver`); la próxima vez aparece "Eres: {nombre}" con opción "Cambiar" — no vuelve a poner datos.
+- **Segundo plano con app cerrada (#2) — LÍMITE DE WEB, NO HECHO:** en PWA el GPS se pausa al cerrar/segundo plano (iOS lo bloquea del todo). Se hizo lo factible (Wake Lock + reanudar al volver + aviso "mantén abierta"). El rastreo real con app cerrada exige **app nativa (Capacitor)** — proyecto aparte, pendiente si el cliente lo quiere.
+
+---
+
 ## ⭐⭐ ESTADO 2026-06-24 (tarde) — Sabores con precio + reorg de rutas DEPLOYADO ✅
 
 Commit `c1fc178` en `main`, **en vivo en elrellenito.com**. Migración `004` aplicada en prod + catálogo consolidado en Supabase. `tsc` + `next build` exit 0.
