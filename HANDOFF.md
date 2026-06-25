@@ -1,6 +1,16 @@
 # HANDOFF — El Rellenito (→ nueva sesión)
 
-> **Actualizado 2026-06-24.** La sección ⭐ de abajo es lo VIGENTE. El resto del archivo es historial.
+> **Actualizado 2026-06-25.** La sección ⭐ de abajo es lo VIGENTE. El resto del archivo es historial.
+
+---
+
+## ⭐⭐⭐⭐ ESTADO 2026-06-25 (tarde) — Reparto solo-staff + tutoriales nuevos DEPLOYADO ✅
+
+Commit `03a47e7` en `main`, **en vivo** (push hecho; elrellenito.com → 200). `tsc` + `next build` exit 0. Solo código del panel admin (sin tocar datos).
+
+- **"Reparto" ya NO es visible para el admin** (`app/admin/dashboard/page.tsx`): nuevo flag `staffOnly` en `TabDef`; el filtro de pestañas oculta `staffOnly` cuando `role==='admin'`. El admin supervisa el reparto desde **"Rutas"** (solo monitoreo); el equipo conserva "Reparto" para iniciar/rastrear. Guard extra en el render: `tab==='reparto' && role!=='admin'`.
+- **Tutoriales en las 3 pestañas que faltaban** (`components/Onboarding.tsx`): tours nuevos `adminReparto` (equipo), `adminMayoristas` y `adminRutas` (admin). Se disparan una vez al abrir cada pestaña desde el 2.º `useEffect` del dashboard (mismo patrón que `adminMetricas`/`adminCrm`). Anclas `data-tour` añadidas: `RepartoPanel` (`reparto-start`/`reparto-pending`), `WholesaleClientsPanel` (`mayoristas-stats`/`-search`/`-add`), `RoutesPanel` (`rutas-map`/`-live`/`-history`/`-drivers`). Texto del paso "Secciones" en `admin`/`adminStaff` corregido (el de equipo ahora dice "Pedidos, Productos y Reparto").
+- **Para re-ver los tours:** se muestran una sola vez (LocalStorage `rl_tour_*_v2`); limpiar esas claves para volver a verlos.
 
 ---
 
