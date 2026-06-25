@@ -76,6 +76,7 @@ export default function RepartoPanel() {
     <div className="pb-10">
       {/* Ruta libre */}
       <button
+        data-tour="reparto-start"
         onClick={() => setTracking({ order: null })}
         className="w-full mb-2 flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-[15px] font-bold text-white"
         style={{ background: 'var(--brand)' }}
@@ -112,7 +113,7 @@ export default function RepartoPanel() {
       )}
 
       {/* Por entregar */}
-      <div className="flex items-center justify-between mb-2">
+      <div data-tour="reparto-pending" className="flex items-center justify-between mb-2">
         <h3 className="text-[12px] font-bold uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--text-2)' }}>
           <Package className="w-3.5 h-3.5" /> Pedidos por entregar
         </h3>

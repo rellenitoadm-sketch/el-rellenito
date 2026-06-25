@@ -71,14 +71,14 @@ const STEPS: Record<TourId, Step[]> = {
   ],
   admin: [
     { target: 'admin-title', title: 'Panel El Rellenito', body: 'Desde aquí gestionas todo el negocio. Te muestro lo principal.' },
-    { target: 'admin-tabs', title: 'Secciones', body: 'Pedidos, Productos, Métricas y Clientes. Toca cada una para gestionarla; te guío dentro de cada sección al abrirla.' },
+    { target: 'admin-tabs', title: 'Secciones', body: 'Cada pestaña gestiona una parte del negocio: pedidos, productos, métricas, clientes, mayoristas y rutas. Toca cada una; te guío dentro al abrirla.' },
     ...ORDERS_FILTER_STEPS,
     { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido apruebas el pago, lo marcas en camino o entregado y abres el mapa o el contacto del cliente.' },
     { target: 'admin-logout', title: 'Cerrar sesión', body: 'Sal del panel de forma segura cuando termines.' },
   ],
   adminStaff: [
     { target: 'admin-title', title: 'Panel del equipo', body: 'Bienvenido. Aquí atiendes los pedidos y mantienes los productos al día.' },
-    { target: 'admin-tabs', title: 'Tus secciones', body: 'Como equipo ves Pedidos y Productos. (Métricas y Clientes son solo del administrador.)' },
+    { target: 'admin-tabs', title: 'Tus secciones', body: 'Como equipo ves Pedidos, Productos y Reparto. (Métricas, Clientes y demás son del administrador.)' },
     ...ORDERS_FILTER_STEPS,
     { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido verificas el pago, lo marcas en camino o entregado y contactas al cliente desde su ficha.' },
     { target: 'admin-logout', title: 'Cerrar sesión', body: 'Sal del panel de forma segura cuando termines tu turno.' },
@@ -89,6 +89,10 @@ const STEPS: Record<TourId, Step[]> = {
     { target: 'products-cats', title: 'Filtrar por categoría', body: 'Filtra por categoría. “Incompletos” reúne los productos a los que les falta información.' },
     { target: 'products-add', title: 'Crear y editar', body: 'Crea un producto nuevo con +. Toca uno existente para editar precios, foto, umbral al mayor y el servicio de fritos.' },
   ],
+  adminReparto: [
+    { target: 'reparto-start', title: 'Iniciar una ruta', body: 'Abre el rastreo con GPS aquí mismo, sin salir del panel. Mantén la pantalla abierta mientras repartes.' },
+    { target: 'reparto-pending', title: 'Pedidos por entregar', body: 'Los pedidos a domicilio ya confirmados aparecen aquí. Toca “Entregar” para iniciar la ruta hacia ese cliente.' },
+  ],
   adminMetricas: [
     { target: 'metrics-revenue', title: 'Ingresos y pedidos', body: 'Ingresos y pedidos de hoy y del mes, con el ticket promedio.' },
     { target: 'metrics-visits', title: 'Visitas', body: 'Cuántas personas visitan tu página y a qué horas.' },
@@ -98,6 +102,17 @@ const STEPS: Record<TourId, Step[]> = {
     { target: 'crm-stats', title: 'Tus clientes', body: 'Cuántos clientes tienes y el valor total que han comprado.' },
     { target: 'crm-search', title: 'Buscar cliente', body: 'Encuentra un cliente por su nombre o número de teléfono.' },
     { target: 'crm-list', title: 'Ficha del cliente', body: 'De cada cliente ves cuánto ha gastado, sus pedidos y su contacto directo.' },
+  ],
+  adminMayoristas: [
+    { target: 'mayoristas-stats', title: 'Tu cartera al mayor', body: 'Cuántos clientes al mayor tienes y cómo se reparten entre tus rutas de entrega.' },
+    { target: 'mayoristas-search', title: 'Buscar cliente', body: 'Encuentra a un cliente por su nombre, teléfono o dirección.' },
+    { target: 'mayoristas-add', title: 'Agregar cliente', body: 'Registra un cliente nuevo con su ruta de entrega. Abajo se agrupan por ruta para organizar tus repartos.' },
+  ],
+  adminRutas: [
+    { target: 'rutas-map', title: 'Mapa en vivo', body: 'Mira en el mapa dónde están tus domiciliarios en tiempo real.' },
+    { target: 'rutas-live', title: 'En ruta ahora', body: 'Los domiciliarios activos aparecen aquí mientras reparten. Este panel es solo de monitoreo: ellos inician sus rutas desde su propio panel.' },
+    { target: 'rutas-history', title: 'Recorridos anteriores', body: 'Revisa rutas pasadas con su duración y distancia. Toca una para verla dibujada en el mapa.' },
+    { target: 'rutas-drivers', title: 'Domiciliarios', body: 'Registra a tu equipo de reparto y actívalos o desactívalos cuando lo necesites.' },
   ],
   productEditor: [
     { target: 'pe-image', title: 'Foto del producto', body: 'Sube una foto: es la que se ve en el catálogo. Puedes quitarla o cambiarla cuando quieras.' },
@@ -113,7 +128,8 @@ const STEPS: Record<TourId, Step[]> = {
 
 type TourId =
   | 'home' | 'catalog' | 'mayor' | 'cart' | 'checkout' | 'wcheckout'
-  | 'admin' | 'adminStaff' | 'adminProductos' | 'adminMetricas' | 'adminCrm'
+  | 'admin' | 'adminStaff' | 'adminProductos' | 'adminReparto' | 'adminMetricas'
+  | 'adminCrm' | 'adminMayoristas' | 'adminRutas'
   | 'productEditor';
 
 const KEY_PREFIX = 'rl_tour_';

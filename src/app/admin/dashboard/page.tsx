@@ -21,12 +21,15 @@ interface TabDef {
   label: string;
   Icon: React.ElementType;
   adminOnly?: boolean;
+  /** Solo el equipo (no el administrador): el reparto lo hacen los domiciliarios;
+      el admin lo monitorea desde "Rutas". */
+  staffOnly?: boolean;
 }
 
 const TABS: TabDef[] = [
   { id: 'pedidos', label: 'Pedidos', Icon: ShoppingBag },
   { id: 'productos', label: 'Productos', Icon: Boxes },
-  { id: 'reparto', label: 'Reparto', Icon: Bike },
+  { id: 'reparto', label: 'Reparto', Icon: Bike, staffOnly: true },
   { id: 'metricas', label: 'Métricas', Icon: BarChart3, adminOnly: true },
   { id: 'crm', label: 'Clientes', Icon: Users, adminOnly: true },
   { id: 'mayoristas', label: 'Mayoristas', Icon: Store, adminOnly: true },
@@ -63,8 +66,11 @@ export default function AdminDashboard() {
     // El tour de Productos se guarda con clave por rol (scope), para que el equipo
     // lo vea aunque el administrador ya haya visto el suyo en este mismo dispositivo.
     const which = tab === 'productos' ? 'adminProductos'
+      : tab === 'reparto' ? 'adminReparto'
       : tab === 'metricas' ? 'adminMetricas'
       : tab === 'crm' ? 'adminCrm'
+      : tab === 'mayoristas' ? 'adminMayoristas'
+      : tab === 'rutas' ? 'adminRutas'
       : null;
     if (!which) return;
     const scope = which === 'adminProductos' ? (role ?? undefined) : undefined;
@@ -77,7 +83,7 @@ export default function AdminDashboard() {
     router.push('/');
   };
 
-  const tabs = TABS.filter(t => !t.adminOnly || role === 'admin');
+  const tabs = TABS.filter(t => (!t.adminOnly || role === 'admin') && (!t.staffOnly || role !== 'admin'));
 
   if (!ready) {
     return (
@@ -132,7 +138,7 @@ export default function AdminDashboard() {
       <div className="max-w-2xl mx-auto px-4 py-5" data-tour="admin-content">
         {tab === 'pedidos' && <OrdersPanel role={role} />}
         {tab === 'productos' && <ProductsPanel />}
-        {tab === 'reparto' && <RepartoPanel />}
+        {tab === 'reparto' && role !== 'admin' && <RepartoPanel />}
         {tab === 'metricas' && role === 'admin' && <MetricsPanel />}
         {tab === 'crm' && role === 'admin' && <CrmPanel />}
         {tab === 'mayoristas' && role === 'admin' && <WholesaleClientsPanel />}

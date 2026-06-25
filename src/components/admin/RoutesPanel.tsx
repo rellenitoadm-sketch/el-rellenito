@@ -167,7 +167,7 @@ export default function RoutesPanel() {
   return (
     <div className="pb-10">
       {/* Mapa */}
-      <div className="mb-3">
+      <div data-tour="rutas-map" className="mb-3">
         <RouteMap routes={drawn} height={360} />
       </div>
 
@@ -178,7 +178,7 @@ export default function RoutesPanel() {
       </p>
 
       {/* Domiciliarios en ruta */}
-      <div className="flex items-center justify-between mb-2">
+      <div data-tour="rutas-live" className="flex items-center justify-between mb-2">
         <h3 className="text-[12px] font-bold uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--brand-deep)' }}>
           <Radio className="w-3.5 h-3.5" /> En ruta ahora
         </h3>
@@ -216,7 +216,7 @@ export default function RoutesPanel() {
       )}
 
       {/* Historial */}
-      <h3 className="text-[12px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2" style={{ color: 'var(--text-2)' }}>
+      <h3 data-tour="rutas-history" className="text-[12px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2" style={{ color: 'var(--text-2)' }}>
         <RouteIcon className="w-3.5 h-3.5" /> Recorridos anteriores
       </h3>
       {history.length === 0 ? (
@@ -254,7 +254,7 @@ export default function RoutesPanel() {
       )}
 
       {/* Domiciliarios (registro) */}
-      <h3 className="text-[12px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2" style={{ color: 'var(--text-2)' }}>
+      <h3 data-tour="rutas-drivers" className="text-[12px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2" style={{ color: 'var(--text-2)' }}>
         <Users className="w-3.5 h-3.5" /> Domiciliarios
       </h3>
       <div className="flex items-center gap-2 mb-3">

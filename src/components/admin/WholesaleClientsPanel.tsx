@@ -143,7 +143,7 @@ export default function WholesaleClientsPanel() {
   return (
     <div className="pb-10">
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-2.5 mb-4">
+      <div data-tour="mayoristas-stats" className="grid grid-cols-3 gap-2.5 mb-4">
         <div className="card p-3.5">
           <Users className="w-4 h-4 mb-1.5" style={{ color: 'var(--text-3)' }} />
           <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>Clientes</p>
@@ -162,14 +162,14 @@ export default function WholesaleClientsPanel() {
 
       {/* Search + add */}
       <div className="flex items-center gap-2 mb-3">
-        <div className="relative flex-1">
+        <div data-tour="mayoristas-search" className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-3)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar nombre, teléfono o dirección…" className="field" style={{ paddingLeft: '2.25rem' }} />
         </div>
         <button onClick={load} className="btn btn-ghost" style={{ padding: '10px', minWidth: 44, minHeight: 44, border: '1px solid var(--border)' }} aria-label="Recargar">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
-        <button onClick={openNew} className="btn btn-primary" style={{ padding: '10px 14px', minHeight: 44 }}>
+        <button data-tour="mayoristas-add" onClick={openNew} className="btn btn-primary" style={{ padding: '10px 14px', minHeight: 44 }}>
           <Plus className="w-4 h-4" /> Nuevo
         </button>
       </div>
