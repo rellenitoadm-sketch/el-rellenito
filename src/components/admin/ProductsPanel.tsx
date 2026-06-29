@@ -14,7 +14,8 @@ const FALLBACK_RATES: ExchangeRates = { bs_per_usd: 535.28, cop_per_usd: 4200, u
 
 function getMissingFields(p: Product): string[] {
   const missing: string[] = [];
-  if (!p.units?.trim()) missing.push('unidades');
+  if (!p.image_url) missing.push('foto');
+  if (!p.category?.trim()) missing.push('categoría');
   if (!p.description?.trim()) missing.push('descripción');
   if (!p.price_usd) missing.push('precio USD detal');
   if (p.price_cop == null) missing.push('precio COP detal');
