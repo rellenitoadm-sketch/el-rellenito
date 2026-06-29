@@ -3,7 +3,7 @@
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
 import type { Map as LeafletMap, LayerGroup } from 'leaflet';
-import type { RoutePoint } from '@/lib/routes';
+import { fetchDrivingRoute, type RoutePoint } from '@/lib/routes';
 
 export interface MapRoute {
   id: string;
@@ -32,6 +32,9 @@ export default function RouteMap({ routes, height = 420, follow = false }: Props
   const LRef = useRef<typeof import('leaflet') | null>(null);
   const fittedRef = useRef<string>('');
   const [ready, setReady] = useState(false);
+  // Recorrido por calles (OSRM) para la línea al destino en modo conductor.
+  const [roadRoute, setRoadRoute] = useState<{ key: string; line: [number, number][] } | null>(null);
+  const roadKeyRef = useRef<string>('');
 
   // Inicializa el mapa una sola vez (Leaflet se importa solo en el cliente).
   useEffect(() => {
@@ -110,7 +113,7 @@ export default function RouteMap({ routes, height = 420, follow = false }: Props
       }
     }
 
-    // Modo conductor: línea punteada de la posición actual al destino + seguir.
+    // Modo conductor: traza el camino POR CALLES de la posición actual al destino.
     if (follow && routes.length > 0) {
       const r = routes[0];
       const pts = r.points.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
@@ -118,8 +121,24 @@ export default function RouteMap({ routes, height = 420, follow = false }: Props
       const dest = r.dest && Number.isFinite(r.dest.lat) && Number.isFinite(r.dest.lng)
         ? ([r.dest.lat, r.dest.lng] as [number, number]) : null;
       if (cur && dest) {
-        L.polyline([cur, dest], { color: '#dc2626', weight: 2, opacity: 0.6, dashArray: '6 8' }).addTo(layer);
-        map.fitBounds([cur, dest], { padding: [40, 40], maxZoom: 16 });
+        // Clave redondeada (~110 m en origen) para no re-pedir la ruta a OSRM en
+        // cada tick del GPS; solo se recalcula cuando el conductor avanza un tramo.
+        const key = `${cur[0].toFixed(3)},${cur[1].toFixed(3)}|${dest[0].toFixed(4)},${dest[1].toFixed(4)}`;
+        if (key !== roadKeyRef.current) {
+          roadKeyRef.current = key;
+          fetchDrivingRoute({ lat: cur[0], lng: cur[1] }, { lat: dest[0], lng: dest[1] })
+            .then(line => { if (line && roadKeyRef.current === key) setRoadRoute({ key, line }); });
+        }
+        const line = roadRoute && roadRoute.key === key ? roadRoute.line : null;
+        if (line) {
+          // Camino real por las vías (sólido).
+          L.polyline(line, { color: '#dc2626', weight: 4, opacity: 0.8 }).addTo(layer);
+          map.fitBounds(line, { padding: [40, 40], maxZoom: 16 });
+        } else {
+          // Respaldo: recta punteada mientras llega la ruta (o si OSRM falla).
+          L.polyline([cur, dest], { color: '#dc2626', weight: 2, opacity: 0.6, dashArray: '6 8' }).addTo(layer);
+          map.fitBounds([cur, dest], { padding: [40, 40], maxZoom: 16 });
+        }
       } else if (cur) {
         map.setView(cur, Math.max(map.getZoom(), 15));
       } else if (dest) {
@@ -135,7 +154,7 @@ export default function RouteMap({ routes, height = 420, follow = false }: Props
       map.fitBounds(all, { padding: [30, 30], maxZoom: 16 });
       fittedRef.current = sig;
     }
-  }, [routes, ready, follow]);
+  }, [routes, ready, follow, roadRoute]);
 
   return (
     <div

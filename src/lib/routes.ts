@@ -38,3 +38,28 @@ export function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)} m`;
   return `${(meters / 1000).toFixed(1)} km`;
 }
+
+/**
+ * Pide el recorrido conduciendo POR CALLES entre dos puntos, para no dibujar una
+ * recta que atraviesa las cuadras. Llama a nuestro endpoint `/api/route/directions`
+ * (que consulta OpenRouteService del lado servidor, con la clave oculta). Devuelve
+ * la geometría como `[lat, lng][]`, o `null` si falla (el mapa usa la recta como
+ * respaldo).
+ */
+export async function fetchDrivingRoute(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+  signal?: AbortSignal,
+): Promise<[number, number][] | null> {
+  const qs = `fromLat=${from.lat}&fromLng=${from.lng}&toLat=${to.lat}&toLng=${to.lng}`;
+  try {
+    const res = await fetch(`/api/route/directions?${qs}`, { signal });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { line?: [number, number][] | null };
+    const line = data.line;
+    if (!Array.isArray(line) || line.length < 2) return null;
+    return line;
+  } catch {
+    return null;
+  }
+}
