@@ -5,6 +5,7 @@ import {
   RefreshCw, Search, Users, MessageCircle, Trash2, Plus, Pencil, X,
   MapPin, Phone, CalendarDays,
 } from 'lucide-react';
+import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
 
 interface WClient {
   id: string;
@@ -27,13 +28,9 @@ function routeLabel(route: string | null): string {
   return ROUTES.find(r => r.value === route)?.label ?? 'Sin ruta asignada';
 }
 
-/** Número listo para wa.me: solo dígitos; un 0 inicial (VE) se cambia por 58. */
+/** Número listo para wa.me en formato internacional (ver normalizeWhatsAppNumber). */
 function waNumber(phone: string | null): string | null {
-  if (!phone) return null;
-  let d = phone.replace(/\D/g, '');
-  if (!d) return null;
-  if (d.startsWith('0')) d = '58' + d.slice(1);
-  return d;
+  return normalizeWhatsAppNumber(phone) || null;
 }
 
 type Draft = Partial<WClient> & { id?: string };

@@ -7,6 +7,7 @@ import {
   Receipt, ImageIcon, BadgeCheck, Banknote, X, Bell, BellOff, AlertCircle, Trash2, MapPin, Search, Navigation,
 } from 'lucide-react';
 import type { StaffRole } from '@/lib/adminAuth';
+import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
 
 interface Order {
   id: string;
@@ -348,7 +349,7 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
                   <div className="min-w-0">
                     <p className="text-[14px] font-semibold" style={{ color: 'var(--text-1)' }}>{order.customer_name}</p>
                     <a
-                      href={`https://wa.me/${order.customer_whatsapp.replace(/[^0-9]/g, '')}`}
+                      href={`https://wa.me/${normalizeWhatsAppNumber(order.customer_whatsapp)}`}
                       target="_blank" rel="noopener noreferrer"
                       className="text-[12px] underline" style={{ color: 'var(--text-3)' }}
                     >

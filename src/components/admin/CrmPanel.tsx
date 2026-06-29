@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { RefreshCw, Search, Users, MessageCircle, Crown, Trash2 } from 'lucide-react';
+import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
 
 interface CustomerRow {
   whatsapp: string;
@@ -111,7 +112,7 @@ export default function CrmPanel() {
                 <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>{c.order_count} {c.order_count === 1 ? 'pedido' : 'pedidos'}</p>
               </div>
               <a
-                href={`https://wa.me/${c.whatsapp.replace(/[^0-9]/g, '')}`}
+                href={`https://wa.me/${normalizeWhatsAppNumber(c.whatsapp)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
