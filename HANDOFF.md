@@ -1,6 +1,32 @@
 # HANDOFF — El Rellenito (→ nueva sesión)
 
-> **Actualizado 2026-06-25.** La sección ⭐ de abajo es lo VIGENTE. El resto del archivo es historial.
+> **Actualizado 2026-06-29.** La sección ⭐⭐⭐⭐⭐ de abajo es lo VIGENTE. El resto es historial.
+> **Secretos reales (API keys, contraseñas) NO van aquí** (este repo se sube a GitHub) → están en la memoria local del agente y en el docker-compose del VPS.
+
+---
+
+## ⭐⭐⭐⭐⭐ ESTADO 2026-06-29 — Automatización WhatsApp (WAHA + n8n + Gemini) operativa salvo enlace + arreglos
+
+### Automatización WhatsApp (n8n) — lista, falta SOLO re-vincular el número
+- **Migrado de ManyChat → WAHA.** WAHA (gateway de WhatsApp) corre en OTRO servidor: `http://2.24.205.142:3000` (Hostinger, docker-compose), engine **NOWEB**, tier CORE. Sesión `default` = "Pasapalos El Rellenito" (`584247207067`). API key en `WAHA_API_KEY` del compose; dashboard admin (user/clave) también en el compose. **El dashboard sale en ROJO pero es cosmético** → verificar estado SIEMPRE con `GET /api/sessions` + header `X-Api-Key` (no con el dashboard).
+- **Persistencia:** se agregó `WHATSAPP_RESTART_ALL_SESSIONS=True` al compose (+ volumen `./.sessions`) para que la sesión reviva sola tras reinicios (antes se cerraba). Verificado: aguantó un redeploy.
+- **Webhook entrante** WAHA→n8n ya viene en el compose (`WHATSAPP_HOOK_URL=…/webhook/rellenito-agent`, `WHATSAPP_HOOK_EVENTS=message`). No tocar.
+- **n8n:** instancia VPS `n8n.srv1774789.hstgr.cloud` (proyecto personal). 3 flujos (IDs en memoria `rellenito-n8n-flujos-creados`). Envío en todos por `POST {WAHA}/api/sendText` con header `X-Api-Key` **hardcodeado** en el nodo (warning esperado).
+  - **Agente Principal** (`0nZIobVp93bRCm9S`) **ACTIVO**: webhook → Normalizar (lee `body.payload.from/body`) → filtro **Solo Chat Directo** (solo `@c.us`; corta grupos `@g.us` y estados) → Buscar Cliente (Supabase `customers`, whatsapp=phone) → Menú+Tasas (de elrellenito.com) → **Agente IA = Gemini 2.5 Flash + Memoria Postgres** (por chatId, tabla `rellenito_chat_memory`) → **Clasificar (switch 3 vías)**: RESPONDER→Limpiar→Enviar WhatsApp; ESCALAR `[ESCALAR]`→Avisar al Dueño 🔴URGENTE (NO responde al cliente); IGNORAR `[IGNORAR]`→No responder (NoOp). El prompt responde solo consultas del negocio, escala urgencias, ignora lo ajeno.
+  - **Nuevo Pedido** (`eTtYU6wSPWyMclkR`) **ACTIVO**: la app dispara order.created → refresca cliente en Supabase + avisa al dueño por WhatsApp.
+  - **Reactivación** (`s4OXSTYRpbJASma4`) **APAGADO a propósito** (riesgo de baneo: mandar a quien no escribió, en NOWEB = WhatsApp no-oficial).
+- **Gemini en vez de OpenAI** (OpenAI está restringido en Venezuela). Key gratis de aistudio.google.com/apikey (el formato nuevo `AQ.` funciona). Credencial n8n "Google Gemini(PaLM) Api".
+- **Credenciales n8n YA puestas** por el usuario: Supabase, Gemini, y **Postgres** para la memoria (Supabase session pooler `aws-1-us-west-2.pooler.supabase.com:5432`, user `postgres.cbmkqumcsgieivffiody`).
+
+### ⛔ PENDIENTE WhatsApp — MAÑANA (requiere el celular)
+La sesión NOWEB **recibe ESTADOS pero NO los mensajes directos** (enlace de dispositivo degradado: el número es **WhatsApp Business activo en un teléfono** y WAHA es dispositivo vinculado). **Hay que re-vincular:** logout + escanear QR **o** meter código de emparejamiento (`POST /api/{session}/auth/request-code` con el número) desde *WhatsApp Business → Dispositivos vinculados*. Sin esto el bot no recibe nada útil. Diagnóstico confirmado vía ejecuciones n8n (todas eran `status@broadcast`, 15-30ms, cortadas por el filtro). Tras re-vincular: probar mensaje normal / urgente / ajeno y revisar en ejecuciones que cada uno tome su vía; afinar prompt si hace falta.
+
+### 🚀 PENDIENTE INSTAGRAM — PARA YA (siguiente tarea)
+Falta automatizar **Instagram DMs** (WAHA es SOLO WhatsApp). Caminos: **Instagram Graph API** (cuenta IG Profesional + Página de Facebook vinculada + app Meta con permiso `instagram_manage_messages` + webhook a n8n y respuesta vía Graph API) = el oficial; o reusar el mismo **Agente IA** de n8n con un trigger/salida de IG. Sin diseñar aún — arrancar aquí en la próxima sesión.
+
+### Otros de esta sesión
+- **Dominio `elrellenito.com` se cayó por SUSPENSIÓN WHOIS de Namecheap** (no se verificó el email de contacto del dominio; los NS pasaron a `failed-whois-verification.namecheap.com` y el A a parking). Se arregló **verificando el email en Namecheap** → volvió a apuntar a Vercel (HTTP 200). Lección: si el sitio cae pero **Supabase está sano** y el código no cambió, revisar **DNS/WHOIS** (la PWA cacheada engaña: el cascarón carga, el backend no). Detalle en memoria `rellenito-dominio-namecheap-whois`.
+- **Admin "Incompletos" mejorado + DEPLOYADO** (commit `1103629` en `main`, en vivo): `getMissingFields` en `components/admin/ProductsPanel.tsx` ahora marca **foto** (image_url) y **categoría** faltantes, además de descripción y precios (USD/COP detal/mayor); se quitó "unidades". `tsc` + `next build` exit 0. (El conteo de incompletos subirá porque faltan muchas fotos — es lo esperado.)
 
 ---
 
