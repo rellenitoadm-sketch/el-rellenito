@@ -10,11 +10,12 @@ const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
-const TIME_SLOTS = [
-  '8:00 AM – 10:00 AM',
-  '10:00 AM – 12:00 PM',
-  '2:00 PM – 4:00 PM',
-  '4:00 PM – 6:00 PM',
+// `start` = hora de inicio en formato 24h (para descartar franjas ya pasadas el mismo día).
+const TIME_SLOTS: { label: string; start: number }[] = [
+  { label: '8:00 AM – 10:00 AM', start: 8 },
+  { label: '10:00 AM – 12:00 PM', start: 10 },
+  { label: '2:00 PM – 4:00 PM', start: 14 },
+  { label: '4:00 PM – 6:00 PM', start: 16 },
 ];
 
 interface DatePickerProps {
@@ -22,13 +23,31 @@ interface DatePickerProps {
   selectedTime: string | null;
   onDateChange: (date: Date) => void;
   onTimeChange: (time: string) => void;
+  /**
+   * Permite agendar para el mismo día (usado en Al Detal). El mayor lo deja en
+   * `false`: sigue exigiendo 24h de anticipación (fecha mínima = mañana).
+   */
+  allowSameDay?: boolean;
 }
 
-export default function WholesaleDatePicker({ selectedDate, selectedTime, onDateChange, onTimeChange }: DatePickerProps) {
-  // Pedidos con 24h de anticipación → fecha mínima = mañana
+export default function WholesaleDatePicker({ selectedDate, selectedTime, onDateChange, onTimeChange, allowSameDay = false }: DatePickerProps) {
+  const now = new Date();
+
+  // Fecha mínima: hoy si se permite el mismo día; si no, mañana (regla 24h del mayor).
   const minDate = new Date();
   minDate.setHours(0, 0, 0, 0);
-  minDate.setDate(minDate.getDate() + 1);
+  if (!allowSameDay) minDate.setDate(minDate.getDate() + 1);
+
+  // ¿La fecha elegida es hoy? Solo entonces hay que descartar franjas ya pasadas.
+  const selectedIsToday =
+    allowSameDay &&
+    selectedDate !== null &&
+    selectedDate.getFullYear() === now.getFullYear() &&
+    selectedDate.getMonth() === now.getMonth() &&
+    selectedDate.getDate() === now.getDate();
+  const nowHour = now.getHours() + now.getMinutes() / 60;
+  const slotPassed = (start: number) => selectedIsToday && start <= nowHour;
+  const allTodayPassed = selectedIsToday && TIME_SLOTS.every(s => s.start <= nowHour);
 
   const [viewMonth, setViewMonth] = useState(minDate.getMonth());
   const [viewYear, setViewYear] = useState(minDate.getFullYear());
@@ -129,7 +148,7 @@ export default function WholesaleDatePicker({ selectedDate, selectedTime, onDate
         </div>
 
         <p className="text-[11px] mt-3 text-center" style={{ color: 'var(--text-muted)' }}>
-          Lun – Sáb · 8 AM – 7 PM · 24 h de anticipación
+          Lun – Sáb · 8 AM – 7 PM{allowSameDay ? ' · hoy mismo disponible' : ' · 24 h de anticipación'}
         </p>
       </div>
 
@@ -150,21 +169,31 @@ export default function WholesaleDatePicker({ selectedDate, selectedTime, onDate
               :
             </p>
             <div className="grid grid-cols-2 gap-2">
-              {TIME_SLOTS.map(slot => (
-                <button
-                  key={slot}
-                  onClick={() => onTimeChange(slot)}
-                  className="text-xs font-semibold py-3 px-3 rounded-xl border transition-all text-center"
-                  style={
-                    selectedTime === slot
-                      ? { background: 'var(--gradient-button)', color: '#fff', borderColor: 'transparent' }
-                      : { background: 'var(--surface)', color: 'var(--text-secondary)', borderColor: 'var(--border)' }
-                  }
-                >
-                  {slot}
-                </button>
-              ))}
+              {TIME_SLOTS.map(({ label, start }) => {
+                const passed = slotPassed(start);
+                return (
+                  <button
+                    key={label}
+                    disabled={passed}
+                    onClick={() => { if (!passed) onTimeChange(label); }}
+                    className={`text-xs font-semibold py-3 px-3 rounded-xl border transition-all text-center ${passed ? 'cursor-not-allowed opacity-40' : ''}`}
+                    style={
+                      selectedTime === label && !passed
+                        ? { background: 'var(--gradient-button)', color: '#fff', borderColor: 'transparent' }
+                        : { background: 'var(--surface)', color: 'var(--text-secondary)', borderColor: 'var(--border)' }
+                    }
+                    title={passed ? 'Franja ya pasada para hoy' : undefined}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
+            {allTodayPassed && (
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                Ya no quedan franjas para hoy. Elige otro día.
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

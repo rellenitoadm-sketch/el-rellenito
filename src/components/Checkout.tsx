@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Truck, Store, X, Loader2, MapPin, CheckCircle, Navigation, AlertCircle } from 'lucide-react';
+import { Truck, Store, X, Loader2, MapPin, CheckCircle, Navigation, AlertCircle, CalendarDays } from 'lucide-react';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
+import WholesaleDatePicker from './WholesaleDatePicker';
 import PaymentTabs from './PaymentTabs';
 import PaymentDetails from './PaymentDetails';
 import ProofUpload, { type ProofData } from './ProofUpload';
@@ -67,6 +68,11 @@ export default function Checkout({ onClose }: CheckoutProps) {
   const [references, setReferences] = useState('');
   const [selectedZoneId, setSelectedZoneId] = useState('');
 
+  // Agenda de entrega/retiro: calendario + franja horaria (igual que Al Mayor,
+  // pero con `allowSameDay` para poder pedir el mismo día).
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
@@ -111,6 +117,7 @@ export default function Checkout({ onClose }: CheckoutProps) {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = 'Ingresa tu nombre';
     if (!phone.trim()) e.phone = 'Ingresa tu WhatsApp';
+    if (!selectedDate || !selectedTime) e.schedule = 'Elige el día y la franja horaria';
     if (isDelivery && !coords && !addressText.trim()) e.location = 'Comparte tu ubicación o escribe tu dirección';
     if (needsProof && !proof) e.proof = 'Adjunta el comprobante de pago';
     setErrors(e);
@@ -177,6 +184,10 @@ export default function Checkout({ onClose }: CheckoutProps) {
           payment_proof_url: proof?.type === 'image' ? proof.imagePreview : null,
           notes: notes || null,
           status: 'pendiente',
+          scheduled_date: selectedDate
+            ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+            : null,
+          scheduled_time: selectedTime,
         }),
       });
 
@@ -215,6 +226,15 @@ export default function Checkout({ onClose }: CheckoutProps) {
         <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-1)' }}>¡Pedido recibido!</h2>
         <p className="text-sm mb-1" style={{ color: 'var(--text-2)' }}>Número de pedido:</p>
         <p className="text-lg font-bold mb-4" style={{ color: 'var(--brand)' }}>{orderId}</p>
+        {selectedDate && selectedTime && (
+          <p className="text-sm mb-3 max-w-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
+            {isDelivery ? 'Entrega' : 'Retiro'} agendado para el{' '}
+            <strong style={{ color: 'var(--text-1)' }}>
+              {selectedDate.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </strong>{' '}
+            ({selectedTime}).
+          </p>
+        )}
         <p className="text-sm max-w-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
           Verificaremos tu pago y nos pondremos en contacto contigo pronto por WhatsApp
           {isDelivery ? ' para confirmar el costo del envío y la entrega' : ''}.
@@ -465,6 +485,24 @@ export default function Checkout({ onClose }: CheckoutProps) {
             </div>
           </motion.div>
         )}
+
+        {/* Agenda: calendario + franja horaria (igual que Al Mayor, con opción de hoy mismo) */}
+        <motion.div {...fadeUp(0.09)} data-tour="checkout-schedule" data-error={errors.schedule ? 'true' : undefined}>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5" style={{ color: 'var(--text-2)' }}>
+            <CalendarDays className="w-3.5 h-3.5" /> ¿Cuándo lo quieres?
+          </p>
+          <p className="text-[11px] mb-3" style={{ color: 'var(--text-3)' }}>
+            Elige el día y la franja horaria. Puedes agendar para hoy mismo.
+          </p>
+          <WholesaleDatePicker
+            selectedDate={selectedDate}
+            selectedTime={selectedTime}
+            onDateChange={setSelectedDate}
+            onTimeChange={setSelectedTime}
+            allowSameDay
+          />
+          {errors.schedule && <p className="text-xs mt-2" style={{ color: 'var(--danger)' }}>{errors.schedule}</p>}
+        </motion.div>
 
         {/* Customer data */}
         <motion.div {...fadeUp(0.12)} data-tour="checkout-data" className="space-y-3">
