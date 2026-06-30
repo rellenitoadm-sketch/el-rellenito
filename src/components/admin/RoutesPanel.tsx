@@ -117,15 +117,25 @@ export default function RoutesPanel() {
     return out;
   }, [active, selectedRoute]);
 
-  const deleteRoute = async (r: RouteRow) => {
-    if (!confirm(`¿Eliminar el recorrido de ${r.driver} del ${fmtDate(r.started_at)}? No se puede deshacer.`)) return;
-    const prev = history;
-    setHistory(curr => curr.filter(h => h.id !== r.id));
+  const deleteRoute = async (r: RouteRow, isActive = false) => {
+    const msg = isActive
+      ? `¿Eliminar la ruta activa de ${r.driver}? Se detiene el rastreo, se borra el recorrido y, si era una entrega, el pedido vuelve a "por entregar".`
+      : `¿Eliminar el recorrido de ${r.driver} del ${fmtDate(r.started_at)}? No se puede deshacer.`;
+    if (!confirm(msg)) return;
+    const prevA = active, prevH = history;
+    setActive(curr => curr.filter(x => x.id !== r.id));
+    setHistory(curr => curr.filter(x => x.id !== r.id));
     if (selectedId === r.id) setSelectedId(null);
     try {
-      const res = await fetch(`/api/admin/routes/${r.id}`, { method: 'DELETE' });
+      // Rutas activas: cancel (borra + revierte el pedido). Historial: delete simple.
+      const res = isActive
+        ? await fetch('/api/route/cancel', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: r.id }),
+          })
+        : await fetch(`/api/admin/routes/${r.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
-    } catch { setHistory(prev); }
+    } catch { setActive(prevA); setHistory(prevH); }
   };
 
   const addDriver = async () => {
@@ -210,6 +220,14 @@ export default function RoutesPanel() {
                 </p>
               </div>
               <span className="text-[11px] font-bold px-2 py-1 rounded" style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}>EN VIVO</span>
+              <button
+                onClick={() => deleteRoute(r, true)}
+                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: 'var(--danger-soft)', color: '#B91C1C' }}
+                aria-label={`Eliminar ruta activa de ${r.driver}`}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           ))}
         </div>

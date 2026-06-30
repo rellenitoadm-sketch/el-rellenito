@@ -31,10 +31,13 @@ function toTrackerOrder(o: DeliverableOrder): TrackerOrder {
   return { id: o.id, name: o.customer_name, address: addrText(o.delivery_address) || null, dest: parseDest(o.delivery_address) };
 }
 
+const ACTIVE_KEY = 'rl_active_route';
+
 export default function RepartoPanel() {
   const [orders, setOrders] = useState<DeliverableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [tracking, setTracking] = useState<{ order: TrackerOrder | null } | null>(null);
+  const [hasActive, setHasActive] = useState(false);
 
   const load = async () => {
     try {
@@ -52,6 +55,13 @@ export default function RepartoPanel() {
     }
   };
 
+  // Al abrir el panel: si el dispositivo recuerda una ruta activa, ábrela
+  // automáticamente para que el domiciliario la retome donde la dejó.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (localStorage.getItem(ACTIVE_KEY)) { setHasActive(true); setTracking({ order: null }); }
+  }, []);
+
   useEffect(() => {
     if (tracking) return; // no recargar mientras se rastrea
     load();
@@ -59,14 +69,15 @@ export default function RepartoPanel() {
     return () => clearInterval(t);
   }, [tracking]);
 
+  const exitTracking = () => {
+    setTracking(null);
+    setHasActive(typeof window !== 'undefined' && !!localStorage.getItem(ACTIVE_KEY));
+    load();
+  };
+
   // Rastreo embebido: el domiciliario NO sale del panel.
   if (tracking) {
-    return (
-      <RouteTracker
-        order={tracking.order}
-        onExit={() => { setTracking(null); load(); }}
-      />
-    );
+    return <RouteTracker order={tracking.order} onExit={exitTracking} />;
   }
 
   const porEntregar = orders.filter(o => o.status === 'confirmado');
@@ -74,6 +85,17 @@ export default function RepartoPanel() {
 
   return (
     <div className="pb-10">
+      {/* Ruta activa pausada: retomar donde se dejó */}
+      {hasActive && (
+        <button
+          onClick={() => setTracking({ order: null })}
+          className="w-full mb-3 flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-[14px] font-bold"
+          style={{ background: 'var(--info-soft)', color: '#1D4ED8', border: '1px solid #93c5fd' }}
+        >
+          <Navigation className="w-4.5 h-4.5" /> Reanudar tu ruta activa
+        </button>
+      )}
+
       {/* Ruta libre */}
       <button
         data-tour="reparto-start"
