@@ -1,7 +1,22 @@
 # HANDOFF — El Rellenito (→ nueva sesión)
 
-> **Actualizado 2026-06-29.** La sección ⭐⭐⭐⭐⭐ de abajo es lo VIGENTE. El resto es historial.
+> **Actualizado 2026-07-07.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
 > **Secretos reales (API keys, contraseñas) NO van aquí** (este repo se sube a GitHub) → están en la memoria local del agente y en el docker-compose del VPS.
+
+---
+
+## ⭐⭐⭐⭐⭐⭐ ESTADO 2026-07-10 — Tasa BCV casi en tiempo real (COMMITEADO+PUSHEADO)
+
+**Queja del cliente:** la tasa BCV de la app iba horas atrás de lo que publica bcv.org.ve (la app la guardaba una vez al día y solo la refrescaba el cron de Vercel de las 19:30 VET, que en plan Hobby ni siquiera tiene hora garantizada; el BCV publica ~3-5pm).
+
+**Fix (código listo, `tsc` + `next build` exit 0, probado en runtime local):**
+- **Nueva fuente primaria = bcv.org.ve DIRECTO** (`src/lib/rates.server.ts`, módulo nuevo): scraping de la portada (div `id="dolar"` → `<strong>`, formato coma decimal). Muestra el último valor PUBLICADO, igual que la página del banco (su "fecha valor" puede ser el día hábil siguiente — es lo que el cliente pidió igualar). **Gotcha:** el cert TLS del BCV tiene la cadena incompleta → `node:https` con `rejectUnauthorized: false` solo ahí (por eso va en `rates.server.ts`, que usa node:https y NO puede importarse desde cliente; `rates.ts` quedó solo con tipos y helpers puros). Respaldos: dolarapi → pydolarve, ahora con `cache: 'no-store'` + timeout 8s (antes tenían caché de 1h que hasta al botón "Recargar tasa" le servía valores viejos).
+- **`/api/rates`:** frescura por edad Y por ventana de publicación (`freshWindowMs`): dentro de L-V 15:00–21:00 Caracas la guardada vence a los 10 min; fuera, 6 h (el valor no puede cambiar de noche/finde → ni visitantes ni bcv.org.ve pagan refrescos inútiles). Si TODAS las fuentes fallan, sirve la guardada SIN pisarle el `updated_at` (antes persistía el fallback interno como si fuera fresco — bug corregido). `?refresh=1` ahora sí es 100% en vivo. **Horario del BCV investigado (jul-2026, snapshots archive.org + Finanzas Digital):** publica L-V sin hora oficial, nunca antes de ~16:00 VET, casi siempre 16:27–19:35 VET (viernes tarda más; visto un ~20:12); el valor publicado rige el día hábil siguiente y se mantiene findes/feriados.
+- **`/api/cron/refresh-rate`:** misma lógica compartida (`refreshRates(stored)`); si nada responde devuelve 502 y NO toca la BD. El cron de Vercel (23:30 UTC L-V) queda de red de seguridad.
+- **PWA (`CurrencyContext.tsx`):** re-consulta `/api/rates` cada 10 min y al volver a primer plano (antes solo al cargar → una PWA abierta nunca veía la tasa nueva).
+- **n8n — YA ACTIVO EN PROD:** flujo `Rellenito — Tasa BCV cada 10 min` (id `UtI0egBSC58Hrs8J`, proyecto personal, publicado). Trigger cada 10 min → **IF "¿Ventana BCV? (hora Caracas)"** → `GET https://elrellenito.com/api/rates?refresh=1` SOLO en: L-V 15:00–20:59 VET (cada 10 min), L-V 21–23h (1×/hora, minuto<10) y diario 8:00–8:09 (chequeo + refresco COP) ≈ 40 llamadas/día (el usuario pidió no cargar 24/7). La hora se evalúa con `$now.setZone('America/Caracas')` en el IF → inmune a la zona horaria de la instancia n8n. Verificado: su primer tick (versión 24/7) actualizó la tasa de prod.
+
+**Resultado:** app ≤10 min detrás de la página del BCV en la ventana de publicación (antes: 2-5+ horas). Commit+push hechos el 2026-07-10 con autor `rellenito.adm@gmail.com` (exigencia del Hobby de Vercel) → auto-deploy.
 
 ---
 

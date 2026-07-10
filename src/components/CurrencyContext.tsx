@@ -33,13 +33,26 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/rates')
-      .then(r => r.json())
-      .then((data: ExchangeRates) => {
-        setRates(data);
-        setIsLoading(false);
-      })
-      .catch(() => setIsLoading(false));
+    const load = () =>
+      fetch('/api/rates')
+        .then(r => r.json())
+        .then((data: ExchangeRates) => {
+          setRates(data);
+          setIsLoading(false);
+        })
+        .catch(() => setIsLoading(false));
+    load();
+    // La PWA suele quedarse abierta horas: re-consultar periódicamente y al
+    // volver a primer plano, para que la tasa BCV nueva se vea sin recargar.
+    const interval = setInterval(load, 10 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   const format = (usd: number, cop?: number | null) => formatPrice(usd, rates, currency, cop);
