@@ -1,7 +1,24 @@
 # HANDOFF — El Rellenito (→ nueva sesión)
 
-> **Actualizado 2026-07-07.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
+> **Actualizado 2026-07-10.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
 > **Secretos reales (API keys, contraseñas) NO van aquí** (este repo se sube a GitHub) → están en la memoria local del agente y en el docker-compose del VPS.
+
+---
+
+## ⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-07-10 — Sección Productos fluida (arreglo lag/crash móvil)
+
+**Queja del cliente:** en admin/equipo la sección Productos iba lentísima, se laggeaba, se crasheaba y al cambiar un producto lo "mandaba a Home". Con **100 productos** en catálogo.
+
+**Causa raíz (medida):** `ProductRow`/`ProductEditor` usaban `next/image` con **`unoptimized`** → el móvil bajaba y decodificaba 100 imágenes de ~1600px (fotos de storage) para miniaturas de 48px. Prueba real: una imagen pasó de **129.914 → 1.499 bytes** al optimizar (~87×); 100 productos ≈ 12.7 MB → 150 KB. Eso saturaba la RAM del navegador → tab se cae y recarga a Home. Agravantes: sin `error.tsx` (un render que lanza tumba todo el segmento) y el chequeo de sesión del dashboard hacía `router.replace('/')` ante CUALQUIER fallo de `/api/admin/me` (una hiccup de red móvil = expulsado a Home).
+
+**Fix (COMMITEADO+PUSHEADO, `tsc`+`next build` exit 0, optimización verificada en runtime):**
+- **Imágenes optimizadas:** se quitó `unoptimized` (salvo para data: URLs del modo mock) y se añadió `sizes` → Next sirve miniaturas de 48/80px desde el host de Supabase (ya estaba en `remotePatterns`). Es el arreglo principal de lag/crash.
+- **`ProductRow` con `React.memo` + callback `onEdit` estable** (`useCallback`) → editar/guardar un producto ya no re-renderiza las otras 99 filas.
+- **Formateo numérico blindado** (`num()` coacciona a número finito) en precios y barra de tasa → ningún valor null/string puede tumbar la lista con `.toFixed`/`.toLocaleString`.
+- **`src/app/admin/error.tsx` nuevo:** error boundary del segmento admin → si algo lanza, muestra "Reintentar" EN EL SITIO, sin ir a Home ni perder sesión.
+- **Chequeo de sesión robusto** (`dashboard/page.tsx`): reintenta 4× con backoff; SOLO expulsa a Home si el server responde 401/403; si agota reintentos muestra "Reintentar" (no expulsa). Fin del "se sale solo".
+
+Archivos: `components/admin/ProductsPanel.tsx`, `components/admin/ProductEditor.tsx`, `app/admin/dashboard/page.tsx`, `app/admin/error.tsx` (nuevo). Solo la sección Productos + guardas del dashboard; sin tocar datos ni otras pestañas.
 
 ---
 

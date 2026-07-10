@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { LogOut, ShoppingBag, Boxes, BarChart3, Users, Store, Truck, Bike } from 'lucide-react';
@@ -41,15 +41,33 @@ export default function AdminDashboard() {
   const [role, setRole] = useState<StaffRole | null>(null);
   const [tab, setTab] = useState<Tab>('pedidos');
   const [ready, setReady] = useState(false);
+  const [authError, setAuthError] = useState(false);
   const { maybeStart } = useOnboarding();
 
-  useEffect(() => {
-    fetch('/api/admin/me')
-      .then(res => res.ok ? res.json() : Promise.reject())
-      .then((data: { role: StaffRole }) => { setRole(data.role); setReady(true); })
-      .catch(() => router.replace('/'));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Verifica la sesión con reintentos. SOLO expulsa a Home si el servidor dice
+  // 401/403 (no autorizado). Un fallo de RED (móvil con señal lenta) reintenta
+  // en vez de mandar al usuario a Home a mitad de trabajo — este era el origen
+  // del "se sale solo / me manda al inicio".
+  const checkAuth = useCallback(async () => {
+    setAuthError(false);
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const res = await fetch('/api/admin/me', { cache: 'no-store' });
+        if (res.status === 401 || res.status === 403) { router.replace('/'); return; }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json() as { role: StaffRole };
+        setRole(data.role);
+        setReady(true);
+        return;
+      } catch {
+        // Backoff creciente antes de reintentar (0.6s, 1.2s, 1.8s).
+        if (attempt < 3) await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
+      }
+    }
+    setAuthError(true); // Agotados los reintentos: mostrar "reintentar", NO expulsar.
+  }, [router]);
+
+  useEffect(() => { checkAuth(); }, [checkAuth]);
 
   // Tutorial general del panel la primera vez que entra (distinto admin/equipo:
   // el de admin presenta las 4 secciones, el de equipo solo Pedidos/Productos).
@@ -87,8 +105,16 @@ export default function AdminDashboard() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
-        <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--brand)', borderTopColor: 'transparent' }} />
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center" style={{ background: 'var(--bg)' }}>
+        {authError ? (
+          <>
+            <p className="text-[14px] font-semibold" style={{ color: 'var(--text-1)' }}>No pudimos cargar el panel</p>
+            <p className="text-[12px]" style={{ color: 'var(--text-3)' }}>Revisa tu conexión. Tu sesión sigue activa.</p>
+            <button onClick={checkAuth} className="btn-gradient text-white font-bold px-5 py-2.5 rounded-xl">Reintentar</button>
+          </>
+        ) : (
+          <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--brand)', borderTopColor: 'transparent' }} />
+        )}
       </div>
     );
   }

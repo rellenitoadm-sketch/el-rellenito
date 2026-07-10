@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import Image from 'next/image';
 import { AnimatePresence } from 'framer-motion';
 import { Plus, Search, RefreshCw, Star, Package, AlertTriangle, DollarSign, Tags } from 'lucide-react';
@@ -11,6 +11,15 @@ import ProductEditor from './ProductEditor';
 import CategoryManager from './CategoryManager';
 
 const FALLBACK_RATES: ExchangeRates = { bs_per_usd: 535.28, cop_per_usd: 4200, updated_at: '' };
+
+/** Coacciona a número finito (los precios de la BD pueden venir null o como string). */
+const num = (v: unknown): number => {
+  const x = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(x) ? x : 0;
+};
+
+/** Las imágenes de storage se optimizan (miniatura de 48px); los data: URL no se pueden optimizar. */
+const isDataUrl = (u: string | null | undefined): boolean => !!u && u.startsWith('data:');
 
 function getMissingFields(p: Product): string[] {
   const missing: string[] = [];
@@ -90,6 +99,9 @@ export default function ProductsPanel() {
     setProducts(prev => prev.filter(p => p.id !== id));
     setEditing(null);
   };
+  // Callback estable → con `memo` en ProductRow, editar/guardar un producto no
+  // vuelve a renderizar las otras 99 filas (clave para la fluidez en móvil).
+  const handleEdit = useCallback((p: Product) => setEditing(p), []);
 
   const rateUpdatedAt = rates.updated_at
     ? new Date(rates.updated_at).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })
@@ -103,9 +115,9 @@ export default function ProductsPanel() {
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-3)' }}>Tasa BCV</p>
           <p className="text-[13px] font-bold leading-tight" style={{ color: 'var(--text-1)' }}>
-            1 USD = Bs {rates.bs_per_usd.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            1 USD = Bs {num(rates.bs_per_usd).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             <span className="text-[11px] font-normal ml-2" style={{ color: 'var(--text-3)' }}>
-              · COP {Math.round(rates.cop_per_usd).toLocaleString('es-CO')}
+              · COP {Math.round(num(rates.cop_per_usd)).toLocaleString('es-CO')}
             </span>
           </p>
           {rateUpdatedAt && <p className="text-[9.5px]" style={{ color: 'var(--text-3)' }}>Act. {rateUpdatedAt}</p>}
@@ -193,8 +205,8 @@ export default function ProductsPanel() {
                     product={p}
                     rates={rates}
                     emoji={emojiOf(p.category)}
-                    onClick={() => setEditing(p)}
-                    missing={catFilter === 'INCOMPLETOS' ? getMissingFields(p) : undefined}
+                    onEdit={handleEdit}
+                    showMissing={catFilter === 'INCOMPLETOS'}
                   />
                 ))}
               </div>
@@ -246,17 +258,20 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
-function ProductRow({ product: p, rates, emoji, onClick, missing }: { product: Product; rates: ExchangeRates; emoji: string; onClick: () => void; missing?: string[] }) {
-  const cop = toCop(p.price_usd, p.price_cop, rates);
+const ProductRow = memo(function ProductRow({ product: p, rates, emoji, onEdit, showMissing }: { product: Product; rates: ExchangeRates; emoji: string; onEdit: (p: Product) => void; showMissing?: boolean }) {
+  // Formateo blindado: ningún precio null/raro puede tumbar la lista.
+  const priceUsd = num(p.price_usd);
+  const cop = num(toCop(priceUsd, p.price_cop, rates));
+  const missing = showMissing ? getMissingFields(p) : undefined;
   return (
     <button
-      onClick={onClick}
+      onClick={() => onEdit(p)}
       className="w-full card p-2.5 flex items-center gap-3 text-left"
       style={{ opacity: p.available ? 1 : 0.55 }}
     >
       <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'var(--surface-2)' }}>
         {p.image_url
-          ? <Image src={p.image_url} alt="" width={48} height={48} className="object-cover w-full h-full" unoptimized />
+          ? <Image src={p.image_url} alt="" width={48} height={48} sizes="48px" className="object-cover w-full h-full" unoptimized={isDataUrl(p.image_url)} />
           : <span className="text-xl">{emoji}</span>}
       </div>
       <div className="flex-1 min-w-0">
@@ -266,7 +281,7 @@ function ProductRow({ product: p, rates, emoji, onClick, missing }: { product: P
         </div>
         {p.units && <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>{p.units}</p>}
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-[12.5px] font-bold" style={{ color: 'var(--brand)' }}>${p.price_usd.toFixed(2)}</span>
+          <span className="text-[12.5px] font-bold" style={{ color: 'var(--brand)' }}>${priceUsd.toFixed(2)}</span>
           <span className="text-[10.5px]" style={{ color: 'var(--text-3)' }}>· COP {cop.toLocaleString('es-CO')}</span>
           {!p.available && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--danger-soft)', color: '#B91C1C' }}>Agotado</span>}
         </div>
@@ -282,4 +297,4 @@ function ProductRow({ product: p, rates, emoji, onClick, missing }: { product: P
       </div>
     </button>
   );
-}
+});

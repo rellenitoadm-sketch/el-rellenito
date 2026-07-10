@@ -202,7 +202,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
                 style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
               >
                 {imageUrl
-                  ? <Image src={imageUrl} alt="" width={80} height={80} className="object-cover w-full h-full" unoptimized />
+                  ? <Image src={imageUrl} alt="" width={80} height={80} sizes="80px" className="object-cover w-full h-full" unoptimized={imageUrl.startsWith('data:')} />
                   : <Upload className="w-6 h-6" style={{ color: 'var(--text-3)' }} />}
               </div>
               <div className="flex-1">
