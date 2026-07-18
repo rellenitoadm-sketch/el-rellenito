@@ -109,26 +109,31 @@ export default function ProductsPanel() {
 
   return (
     <div>
-      {/* BCV Rate bar — siempre visible */}
+      {/* Barra de tasas — BCV (Bs, oficial) y Peso (COP, TRM oficial), siempre visible */}
       <div data-tour="products-rate" className="flex items-center gap-3 rounded-xl px-3 py-2.5 mb-3 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
         <DollarSign className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand)' }} />
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-3)' }}>Tasa BCV</p>
-          <p className="text-[13px] font-bold leading-tight" style={{ color: 'var(--text-1)' }}>
-            1 USD = Bs {num(rates.bs_per_usd).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            <span className="text-[11px] font-normal ml-2" style={{ color: 'var(--text-3)' }}>
-              · COP {Math.round(num(rates.cop_per_usd)).toLocaleString('es-CO')}
-            </span>
-          </p>
-          {rateUpdatedAt && <p className="text-[9.5px]" style={{ color: 'var(--text-3)' }}>Act. {rateUpdatedAt}</p>}
+        <div className="flex-1 min-w-0 flex flex-wrap items-start gap-x-5 gap-y-1">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-3)' }}>Tasa BCV</p>
+            <p className="text-[13px] font-bold leading-tight" style={{ color: 'var(--text-1)' }}>
+              Bs {num(rates.bs_per_usd).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-3)' }}>Tasa Peso · TRM</p>
+            <p className="text-[13px] font-bold leading-tight" style={{ color: 'var(--text-1)' }}>
+              COP {Math.round(num(rates.cop_per_usd)).toLocaleString('es-CO')}
+            </p>
+          </div>
+          {rateUpdatedAt && <p className="text-[9.5px] w-full" style={{ color: 'var(--text-3)' }}>1 USD · Act. {rateUpdatedAt}</p>}
         </div>
         <button
           onClick={reloadRates}
           disabled={loadingRates}
           className="btn btn-ghost"
           style={{ padding: '8px', minWidth: 44, minHeight: 44, border: '1px solid var(--border)' }}
-          aria-label="Recargar tasa BCV"
-          title="Recargar tasa BCV"
+          aria-label="Recargar tasas"
+          title="Recargar tasas (BCV y peso)"
         >
           <RefreshCw className={`w-4 h-4 ${loadingRates ? 'animate-spin' : ''}`} />
         </button>
