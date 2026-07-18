@@ -6,26 +6,37 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 // Dynamic: se evalúa la frescura de la tasa en cada request.
 export const dynamic = 'force-dynamic';
 
-/**
- * Vida útil de la tasa guardada, según la ventana de publicación del BCV.
- *
- * El BCV publica días bancarios (L-V) al cierre de las mesas de cambio: nunca
- * antes de ~16:00 VET y casi siempre entre 16:27 y 19:35 VET (verificado contra
- * snapshots de archive.org y las republicaciones de Finanzas Digital, jul-2026).
- * Dentro de esa ventana (con margen: L-V 15:00–21:00 Caracas) la tasa vence a
- * los 10 min — el cron de n8n refresca a ese mismo ritmo, así que este camino
- * casi nunca lo paga un visitante. Fuera de la ventana el valor NO puede
- * cambiar → 6 h de vida, para no castigar visitantes ni a bcv.org.ve con
- * refrescos inútiles de madrugada o fin de semana.
- */
-function freshWindowMs(now: Date): number {
+/** Día hábil (L-V) y hora (0-23) de `now` en la zona horaria dada. */
+function diaHoraEn(now: Date, timeZone: string): { diaBancario: boolean; h: number } {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Caracas', weekday: 'short', hour: '2-digit', hourCycle: 'h23',
+    timeZone, weekday: 'short', hour: '2-digit', hourCycle: 'h23',
   }).formatToParts(now);
   const wd = parts.find((p) => p.type === 'weekday')?.value ?? '';
   const h = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
-  const diaBancario = wd !== 'Sat' && wd !== 'Sun';
-  return diaBancario && h >= 15 && h < 21 ? 10 * 60 * 1000 : 6 * 60 * 60 * 1000;
+  return { diaBancario: wd !== 'Sat' && wd !== 'Sun', h };
+}
+
+/**
+ * Vida útil de la tasa guardada, según las ventanas de publicación de las dos
+ * fuentes oficiales. Se abre una ventana corta (10 min) mientras cualquiera de
+ * las dos pueda cambiar; fuera de ellas el valor no se mueve → 6 h de vida, para
+ * no castigar visitantes ni a los portales con refrescos inútiles.
+ *
+ * - BCV (Bs/USD): publica días bancarios (L-V) al cierre de las mesas de cambio:
+ *   nunca antes de ~16:00 VET y casi siempre entre 16:27 y 19:35 VET (verificado
+ *   contra snapshots de archive.org y Finanzas Digital, jul-2026). Margen:
+ *   L-V 15:00–21:00 Caracas.
+ * - TRM (COP/USD): la Superintendencia Financiera certifica la TRM del día hábil
+ *   siguiente en la tarde (habitualmente después de ~18:00 COT). Margen:
+ *   L-V 17:00–21:00 Bogotá. El cron de n8n refresca a ese ritmo, así que este
+ *   camino casi nunca lo paga un visitante; queda como red de auto-sanación.
+ */
+function freshWindowMs(now: Date): number {
+  const ve = diaHoraEn(now, 'America/Caracas');
+  const co = diaHoraEn(now, 'America/Bogota');
+  const bcvWindow = ve.diaBancario && ve.h >= 15 && ve.h < 21;
+  const trmWindow = co.diaBancario && co.h >= 17 && co.h < 21;
+  return bcvWindow || trmWindow ? 10 * 60 * 1000 : 6 * 60 * 60 * 1000;
 }
 
 /** Refresca BCV + COP en vivo y persiste SOLO si alguna fuente respondió. */

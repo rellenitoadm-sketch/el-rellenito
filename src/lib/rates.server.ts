@@ -87,11 +87,29 @@ const BCV_SOURCES: { name: string; get: () => Promise<number | null> }[] = [
 ];
 
 /**
- * Fuentes de la tasa USD→COP de mercado, en orden de preferencia. Es SOLO
- * informativa (se muestra en el panel admin junto al BCV); no afecta los precios
- * de los productos, que se fijan en COP de forma independiente.
+ * Fuentes de la tasa USD→COP, en orden de preferencia. La PRIMARIA es la TRM
+ * oficial de Colombia (la Superintendencia Financiera la certifica día a día,
+ * es el equivalente colombiano al valor que publica el BCV para el bolívar).
+ * Las de mercado quedan como respaldo si el portal de datos abiertos no responde.
+ *
+ * 1. datos.gov.co (Superfinanciera) — TRM oficial, la fuente de verdad. El
+ *    dataset `32sa-8pi3` expone `valor` (COP/USD) con su `vigenciadesde`; se
+ *    pide la fila más reciente. La TRM del día hábil siguiente se certifica en
+ *    la tarde y se mantiene fines de semana y feriados (igual que el BCV).
+ * 2. open.er-api — tasa de mercado (algo distinta a la TRM), solo si falla el
+ *    portal oficial.
+ * 3. currency-api (jsDelivr) — respaldo final de mercado.
  */
 const COP_SOURCES: { name: string; get: () => Promise<number | null> }[] = [
+  {
+    name: 'datos.gov.co (TRM oficial)',
+    get: async () => {
+      const rows = await fetchJson(
+        'https://www.datos.gov.co/resource/32sa-8pi3.json?$limit=1&$order=vigenciadesde%20DESC',
+      ) as { valor?: string | number }[];
+      return Number(rows?.[0]?.valor);
+    },
+  },
   {
     name: 'open.er-api',
     get: async () => Number((await fetchJson('https://open.er-api.com/v6/latest/USD') as { rates?: { COP?: number } })?.rates?.COP),
@@ -130,7 +148,7 @@ export async function fetchBcvRate(): Promise<number | null> {
   return fetchFromSources('BCV', BCV_SOURCES, (bs) => bs >= 100);
 }
 
-/** Consulta la tasa USD→COP de mercado en vivo. Devuelve COP/USD o `null`. */
+/** Consulta la TRM oficial (USD→COP) en vivo. Devuelve COP/USD o `null`. */
 export async function fetchCopRate(): Promise<number | null> {
   // Sanity: el dólar en Colombia se mueve en miles de pesos (rango amplio por seguridad).
   return fetchFromSources('COP', COP_SOURCES, (cop) => cop >= 1000 && cop <= 20000);
