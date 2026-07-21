@@ -1,7 +1,24 @@
 # HANDOFF — El Rellenito (→ nueva sesión)
 
-> **Actualizado 2026-07-10.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
+> **Actualizado 2026-07-21.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
 > **Secretos reales (API keys, contraseñas) NO van aquí** (este repo se sube a GitHub) → están en la memoria local del agente y en el docker-compose del VPS.
+
+---
+
+## ⭐⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-07-21 — Favicon: el logo de El Rellenito en vez del de Vercel (DEPLOYADO)
+
+**Queja del cliente:** en la pestaña del navegador salía el logo de Vercel, no el de El Rellenito.
+
+**Causa raíz:** `src/app/favicon.ico` era **el favicon default de create-next-app** (25.931 bytes, mismo timestamp que `next.svg`/`vercel.svg` del scaffold). En App Router los archivos de convención se sirven en `/favicon.ico`, que es lo primero que pide el navegador — tapaba el `icon-192.png` del metadata. **Gotcha del intento 1:** borrar el `favicon.ico` NO basta — deja `/favicon.ico` en **404**, y ante ese 404 el navegador **se queda con el favicon que ya tenía cacheado** (el de Vercel). Segundo gotcha: definir `metadata.icons` a mano **pisa la convención**, así que un `src/app/icon.png` nuevo nunca llegaba al HTML.
+
+**Fix (COMMITEADO+PUSHEADO `f7088c0`, verificado en vivo):**
+- **`src/app/favicon.ico` regenerado** desde `public/icon-192.png`: ICO multi-tamaño real (16/32/48, PNG-in-ICO), 5.705 bytes. Sin ImageMagick en la máquina → se hizo con `sips` para redimensionar + un script Node que arma el contenedor ICO a mano (`ICONDIR` + `ICONDIRENTRY` + los PNG concatenados).
+- **`src/app/layout.tsx`:** `metadata.icons.icon` pasa a array (`/favicon.ico` + `/icon-192.png`) y se añade `shortcut: '/favicon.ico'` → el HTML ya emite los links al `.ico`.
+- **Limpieza:** borrados de `public/` los SVG de scaffold sin ninguna referencia en el código (`vercel.svg`, `next.svg`, `file.svg`, `globe.svg`, `window.svg`).
+
+**Verificado en prod:** `https://elrellenito.com/favicon.ico` → 200, 5.705 bytes, `image/vnd.microsoft.icon` (mismos bytes que el local); el HTML emite `<link rel="icon" href="/favicon.ico?favicon.02_qwjz5g3n53.ico">` — ese query lo pone Next solo y **rompe la caché del navegador** (no hace falta hard-reload).
+
+**Ojo al verificar:** el icono de la **PWA ya instalada** viene de `manifest.json` (siempre apuntó bien a `icon-192.png`) pero queda **congelado en la instalación** → hay que desinstalar/reinstalar para verlo cambiar. Y al probar en local, matar el `next start` viejo antes de rebuildear: si el puerto 3000 sigue ocupado, `npm start` falla con `EADDRINUSE` y sigues mirando el build anterior (pasó en esta sesión y dio un falso negativo).
 
 ---
 
