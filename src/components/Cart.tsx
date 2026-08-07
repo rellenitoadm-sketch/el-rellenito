@@ -6,6 +6,7 @@ import { X, Trash2, Plus, Minus, Lock, Flame } from 'lucide-react';
 import Image from 'next/image';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
+import CurrencySelector from './CurrencySelector';
 import { unitUsd, unitCop, isWholesaleQty, wholesaleThreshold, isPricedIn, cartTotals, CURRENCY_NAME } from '@/lib/rates';
 import { fritoUnitUsd, fritoUnitCop, FRITO_SURCHARGE } from '@/lib/fritos';
 import Upsell from './Upsell';
@@ -81,9 +82,12 @@ export default function Cart() {
                       </span>
                     )}
                   </h2>
-                  <button onClick={closeCart} aria-label="Cerrar carrito" className="p-1 hover:opacity-70 transition-opacity" style={{ color: 'var(--text-muted)' }}>
-                    <X className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <CurrencySelector tourId="cart-currency" />
+                    <button onClick={closeCart} aria-label="Cerrar carrito" className="p-1 hover:opacity-70 transition-opacity" style={{ color: 'var(--text-muted)' }}>
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Items */}

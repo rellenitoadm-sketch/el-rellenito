@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { LayoutGrid, LayoutList, Search, ChevronDown } from 'lucide-react';
-import { useCurrency, type Currency } from './CurrencyContext';
+import { LayoutGrid, LayoutList, Search } from 'lucide-react';
+import CurrencySelector from './CurrencySelector';
 
 export type ViewMode = 'list' | 'grid';
 
@@ -13,29 +12,7 @@ interface FilterRowProps {
   onViewModeChange: (v: ViewMode) => void;
 }
 
-const CURRENCIES: { id: Currency; label: string; full: string }[] = [
-  { id: 'COP', label: 'COP', full: 'Pesos Colombianos' },
-  { id: 'USD', label: 'USD', full: 'Dólares (referencia BCV)' },
-  { id: 'BS', label: 'Bs', full: 'Bolívares' },
-];
-
 export default function FilterRow({ search, onSearchChange, viewMode, onViewModeChange }: FilterRowProps) {
-  const { currency, setCurrency } = useCurrency();
-  const [currencyOpen, setCurrencyOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleOutside(e: PointerEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setCurrencyOpen(false);
-      }
-    }
-    if (currencyOpen) document.addEventListener('pointerdown', handleOutside);
-    return () => document.removeEventListener('pointerdown', handleOutside);
-  }, [currencyOpen]);
-
-  const activeLabel = CURRENCIES.find(c => c.id === currency)?.label ?? currency;
-
   return (
     <div className="px-4 py-2.5 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="flex items-center gap-2">
@@ -60,52 +37,7 @@ export default function FilterRow({ search, onSearchChange, viewMode, onViewMode
         </div>
 
         {/* Currency — discreet dropdown */}
-        <div className="relative flex-shrink-0" ref={dropdownRef} data-tour="currency">
-          <button
-            onClick={() => setCurrencyOpen(o => !o)}
-            className="flex items-center gap-1 px-2.5 rounded-[10px] text-[12px] font-bold transition-colors"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-1)', border: '1px solid var(--border)', minHeight: 44 }}
-            aria-label="Cambiar moneda"
-            aria-haspopup="listbox"
-            aria-expanded={currencyOpen}
-          >
-            <span className="min-w-[26px] text-center">{activeLabel}</span>
-            <ChevronDown
-              className="w-3 h-3 transition-transform"
-              style={{ color: 'var(--text-3)', transform: currencyOpen ? 'rotate(180deg)' : 'none' }}
-            />
-          </button>
-          {currencyOpen && (
-            <div
-              className="absolute right-0 top-full mt-1.5 rounded-[12px] py-1.5 min-w-[200px] z-30 overflow-hidden"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--sh-3)' }}
-            >
-              {CURRENCIES.map(c => {
-                const active = currency === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => { setCurrency(c.id); setCurrencyOpen(false); }}
-                    className="w-full flex items-center gap-3 px-3.5 py-2.5 min-h-[44px] text-left transition-colors hover:bg-[var(--surface-2)]"
-                  >
-                    <span
-                      className="w-9 flex-shrink-0 text-[14px] font-bold"
-                      style={{ color: active ? 'var(--brand)' : 'var(--text-1)' }}
-                    >
-                      {c.label}
-                    </span>
-                    <span
-                      className="text-[12.5px] whitespace-nowrap"
-                      style={{ color: active ? 'var(--brand)' : 'var(--text-3)', fontWeight: active ? 600 : 400 }}
-                    >
-                      {c.full}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <CurrencySelector />
 
         {/* View toggle */}
         <div data-tour="view" className="flex rounded-[10px] overflow-hidden flex-shrink-0" style={{ border: '1px solid var(--border)' }}>

@@ -16,6 +16,7 @@ import { fritoUnitCop, hasFrito } from '@/lib/fritos';
 import { useOnboarding } from './Onboarding';
 import { type PaymentMethodId } from '@/lib/payments';
 import { useGeolocationZone } from '@/hooks/useGeolocationZone';
+import CurrencySelector from './CurrencySelector';
 
 interface CheckoutProps {
   onClose: () => void;
@@ -255,9 +256,12 @@ export default function Checkout({ onClose }: CheckoutProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
         <h2 className="font-bold text-base uppercase tracking-wide" style={{ color: 'var(--text-1)' }}>Finalizar pedido</h2>
-        <button onClick={onClose} aria-label="Cerrar" className="p-1" style={{ color: 'var(--text-3)' }}>
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <CurrencySelector tourId="checkout-currency" />
+          <button onClick={onClose} aria-label="Cerrar" className="p-1" style={{ color: 'var(--text-3)' }}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-5 pt-4">

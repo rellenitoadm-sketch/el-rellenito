@@ -51,10 +51,12 @@ const STEPS: Record<TourId, Step[]> = {
   cart: [
     { target: 'cart-items', title: 'Tus productos', body: 'Revisa lo que llevas. Usa los botones – y + para ajustar la cantidad o la papelera para quitar un producto.' },
     { target: 'cart-items', title: 'Servicio de fritos', body: 'En los productos que lo permiten verás el interruptor “Fritos”: actívalo para recibirlos YA FRITOS, listos para comer. Suma un pequeño recargo por bandeja.' },
+    { target: 'cart-currency', title: 'Cambia la moneda', body: 'Antes de pagar, elige en qué moneda quieres ver los precios: pesos, dólares o bolívares. El carrito y el subtotal se actualizan al instante.' },
     { target: 'cart-subtotal', title: 'Subtotal', body: 'El total de tu pedido en la moneda elegida. El envío se calcula aparte al finalizar.' },
     { target: 'cart-checkout', title: 'Finalizar', body: 'Continúa para elegir entrega, datos, cómo pagar y confirmar.' },
   ],
   checkout: [
+    { target: 'checkout-currency', title: 'Moneda al pagar', body: 'También puedes cambiarla aquí mismo antes de confirmar, por si aún no decides en cuál pagar.' },
     { target: 'checkout-delivery', title: 'Cómo lo recibes', body: 'Elige entre entrega a domicilio o retiro en la tienda.' },
     { target: 'checkout-location', title: '¿Dónde te lo llevamos?', body: 'Comparte tu ubicación por GPS o escribe tu dirección. El costo del envío se confirma en la app antes de la entrega.' },
     { target: 'checkout-data', title: 'Tus datos', body: 'Tu nombre y número de contacto para identificar tu pedido y la entrega.' },
@@ -133,7 +135,7 @@ type TourId =
   | 'productEditor';
 
 const KEY_PREFIX = 'rl_tour_';
-const VERSION = 'v2';
+const VERSION = 'v3';
 
 /**
  * Clave de "visto" en LocalStorage. El `scope` opcional permite que un mismo tour
