@@ -9,6 +9,7 @@ import type { ExchangeRates } from '@/lib/rates';
 import { useCategories } from '../CategoriesContext';
 import { useOnboarding } from '../Onboarding';
 import ProductFlavorsEditor from './ProductFlavorsEditor';
+import { normalizeDecimalInput } from '@/lib/decimalInput';
 
 interface ProductEditorProps {
   product: Product | null; // null = creating new
@@ -293,7 +294,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
             <div className="grid grid-cols-2 gap-2">
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-bold" style={{ color: 'var(--text-3)' }}>$</span>
-                <input type="number" inputMode="decimal" step="0.01" value={priceUsd} onChange={e => setPriceUsd(e.target.value)} placeholder="USD" aria-label="Precio al detal USD" className="field" style={{ paddingLeft: '1.75rem' }} />
+                <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={priceUsd} onChange={e => setPriceUsd(normalizeDecimalInput(e.target.value))} placeholder="USD" aria-label="Precio al detal USD" className="field" style={{ paddingLeft: '1.75rem' }} />
               </div>
               <div className="relative">
                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold pointer-events-none z-10" style={{ color: 'var(--text-3)' }}>COP</span>
@@ -315,7 +316,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
               <div className="grid grid-cols-2 gap-2">
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-bold" style={{ color: 'var(--text-3)' }}>$</span>
-                  <input type="number" inputMode="decimal" step="0.01" value={wholesaleUsd} onChange={e => setWholesaleUsd(e.target.value)} placeholder="USD" aria-label="Precio al mayor USD" className="field" style={{ paddingLeft: '1.75rem' }} />
+                  <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={wholesaleUsd} onChange={e => setWholesaleUsd(normalizeDecimalInput(e.target.value))} placeholder="USD" aria-label="Precio al mayor USD" className="field" style={{ paddingLeft: '1.75rem' }} />
                 </div>
                 <div className="relative">
                   <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold pointer-events-none z-10" style={{ color: 'var(--text-3)' }}>COP</span>

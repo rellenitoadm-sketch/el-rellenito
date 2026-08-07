@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, Loader2, Candy, Check } from 'lucide-react';
 import type { ProductType } from '@/lib/products';
+import { normalizeDecimalInput } from '@/lib/decimalInput';
 
 /**
  * Gestión de los sabores de UN producto, con su precio, dentro del editor.
@@ -179,8 +180,8 @@ function PriceInput({ label, prefix, value, onChange }: { label: string; prefix:
       <div className="relative">
         <span className={`absolute ${prefix === 'COP' ? 'left-2.5 text-[11px]' : 'left-3 text-[14px]'} top-1/2 -translate-y-1/2 font-bold pointer-events-none z-10`} style={{ color: 'var(--text-3)' }}>{prefix}</span>
         <input
-          type="number" inputMode="decimal" step="0.01" value={value}
-          onChange={e => onChange(e.target.value)}
+          type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={value}
+          onChange={e => onChange(normalizeDecimalInput(e.target.value))}
           aria-label={label}
           className="field" style={{ paddingLeft: padLeft }}
         />
