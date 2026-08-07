@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigation, Play, Square, Pause, MapPin, AlertCircle, Satellite, Package, ArrowLeft, Pencil, CheckCircle2, Trash2, RefreshCw } from 'lucide-react';
 import { haversineMeters, pathDistance, formatDistance, type RoutePoint } from '@/lib/routes';
 import RouteMap from './RouteMap';
+import { useOnboarding } from '../Onboarding';
 
 /**
  * Rastreador de ruta del domiciliario. Vive DENTRO de la app (panel de Reparto o
@@ -75,6 +76,7 @@ interface RouteRowLite {
 }
 
 export default function RouteTracker({ order: orderProp, onExit }: { order?: TrackerOrder | null; onExit?: () => void }) {
+  const { maybeStart } = useOnboarding();
   const [phase, setPhase] = useState<Phase>('idle');
   const [recovering, setRecovering] = useState(true);
   const [orderCtx, setOrderCtx] = useState<TrackerOrder | null>(orderProp ?? null);
@@ -241,6 +243,21 @@ export default function RouteTracker({ order: orderProp, onExit }: { order?: Tra
   }, [phase, requestWakeLock]);
 
   useEffect(() => () => { void stopTracking(); }, [stopTracking]);
+
+  // Tutoriales: uno para la pantalla de inicio (elegir domiciliario + iniciar) y
+  // otro para la pantalla de rastreo en vivo (mapa + acciones), cada uno la
+  // primera vez que el domiciliario la ve.
+  useEffect(() => {
+    if (recovering || phase !== 'idle') return;
+    const t = setTimeout(() => maybeStart('routeStart'), 500);
+    return () => clearTimeout(t);
+  }, [recovering, phase, maybeStart]);
+
+  useEffect(() => {
+    if (phase !== 'tracking') return;
+    const t = setTimeout(() => maybeStart('routeLive'), 700);
+    return () => clearTimeout(t);
+  }, [phase, maybeStart]);
 
   const effectiveName = customName.trim() || driverChoice.name || 'Domiciliario';
   const effectiveId = customName.trim() ? null : driverChoice.id;
@@ -411,7 +428,7 @@ export default function RouteTracker({ order: orderProp, onExit }: { order?: Tra
         )}
 
         {/* Mapa en vivo: tu posición + destino */}
-        <div className="mt-3 mb-3">
+        <div className="mt-3 mb-3" data-tour="route-map">
           <RouteMap routes={mapRoutes} follow height={300} />
         </div>
 
@@ -424,7 +441,7 @@ export default function RouteTracker({ order: orderProp, onExit }: { order?: Tra
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="grid grid-cols-3 gap-2 mb-3" data-tour="route-stats">
           <Stat value={`${mm}:${ss}`} label="tiempo" />
           <Stat value={formatDistance(distanceM)} label="recorrido" />
           <Stat value={String(pointCount)} label="puntos" />
@@ -451,7 +468,7 @@ export default function RouteTracker({ order: orderProp, onExit }: { order?: Tra
           </button>
         )}
 
-        <div className="grid grid-cols-2 gap-2 mb-2">
+        <div className="grid grid-cols-2 gap-2 mb-2" data-tour="route-actions">
           <button onClick={pause} disabled={busy} className="flex items-center justify-center gap-2 font-semibold py-3.5 rounded-2xl disabled:opacity-60" style={{ background: 'var(--surface-2)', color: 'var(--text-1)', border: '1px solid var(--border)' }}>
             <Pause className="w-4.5 h-4.5" /> Detener
           </button>
@@ -459,7 +476,7 @@ export default function RouteTracker({ order: orderProp, onExit }: { order?: Tra
             <Square className="w-4.5 h-4.5" /> Finalizar
           </button>
         </div>
-        <button onClick={cancelRoute} disabled={busy} className="w-full flex items-center justify-center gap-1.5 text-[12.5px] font-semibold py-2 rounded-xl disabled:opacity-60" style={{ background: 'var(--danger-soft)', color: '#B91C1C' }}>
+        <button onClick={cancelRoute} disabled={busy} data-tour="route-delete" className="w-full flex items-center justify-center gap-1.5 text-[12.5px] font-semibold py-2 rounded-xl disabled:opacity-60" style={{ background: 'var(--danger-soft)', color: '#B91C1C' }}>
           <Trash2 className="w-3.5 h-3.5" /> Eliminar ruta
         </button>
         <p className="text-[11px] text-center mt-2" style={{ color: 'var(--text-3)' }}>
@@ -504,6 +521,7 @@ export default function RouteTracker({ order: orderProp, onExit }: { order?: Tra
         </div>
       )}
 
+      <div data-tour="route-driver">
       <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-2)' }}>Domiciliario</p>
 
       {savedName ? (
@@ -542,6 +560,7 @@ export default function RouteTracker({ order: orderProp, onExit }: { order?: Tra
           />
         </>
       )}
+      </div>
 
       {error && (
         <p className="mb-4 text-xs flex items-center gap-1" style={{ color: 'var(--danger)' }}>
@@ -549,7 +568,7 @@ export default function RouteTracker({ order: orderProp, onExit }: { order?: Tra
         </p>
       )}
 
-      <button onClick={start} disabled={busy} className="w-full flex items-center justify-center gap-2 btn-gradient text-white font-bold py-4 rounded-2xl disabled:opacity-60">
+      <button onClick={start} disabled={busy} data-tour="route-start" className="w-full flex items-center justify-center gap-2 btn-gradient text-white font-bold py-4 rounded-2xl disabled:opacity-60">
         <Play className="w-5 h-5" /> {orderCtx ? 'Iniciar entrega' : 'Iniciar ruta'}
       </button>
       <p className="text-[11px] text-center mt-3 flex items-center justify-center gap-1" style={{ color: 'var(--text-3)' }}>

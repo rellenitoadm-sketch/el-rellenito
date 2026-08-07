@@ -95,6 +95,16 @@ const STEPS: Record<TourId, Step[]> = {
     { target: 'reparto-start', title: 'Iniciar una ruta', body: 'Abre el rastreo con GPS aquí mismo, sin salir del panel. Mantén la pantalla abierta mientras repartes.' },
     { target: 'reparto-pending', title: 'Pedidos por entregar', body: 'Los pedidos a domicilio ya confirmados aparecen aquí. Toca “Entregar” para iniciar la ruta hacia ese cliente.' },
   ],
+  routeStart: [
+    { target: 'route-driver', title: '¿Quién reparte?', body: 'Elige tu nombre de la lista o escríbelo. Lo recordamos: no te lo volverá a pedir.' },
+    { target: 'route-start', title: 'Iniciar ruta', body: 'Al tocar aquí se activa tu GPS y empieza a registrarse el recorrido en el mapa.' },
+  ],
+  routeLive: [
+    { target: 'route-map', title: 'Tu posición en vivo', body: 'El mapa muestra dónde estás y, si hay destino, la ruta hacia allá.' },
+    { target: 'route-stats', title: 'Tiempo y recorrido', body: 'Cuánto llevas rodando, la distancia recorrida y los puntos GPS registrados.' },
+    { target: 'route-actions', title: 'Detener o finalizar', body: 'Detener pausa el rastreo y lo retomas al volver. Finalizar cierra la ruta y queda en el historial.' },
+    { target: 'route-delete', title: 'Eliminar ruta', body: 'Borra el recorrido por completo. Si era la entrega de un pedido, vuelve a “por entregar”. No se puede deshacer.' },
+  ],
   adminMetricas: [
     { target: 'metrics-revenue', title: 'Ingresos y pedidos', body: 'Ingresos y pedidos de hoy y del mes, con el ticket promedio.' },
     { target: 'metrics-visits', title: 'Visitas', body: 'Cuántas personas visitan tu página y a qué horas.' },
@@ -132,6 +142,7 @@ type TourId =
   | 'home' | 'catalog' | 'mayor' | 'cart' | 'checkout' | 'wcheckout'
   | 'admin' | 'adminStaff' | 'adminProductos' | 'adminReparto' | 'adminMetricas'
   | 'adminCrm' | 'adminMayoristas' | 'adminRutas'
+  | 'routeStart' | 'routeLive'
   | 'productEditor';
 
 const KEY_PREFIX = 'rl_tour_';
