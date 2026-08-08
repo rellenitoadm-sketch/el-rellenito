@@ -9,22 +9,22 @@ interface GravixLogoProps {
 
 /**
  * Gravix Solutions logo.
- * Uses the official PNG at /public/gravix.png. If that file isn't present yet,
- * it falls back automatically to an inline SVG replica so the footer never
- * shows a broken image.
+ * Usa el SVG oficial en /public/gravix.svg. Si no está presente cae al PNG,
+ * y si tampoco existe cae a una réplica inline en SVG, para que el footer
+ * nunca muestre una imagen rota.
  */
 export default function GravixLogo({ height = 18, className = '' }: GravixLogoProps) {
-  const [usePng, setUsePng] = useState(true);
+  const [src, setSrc] = useState<'svg' | 'png' | 'inline'>('svg');
 
-  if (usePng) {
+  if (src === 'svg' || src === 'png') {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src="/gravix.png"
+        src={src === 'svg' ? '/gravix.svg' : '/gravix.png'}
         alt="Gravix"
         style={{ height, width: 'auto' }}
         className={className}
-        onError={() => setUsePng(false)}
+        onError={() => setSrc(prev => (prev === 'svg' ? 'png' : 'inline'))}
       />
     );
   }

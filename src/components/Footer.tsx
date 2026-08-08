@@ -176,10 +176,16 @@ export default function Footer() {
         <Link href="/privacidad" className="text-[11px] underline inline-block mt-1" style={{ color: 'var(--text-muted)' }}>
           Política de Privacidad y Cookies
         </Link>
-        <div className="flex items-center justify-center gap-1.5 pt-3 opacity-70 hover:opacity-100 transition-opacity">
-          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>by</span>
+        <a
+          href="https://www.instagram.com/gravix.acquisition/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Gravix en Instagram"
+          className="flex items-end justify-center gap-1.5 pt-3 opacity-70 hover:opacity-100 transition-opacity"
+        >
+          <span className="text-[11px] leading-none" style={{ color: 'var(--text-muted)' }}>by</span>
           <GravixLogo height={20} />
-        </div>
+        </a>
       </div>
     </footer>
   );
