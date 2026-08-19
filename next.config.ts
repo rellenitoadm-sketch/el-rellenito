@@ -24,6 +24,16 @@ const nextConfig: NextConfig = {
   // (ERR_DLOPEN_FAILED: libvips-cpp.so). Keep it external so the correct
   // platform binary installed by npm is used as-is at runtime.
   serverExternalPackages: ['sharp'],
+  // Marking sharp external stops Turbopack from bundling it, but its native
+  // .node/.so binaries are still resolved at runtime via dlopen — invisible
+  // to static file tracing — so they get dropped from the function output
+  // entirely. Force-include them for the one route that uses sharp.
+  outputFileTracingIncludes: {
+    '/api/admin/upload': [
+      './node_modules/@img/sharp-linux-x64/**',
+      './node_modules/@img/sharp-libvips-linux-x64/**',
+    ],
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
