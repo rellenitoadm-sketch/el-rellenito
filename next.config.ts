@@ -19,6 +19,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // sharp ships native platform binaries — bundling it with Turbopack instead
+  // of keeping it external breaks dlopen on Vercel's linux-x64 functions
+  // (ERR_DLOPEN_FAILED: libvips-cpp.so). Keep it external so the correct
+  // platform binary installed by npm is used as-is at runtime.
+  serverExternalPackages: ['sharp'],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
