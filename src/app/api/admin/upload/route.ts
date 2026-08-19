@@ -20,25 +20,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const form = await request.formData().catch(() => null);
-  const file = form?.get('file');
-  if (!file || !(file instanceof File)) {
-    return NextResponse.json({ error: 'No se recibió ninguna imagen' }, { status: 400 });
-  }
-  if (!ALLOWED.includes(file.type)) {
+  // Se lee el body como bytes crudos (no FormData/multipart): el parsing de
+  // multipart en producción corrompía el binario (bytes no-UTF8 reemplazados
+  // por U+FFFD antes de llegar a sharp). El cliente manda el archivo directo
+  // como body con Content-Type: image/* y el nombre en X-File-Name.
+  const fileType = request.headers.get('content-type') ?? '';
+  const fileName = request.headers.get('x-file-name') ?? 'upload.jpg';
+
+  if (!ALLOWED.includes(fileType)) {
     return NextResponse.json({ error: 'Formato no permitido (usa JPG, PNG, WEBP o GIF)' }, { status: 400 });
   }
-  if (file.size > MAX_BYTES) {
+
+  const original = Buffer.from(await request.arrayBuffer());
+  if (original.length === 0) {
+    return NextResponse.json({ error: 'No se recibió ninguna imagen' }, { status: 400 });
+  }
+  if (original.length > MAX_BYTES) {
     return NextResponse.json({ error: 'La imagen supera 4 MB' }, { status: 400 });
   }
 
-  const original = Buffer.from(await file.arrayBuffer());
-
   // Compresión automática (excepto GIF, para no perder la animación).
   let outBytes: Buffer = original;
-  let outType = file.type;
-  let outExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-  if (file.type !== 'image/gif') {
+  let outType = fileType;
+  let outExt = fileName.split('.').pop()?.toLowerCase() || 'jpg';
+  if (fileType !== 'image/gif') {
     try {
       outBytes = await sharp(original)
         .rotate() // respeta la orientación EXIF

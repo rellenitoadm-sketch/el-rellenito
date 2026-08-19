@@ -105,9 +105,13 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
     setUploading(true);
     setError('');
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+      // Se manda el archivo como body crudo (no FormData/multipart): el
+      // parsing multipart en producción corrompía los bytes binarios.
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': file.type, 'X-File-Name': encodeURIComponent(file.name) },
+        body: file,
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Error al subir');
       setImageUrl(data.url);
