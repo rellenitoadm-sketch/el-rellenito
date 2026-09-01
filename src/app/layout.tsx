@@ -24,10 +24,14 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://elrellenito.com'),
   title: 'El Rellenito — Panadería y Pastelería Artesanal',
   description:
     'Tequeños, masas, pasapalos, panadería y pasteles artesanales en San Cristóbal, Táchira. Pedidos con entrega a domicilio. Lunes a sábado 8 AM – 7 PM.',
   keywords: 'tequeños, panadería, pastelería, pasapalos, San Cristóbal, Táchira, Venezuela, delivery',
+  alternates: {
+    canonical: '/',
+  },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -55,6 +59,29 @@ export const viewport: Viewport = {
   colorScheme: 'dark',
 };
 
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Bakery',
+  name: 'El Rellenito',
+  image: 'https://elrellenito.com/logo-full.png',
+  url: 'https://elrellenito.com',
+  telephone: '+584247207067',
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: 'La Concordia, San Cristóbal',
+    addressRegion: 'Táchira',
+    addressCountry: 'VE',
+  },
+  openingHoursSpecification: {
+    '@type': 'OpeningHoursSpecification',
+    dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    opens: '08:00',
+    closes: '19:00',
+  },
+  servesCuisine: 'Venezolana',
+  sameAs: ['https://instagram.com/Elrellenito_'],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -66,6 +93,10 @@ export default function RootLayout({
       className={`${inter.variable} ${playfair.variable} h-full`}
     >
       <body className="min-h-full antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <CurrencyProvider>
           <CategoriesProvider>
           <ProductsProvider>
