@@ -22,6 +22,7 @@ interface WClient {
 const ROUTES: { value: string; label: string; area: string }[] = [
   { value: 'lun_jue', label: 'Lunes y Jueves', area: 'Barrancas / Puente Real' },
   { value: 'mie_sab', label: 'Miércoles y Sábado', area: 'Palo Gordo / Las Vegas' },
+  { value: 'william', label: 'Ruta de William', area: 'La Concordia / Barrio Obrero / Pueblo Nuevo' },
 ];
 
 function routeLabel(route: string | null): string {
@@ -140,7 +141,7 @@ export default function WholesaleClientsPanel() {
   return (
     <div className="pb-10">
       {/* Stats */}
-      <div data-tour="mayoristas-stats" className="grid grid-cols-3 gap-2.5 mb-4">
+      <div data-tour="mayoristas-stats" className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
         <div className="card p-3.5">
           <Users className="w-4 h-4 mb-1.5" style={{ color: 'var(--text-3)' }} />
           <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>Clientes</p>
