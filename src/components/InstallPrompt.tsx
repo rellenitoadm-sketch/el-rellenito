@@ -6,6 +6,22 @@ import { useOnboarding } from './Onboarding';
 import { usePwaInstall } from './PwaInstall';
 
 const DISMISS_KEY = 'rl_install_dismissed';
+/**
+ * El descarte caduca. Antes se guardaba para siempre: quien cerró el banner
+ * mientras la instalación estaba rota (certificado de www) no volvía a verlo
+ * nunca y se quedaba sin forma visible de instalar la app.
+ */
+const DISMISS_MS = 14 * 24 * 60 * 60 * 1000;
+
+function isDismissed(): boolean {
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return false;
+    // Valor heredado ('1', sin fecha): se ignora para que el banner reaparezca.
+    const at = Number(raw);
+    return Number.isFinite(at) && at > 0 && Date.now() - at < DISMISS_MS;
+  } catch { return false; }
+}
 
 /** Navegadores embebidos (Instagram, Facebook, etc.) donde NO se puede instalar a inicio. */
 function isInAppBrowser(): boolean {
@@ -29,7 +45,7 @@ export default function InstallPrompt() {
   const [showSteps, setShowSteps] = useState(false);
 
   useEffect(() => {
-    try { setDismissed(localStorage.getItem(DISMISS_KEY) === '1'); } catch { setDismissed(false); }
+    setDismissed(isDismissed());
     setInApp(isInAppBrowser());
   }, []);
 
@@ -43,7 +59,7 @@ export default function InstallPrompt() {
 
   const dismiss = () => {
     setDismissed(true);
-    try { localStorage.setItem(DISMISS_KEY, '1'); } catch {}
+    try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch {}
   };
 
   const install = async () => {

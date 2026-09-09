@@ -179,7 +179,11 @@ export default function StaffAlerts() {
     // Punto único de registro del service worker (app-wide). Lo necesitan tanto
     // el push de pedidos como la instalación de la PWA (PwaInstall solo observa).
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/sw.js')
+        // Busca versión nueva en cada carga: nadie tiene que borrar datos del
+        // sitio a mano para salir de un service worker viejo.
+        .then(reg => reg.update())
+        .catch(() => {});
     }
 
     (async () => {

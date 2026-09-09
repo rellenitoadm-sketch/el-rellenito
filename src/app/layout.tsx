@@ -40,6 +40,12 @@ export const metadata: Metadata = {
     title: 'El Rellenito',
     statusBarStyle: 'default',
   },
+  // `appleWebApp.capable` emite el `mobile-web-app-capable` moderno, que iOS solo
+  // entiende desde 16.4. Sin el nombre heredado, un iPhone más viejo instala la
+  // app pero la abre con la barra de Safari encima en vez de a pantalla completa.
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
+  },
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: '16x16 32x32 48x48', type: 'image/x-icon' },
