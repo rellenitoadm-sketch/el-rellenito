@@ -13,7 +13,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Base de datos no disponible' }, { status: 503 });
   }
 
-  const body = await request.json().catch(() => ({})) as { id?: string; points?: RoutePoint[] };
+  const body = await request.json().catch(() => ({})) as {
+    id?: string; points?: RoutePoint[]; alive?: boolean; lat?: number; lng?: number;
+  };
   const id = (body.id ?? '').trim();
   if (!id) return NextResponse.json({ error: 'Falta el id de la ruta' }, { status: 400 });
 
@@ -22,7 +24,24 @@ export async function POST(request: NextRequest) {
   const clean: RoutePoint[] = incoming
     .filter(p => p && Number.isFinite(p.lat) && Number.isFinite(p.lng))
     .map(p => ({ lat: p.lat, lng: p.lng, t: Number.isFinite(p.t) ? p.t : Date.now() }));
-  if (clean.length === 0) return NextResponse.json({ ok: true, added: 0 });
+
+  // Latido: el domiciliario sigue en ruta pero no se ha movido. Solo refresca
+  // `last_at` para que el panel distinga "detenido" de "app cerrada".
+  if (clean.length === 0) {
+    if (!body.alive) return NextResponse.json({ ok: true, added: 0 });
+    const hasFix = Number.isFinite(body.lat) && Number.isFinite(body.lng);
+    const beat = {
+      last_at: new Date().toISOString(),
+      ...(hasFix ? { last_lat: body.lat, last_lng: body.lng } : {}),
+    };
+    const { error } = await supabaseAdmin
+      .from('delivery_routes')
+      .update(beat)
+      .eq('id', id)
+      .eq('status', 'active');
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, added: 0, alive: true });
+  }
 
   const { data: route, error: readErr } = await supabaseAdmin
     .from('delivery_routes')

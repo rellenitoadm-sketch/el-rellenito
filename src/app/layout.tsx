@@ -10,6 +10,8 @@ import { ProductModalProvider } from '@/components/ProductModal';
 import { OnboardingProvider } from '@/components/Onboarding';
 import { PwaInstallProvider } from '@/components/PwaInstall';
 import StaffAlerts from '@/components/StaffAlerts';
+import WakeLock from '@/components/WakeLock';
+import RouteTrackingProvider from '@/components/RouteTracking';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -105,8 +107,11 @@ export default function RootLayout({
                 <ProductModalProvider>
                   <OnboardingProvider>
                     <PwaInstallProvider>
-                      {children}
+                      <RouteTrackingProvider>
+                        {children}
+                      </RouteTrackingProvider>
                       <StaffAlerts />
+                      <WakeLock />
                     </PwaInstallProvider>
                   </OnboardingProvider>
                 </ProductModalProvider>

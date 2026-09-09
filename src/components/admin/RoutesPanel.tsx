@@ -40,6 +40,16 @@ function fmtDuration(startIso: string, endIso: string | null): string {
 function destOf(r: RouteRow): { lat: number; lng: number } | null {
   return r.dest_lat != null && r.dest_lng != null ? { lat: r.dest_lat, lng: r.dest_lng } : null;
 }
+/** Minutos desde la última señal del teléfono (null si nunca reportó). */
+function minsSinceSignal(r: RouteRow): number | null {
+  const iso = r.last_at ?? r.started_at;
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+}
+function fmtAgo(mins: number): string {
+  if (mins < 60) return `${mins} min`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
 
 export default function RoutesPanel() {
   const [active, setActive] = useState<RouteRow[]>([]);
@@ -205,11 +215,14 @@ export default function RoutesPanel() {
         </div>
       ) : (
         <div className="space-y-2 mb-5">
-          {active.map((r, i) => (
+          {active.map((r, i) => {
+            const ago = minsSinceSignal(r);
+            const live = ago != null && ago < 3;
+            return (
             <div key={r.id} className="card p-3.5 flex items-center gap-3" style={{ borderLeft: `3px solid ${PALETTE[i % PALETTE.length]}` }}>
               <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: '#16a34a' }} />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ background: '#16a34a' }} />
+                {live && <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: '#16a34a' }} />}
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ background: live ? '#16a34a' : '#9ca3af' }} />
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-[13.5px] font-semibold" style={{ color: 'var(--text-1)' }}>
@@ -218,8 +231,20 @@ export default function RoutesPanel() {
                 <p className="text-[11.5px]" style={{ color: 'var(--text-3)' }}>
                   Desde {fmtTime(r.started_at)} · {fmtDuration(r.started_at, null)} · {formatDistance(r.distance_m)}
                 </p>
+                {!live && (
+                  <p className="text-[11.5px] font-semibold" style={{ color: '#B91C1C' }}>
+                    Sin señal hace {ago != null ? fmtAgo(ago) : '—'} · el teléfono cerró la app
+                  </p>
+                )}
               </div>
-              <span className="text-[11px] font-bold px-2 py-1 rounded" style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)' }}>EN VIVO</span>
+              <span
+                className="text-[11px] font-bold px-2 py-1 rounded"
+                style={live
+                  ? { background: 'var(--brand-soft)', color: 'var(--brand-deep)' }
+                  : { background: 'var(--surface-2)', color: 'var(--text-3)' }}
+              >
+                {live ? 'EN VIVO' : 'SIN SEÑAL'}
+              </span>
               <button
                 onClick={() => deleteRoute(r, true)}
                 className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
@@ -229,7 +254,8 @@ export default function RoutesPanel() {
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Lock } from 'lucide-react';
-import RouteTracker, { type TrackerOrder } from '@/components/admin/RouteTracker';
+import RouteTracker from '@/components/admin/RouteTracker';
+import { type TrackerOrder } from '@/components/RouteTracking';
 
 /**
  * Pantalla de ruta del domiciliario (acceso directo / deep-link desde un pedido).

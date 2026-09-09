@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Navigation, Package, MapPin, RefreshCw, Truck, Bike } from 'lucide-react';
-import RouteTracker, { type TrackerOrder } from './RouteTracker';
+import RouteTracker from './RouteTracker';
+import { useRouteTracking, type TrackerOrder } from '../RouteTracking';
 
 /**
  * Panel de Reparto (equipo y admin). Aquí el domiciliario INICIA y RASTREA sus
@@ -31,13 +32,11 @@ function toTrackerOrder(o: DeliverableOrder): TrackerOrder {
   return { id: o.id, name: o.customer_name, address: addrText(o.delivery_address) || null, dest: parseDest(o.delivery_address) };
 }
 
-const ACTIVE_KEY = 'rl_active_route';
-
 export default function RepartoPanel() {
+  const { tracking: routeLive, hasRoute } = useRouteTracking();
   const [orders, setOrders] = useState<DeliverableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [tracking, setTracking] = useState<{ order: TrackerOrder | null } | null>(null);
-  const [hasActive, setHasActive] = useState(false);
 
   const load = async () => {
     try {
@@ -55,12 +54,11 @@ export default function RepartoPanel() {
     }
   };
 
-  // Al abrir el panel: si el dispositivo recuerda una ruta activa, ábrela
-  // automáticamente para que el domiciliario la retome donde la dejó.
+  // Rastreo corriendo: abre el mapa directo. Si el domiciliario lo detuvo, no
+  // se le reabre solo: queda el botón para retomar.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (localStorage.getItem(ACTIVE_KEY)) { setHasActive(true); setTracking({ order: null }); }
-  }, []);
+    if (routeLive) setTracking({ order: null });
+  }, [routeLive]);
 
   useEffect(() => {
     if (tracking) return; // no recargar mientras se rastrea
@@ -71,7 +69,6 @@ export default function RepartoPanel() {
 
   const exitTracking = () => {
     setTracking(null);
-    setHasActive(typeof window !== 'undefined' && !!localStorage.getItem(ACTIVE_KEY));
     load();
   };
 
@@ -86,7 +83,7 @@ export default function RepartoPanel() {
   return (
     <div className="pb-10">
       {/* Ruta activa pausada: retomar donde se dejó */}
-      {hasActive && (
+      {hasRoute && !routeLive && (
         <button
           onClick={() => setTracking({ order: null })}
           className="w-full mb-3 flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-[14px] font-bold"

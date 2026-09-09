@@ -3,7 +3,7 @@
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
 import type { Map as LeafletMap, LayerGroup } from 'leaflet';
-import { fetchDrivingRoute, type RoutePoint } from '@/lib/routes';
+import { fetchDrivingRoute, haversineMeters, type RoutePoint } from '@/lib/routes';
 
 export interface MapRoute {
   id: string;
@@ -25,6 +25,50 @@ interface Props {
 // Centro por defecto: zona de San Cristóbal / Táchira (donde están las rutas).
 const DEFAULT_CENTER: [number, number] = [7.767, -72.225];
 
+/**
+ * Salto entre dos fijaciones GPS consecutivas a partir del cual dejó de haber
+ * registro (app cerrada, sin señal). Unir esos dos puntos con una recta dibuja
+ * una línea que atraviesa las cuadras: en su lugar se pide el camino real por
+ * calles y se dibuja punteado para dejar claro que es estimado.
+ */
+const GAP_M = 150;
+/** Tope de tramos estimados por redibujado (no saturar el servicio de rutas). */
+const MAX_GAPS = 8;
+
+type Segment = { line: [number, number][]; estimated: boolean };
+
+/** Parte el recorrido en tramos registrados y huecos (con el camino por calles si ya se pidió). */
+function buildSegments(
+  latlngs: [number, number][],
+  gapLines: Map<string, [number, number][]>,
+  request: (key: string, from: [number, number], to: [number, number]) => void,
+): Segment[] {
+  const segments: Segment[] = [];
+  let run: [number, number][] = latlngs.length ? [latlngs[0]] : [];
+  let gapsSeen = 0;
+
+  for (let i = 1; i < latlngs.length; i++) {
+    const a = latlngs[i - 1];
+    const b = latlngs[i];
+    const jump = haversineMeters({ lat: a[0], lng: a[1], t: 0 }, { lat: b[0], lng: b[1], t: 0 });
+    if (jump < GAP_M) { run.push(b); continue; }
+
+    if (run.length > 1) segments.push({ line: run, estimated: false });
+    const key = `${a[0].toFixed(4)},${a[1].toFixed(4)}|${b[0].toFixed(4)},${b[1].toFixed(4)}`;
+    const road = gapLines.get(key);
+    if (road) {
+      segments.push({ line: road, estimated: true });
+    } else {
+      if (gapsSeen < MAX_GAPS) request(key, a, b);
+      segments.push({ line: [a, b], estimated: true });
+    }
+    gapsSeen++;
+    run = [b];
+  }
+  if (run.length > 1) segments.push({ line: run, estimated: false });
+  return segments;
+}
+
 export default function RouteMap({ routes, height = 420, follow = false }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -32,9 +76,13 @@ export default function RouteMap({ routes, height = 420, follow = false }: Props
   const LRef = useRef<typeof import('leaflet') | null>(null);
   const fittedRef = useRef<string>('');
   const [ready, setReady] = useState(false);
-  // Recorrido por calles (OSRM) para la línea al destino en modo conductor.
+  // Recorrido por calles para la línea al destino en modo conductor.
   const [roadRoute, setRoadRoute] = useState<{ key: string; line: [number, number][] } | null>(null);
   const roadKeyRef = useRef<string>('');
+  // Caminos por calles ya resueltos para los huecos del recorrido.
+  const gapLinesRef = useRef<Map<string, [number, number][]>>(new Map());
+  const gapPendingRef = useRef<Set<string>>(new Set());
+  const [gapVersion, setGapVersion] = useState(0);
 
   // Inicializa el mapa una sola vez (Leaflet se importa solo en el cliente).
   useEffect(() => {
@@ -74,13 +122,31 @@ export default function RouteMap({ routes, height = 420, follow = false }: Props
     layer.clearLayers();
     const all: [number, number][] = [];
 
+    const requestGap = (key: string, from: [number, number], to: [number, number]) => {
+      if (gapPendingRef.current.has(key)) return;
+      gapPendingRef.current.add(key);
+      fetchDrivingRoute({ lat: from[0], lng: from[1] }, { lat: to[0], lng: to[1] }).then(line => {
+        gapPendingRef.current.delete(key);
+        if (!line) return;
+        gapLinesRef.current.set(key, line);
+        setGapVersion(v => v + 1);
+      });
+    };
+
     for (const r of routes) {
       const latlngs = r.points
         .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng))
         .map(p => [p.lat, p.lng] as [number, number]);
 
       if (latlngs.length > 0) {
-        L.polyline(latlngs, { color: r.color, weight: 4, opacity: 0.85 }).addTo(layer);
+        // Tramos con registro GPS: línea sólida. Huecos: camino por calles punteado.
+        for (const seg of buildSegments(latlngs, gapLinesRef.current, requestGap)) {
+          const poly = L.polyline(seg.line, seg.estimated
+            ? { color: r.color, weight: 3, opacity: 0.55, dashArray: '6 8' }
+            : { color: r.color, weight: 4, opacity: 0.85 });
+          if (seg.estimated) poly.bindTooltip(`${r.driver} · tramo estimado (sin señal)`);
+          poly.addTo(layer);
+        }
 
         // Punto de inicio.
         L.circleMarker(latlngs[0], { radius: 5, color: '#fff', weight: 2, fillColor: r.color, fillOpacity: 1 })
@@ -154,7 +220,7 @@ export default function RouteMap({ routes, height = 420, follow = false }: Props
       map.fitBounds(all, { padding: [30, 30], maxZoom: 16 });
       fittedRef.current = sig;
     }
-  }, [routes, ready, follow, roadRoute]);
+  }, [routes, ready, follow, roadRoute, gapVersion]);
 
   return (
     <div
