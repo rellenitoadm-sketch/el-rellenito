@@ -470,6 +470,120 @@ export type Database = {
         }
         Relationships: []
       }
+      wholesale_orders: {
+        Row: {
+          assigned_at: string | null
+          client_address: string | null
+          client_id: string | null
+          client_name: string
+          client_phone: string | null
+          client_route: string | null
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          delivery_date: string
+          driver_id: string | null
+          driver_name: string | null
+          id: string
+          items: Json
+          notes: string | null
+          paid_share: number
+          status: string
+          total_cop: number
+          total_usd: number
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          client_address?: string | null
+          client_id?: string | null
+          client_name: string
+          client_phone?: string | null
+          client_route?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_date: string
+          driver_id?: string | null
+          driver_name?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          paid_share?: number
+          status?: string
+          total_cop: number
+          total_usd: number
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string | null
+          client_address?: string | null
+          client_id?: string | null
+          client_name?: string
+          client_phone?: string | null
+          client_route?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivery_date?: string
+          driver_id?: string | null
+          driver_name?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          paid_share?: number
+          status?: string
+          total_cop?: number
+          total_usd?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      wholesale_payments: {
+        Row: {
+          amount: number
+          collected_on: string
+          created_at: string
+          currency: string | null
+          driver_id: string | null
+          driver_name: string | null
+          id: string
+          note: string | null
+          order_id: string
+          outcome: string
+          rate_ves: number | null
+          share: number
+        }
+        Insert: {
+          amount?: number
+          collected_on: string
+          created_at?: string
+          currency?: string | null
+          driver_id?: string | null
+          driver_name?: string | null
+          id?: string
+          note?: string | null
+          order_id: string
+          outcome: string
+          rate_ves?: number | null
+          share?: number
+        }
+        Update: {
+          amount?: number
+          collected_on?: string
+          created_at?: string
+          currency?: string | null
+          driver_id?: string | null
+          driver_name?: string | null
+          id?: string
+          note?: string | null
+          order_id?: string
+          outcome?: string
+          rate_ves?: number | null
+          share?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

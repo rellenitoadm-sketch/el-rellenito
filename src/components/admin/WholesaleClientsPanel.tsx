@@ -6,6 +6,7 @@ import {
   MapPin, Phone, CalendarDays,
 } from 'lucide-react';
 import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
+import { ROUTES, routeLabel } from '@/lib/wholesaleRoutes';
 
 interface WClient {
   id: string;
@@ -16,17 +17,6 @@ interface WClient {
   area: string | null;
   notes: string | null;
   active: boolean;
-}
-
-/** Rutas de reparto: clave guardada → etiqueta y zona que muestra el panel. */
-const ROUTES: { value: string; label: string; area: string }[] = [
-  { value: 'lun_jue', label: 'Lunes y Jueves', area: 'Barrancas / Puente Real' },
-  { value: 'mie_sab', label: 'Miércoles y Sábado', area: 'Palo Gordo / Las Vegas' },
-  { value: 'william', label: 'Ruta de William', area: 'La Concordia / Barrio Obrero / Pueblo Nuevo' },
-];
-
-function routeLabel(route: string | null): string {
-  return ROUTES.find(r => r.value === route)?.label ?? 'Sin ruta asignada';
 }
 
 /** Número listo para wa.me en formato internacional (ver normalizeWhatsAppNumber). */

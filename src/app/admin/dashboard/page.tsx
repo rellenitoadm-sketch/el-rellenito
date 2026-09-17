@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { LogOut, ShoppingBag, Boxes, BarChart3, Users, Store, Truck, Bike } from 'lucide-react';
+import { LogOut, ShoppingBag, Boxes, BarChart3, Users, Store, Truck, Bike, ClipboardList } from 'lucide-react';
 import OrdersPanel from '@/components/admin/OrdersPanel';
 import ProductsPanel from '@/components/admin/ProductsPanel';
 import MetricsPanel from '@/components/admin/MetricsPanel';
@@ -11,10 +11,11 @@ import CrmPanel from '@/components/admin/CrmPanel';
 import WholesaleClientsPanel from '@/components/admin/WholesaleClientsPanel';
 import RoutesPanel from '@/components/admin/RoutesPanel';
 import RepartoPanel from '@/components/admin/RepartoPanel';
+import WholesaleOrdersPanel from '@/components/admin/WholesaleOrdersPanel';
 import { useOnboarding } from '@/components/Onboarding';
 import type { StaffRole } from '@/lib/adminAuth';
 
-type Tab = 'pedidos' | 'productos' | 'reparto' | 'metricas' | 'crm' | 'mayoristas' | 'rutas';
+type Tab = 'pedidos' | 'productos' | 'reparto' | 'pedidosMayoristas' | 'metricas' | 'crm' | 'mayoristas' | 'rutas';
 
 interface TabDef {
   id: Tab;
@@ -30,6 +31,7 @@ const TABS: TabDef[] = [
   { id: 'pedidos', label: 'Pedidos', Icon: ShoppingBag },
   { id: 'productos', label: 'Productos', Icon: Boxes },
   { id: 'reparto', label: 'Reparto', Icon: Bike, staffOnly: true },
+  { id: 'pedidosMayoristas', label: 'Pedidos mayoristas', Icon: ClipboardList },
   { id: 'metricas', label: 'Métricas', Icon: BarChart3, adminOnly: true },
   { id: 'crm', label: 'Clientes', Icon: Users, adminOnly: true },
   { id: 'mayoristas', label: 'Mayoristas', Icon: Store, adminOnly: true },
@@ -165,6 +167,7 @@ export default function AdminDashboard() {
         {tab === 'pedidos' && <OrdersPanel role={role} />}
         {tab === 'productos' && <ProductsPanel />}
         {tab === 'reparto' && role !== 'admin' && <RepartoPanel />}
+        {tab === 'pedidosMayoristas' && <WholesaleOrdersPanel isAdmin={role === 'admin'} />}
         {tab === 'metricas' && role === 'admin' && <MetricsPanel />}
         {tab === 'crm' && role === 'admin' && <CrmPanel />}
         {tab === 'mayoristas' && role === 'admin' && <WholesaleClientsPanel />}

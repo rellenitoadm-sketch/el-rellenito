@@ -15,16 +15,21 @@ export interface WholesaleClient {
   updated_at: string;
 }
 
-/** Listado de la cartera de clientes al mayor — SOLO admin. */
+/**
+ * Listado de la cartera de clientes al mayor. Admin: todo. Equipo: solo lectura y
+ * sin `notes` (ahí van precios acordados); lo necesita para registrar pedidos.
+ */
 export async function GET(request: NextRequest) {
-  if (!requireRole(request, 'admin')) {
+  const role = requireRole(request, 'admin', 'staff');
+  if (!role) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (!supabaseAdmin) return NextResponse.json([]);
 
+  const columns = role === 'admin' ? '*' : 'id, name, phone, address, route, area, active';
   const { data, error } = await supabaseAdmin
     .from('wholesale_clients')
-    .select('*')
+    .select(columns)
     .order('route', { ascending: true })
     .order('name', { ascending: true });
 

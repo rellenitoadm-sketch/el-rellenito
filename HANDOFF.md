@@ -1,7 +1,31 @@
 # HANDOFF — El Rellenito (→ nueva sesión)
 
-> **Actualizado 2026-07-21.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
+> **Actualizado 2026-09-17.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
 > **Secretos reales (API keys, contraseñas) NO van aquí** (este repo se sube a GitHub) → están en la memoria local del agente y en el docker-compose del VPS.
+
+---
+
+## ⭐⭐⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-09-17 — Pedidos mayoristas por teléfono (pestaña "Pedidos mayoristas")
+
+**Pedido del cliente:** los domiciliarios reciben pedidos de mayoristas por llamada. Necesitan registrarlos en el panel de equipo (mayorista + productos a precio al mayor + unidades, sin pagos), que cualquiera escoja qué pedidos lleva y se vea quién lleva cada uno, ver los del día para entregar, y a las 8pm hacer el cierre: pagó todo / abonó y queda saldo / no pagó. Los saldos pasan a días siguientes.
+
+**Decisiones:** el domiciliario escoge los pedidos (no se agrupan por ruta del cliente); la moneda se elige en cada pago (COP/Bs/USD); el "Precio: X" de las notas del mayorista NO afecta el pedido; solo el admin crea mayoristas (el equipo los lee sin `notes`).
+
+**Datos — migración `supabase/migrations/005_wholesale_orders.sql`** (se corre en el SQL Editor; el MCP de Supabase no tiene permiso sobre este proyecto):
+- `wholesale_orders`: copia del mayorista (sobrevive si lo borran: FK `on delete set null`), `items` jsonb con precio de catálogo, `total_usd` + `total_cop`, `status` registrado/entregado/cancelado ("en ruta" = tiene `driver_name`), `paid_share` 0..1 denormalizado.
+- `wholesale_payments`: una fila por marca del cierre, con `share` = fracción del pedido cubierta. **COP se mide contra `total_cop` y USD/Bs contra `total_usd`** (son listas de precio distintas): pagar exacto en pesos salda sin residuos. Tolerancia 100 COP.
+- No se reutilizó `orders`: su `status` es verificación de pago web y el alta dispara push/webhook/CRM.
+
+**Código:** `lib/wholesaleOrders.ts` (puro: `caracasDate`, precios, fracciones), `lib/wholesaleOrders.server.ts` (recalcula precios desde catálogo, ignora los del navegador), `lib/wholesaleRoutes.ts` (ROUTES sacado del panel de mayoristas), rutas `api/admin/wholesale-orders/**` (equipo o admin), `components/admin/WholesaleOrdersPanel.tsx` + `WholesaleOrderForm.tsx` + `WholesaleCollections.tsx`.
+
+**Gotchas:**
+- Fechas con `caracasDate()` (Intl, America/Caracas). `toISOString()` da fecha UTC y a las 8pm de Caracas ya es mañana — justo la hora del cierre.
+- Asignar es un UPDATE condicional (`status='registrado'` y `driver_name is null`, o `= from_driver_name`): dos domiciliarios no pueden quedarse el mismo pedido.
+- Tras insertar un pago se re-suman las fracciones; si pasan de 1 (dos cobros a la vez) se borra el nuevo y responde 409.
+- Tasa Bs del cobro: editable, validada ±20% de la guardada (a las 8pm el BCV ya puede tener la de mañana).
+- Equipo solo deshace marcas del mismo día; admin, cualquiera.
+
+**Fase 2 (no hecho):** resumen de carga por producto, tour guiado de la pestaña, cierre de día bloqueado, enlazar con el GPS.
 
 ---
 

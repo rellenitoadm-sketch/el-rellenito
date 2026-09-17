@@ -80,7 +80,7 @@ const STEPS: Record<TourId, Step[]> = {
   ],
   adminStaff: [
     { target: 'admin-title', title: 'Panel del equipo', body: 'Bienvenido. Aquí atiendes los pedidos y mantienes los productos al día.' },
-    { target: 'admin-tabs', title: 'Tus secciones', body: 'Como equipo ves Pedidos, Productos y Reparto. (Métricas, Clientes y demás son del administrador.)' },
+    { target: 'admin-tabs', title: 'Tus secciones', body: 'Como equipo ves Pedidos, Productos, Reparto y Pedidos mayoristas. (Métricas, Clientes y demás son del administrador.)' },
     ...ORDERS_FILTER_STEPS,
     { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido verificas el pago, lo marcas en camino o entregado y contactas al cliente desde su ficha.' },
     { target: 'admin-logout', title: 'Cerrar sesión', body: 'Sal del panel de forma segura cuando termines tu turno.' },
