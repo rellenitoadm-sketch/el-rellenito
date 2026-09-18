@@ -1,13 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ChevronLeft, ChevronRight, RefreshCw, UserRound, X, Check, Pencil, Ban, Undo2,
   PackagePlus, ListChecks, Wallet, Truck, MapPin, Square, SquareCheck,
+  Navigation, Play, CalendarClock, AlertTriangle,
 } from 'lucide-react';
-import { loadSavedDriver, saveDriver, type DriverChoice } from '@/components/RouteTracking';
+import { loadSavedDriver, saveDriver, useRouteTracking, type DriverChoice } from '@/components/RouteTracking';
+import { formatDistance } from '@/lib/routes';
 import { routeLabel } from '@/lib/wholesaleRoutes';
 import {
+  MAX_AHEAD_DAYS,
   addDays,
   caracasDate,
   formatCop,
@@ -29,7 +33,9 @@ interface DayData {
   today: string;
   rates: StoredRates | null;
   orders: WholesaleOrder[];
-  debts: WholesaleOrder[];
+  /** Pedidos de días anteriores que siguen abiertos (sin entregar o sin cobrar). */
+  carryover: WholesaleOrder[];
+  upcoming: { date: string; count: number }[];
 }
 
 const POLL_MS = 30000;
@@ -53,6 +59,8 @@ async function fetchDay(date: string): Promise<DayResult> {
  * domiciliarios, entregar y hacer el cierre de cobros del día.
  */
 export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) {
+  const router = useRouter();
+  const track = useRouteTracking();
   const [view, setView] = useState<View>('dia');
   const [date, setDate] = useState(() => caracasDate());
   const [data, setData] = useState<DayData | null>(null);
@@ -63,6 +71,8 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<WholesaleOrder | null>(null);
   const [busy, setBusy] = useState(false);
+  const [routeBusy, setRouteBusy] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const [notice, setNotice] = useState<{ tone: 'error' | 'ok'; text: string } | null>(null);
 
   // El panel solo se monta en el navegador (tras validar la sesión), así que puede leer localStorage al iniciar.
@@ -114,6 +124,23 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
 
   const today = data?.today ?? caracasDate();
   const orders = useMemo(() => data?.orders ?? [], [data]);
+  const carryover = useMemo(() => data?.carryover ?? [], [data]);
+  /** Pedidos de días pasados que nadie marcó entregado: se quedarían invisibles. */
+  const stale = useMemo(() => carryover.filter(o => o.status === 'registrado'), [carryover]);
+
+  // El aviso flotante de rastreo sobra aquí: esta pantalla ya muestra la ruta.
+  const { setScreenOpen } = track;
+  useEffect(() => {
+    if (view !== 'dia') return;
+    setScreenOpen(true);
+    return () => setScreenOpen(false);
+  }, [view, setScreenOpen]);
+
+  useEffect(() => {
+    if (!track.tracking) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [track.tracking]);
 
   const replaceOrder = (o: WholesaleOrder) => {
     setData(curr => curr && {
@@ -121,7 +148,7 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
       orders: o.delivery_date === curr.date
         ? (curr.orders.some(x => x.id === o.id) ? curr.orders.map(x => (x.id === o.id ? o : x)) : [...curr.orders, o])
         : curr.orders.filter(x => x.id !== o.id),
-      debts: curr.debts.map(x => (x.id === o.id ? o : x)),
+      carryover: curr.carryover.map(x => (x.id === o.id ? o : x)),
     });
   };
 
@@ -131,6 +158,11 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
     mios: me ? orders.filter(o => o.status !== 'cancelado' && sameDriver(me, o)).length : 0,
     entregados: orders.filter(o => o.status === 'entregado').length,
   }), [orders, me]);
+
+  const mineOpen = useMemo(
+    () => (me ? orders.filter(o => o.status === 'registrado' && sameDriver(me, o)).length : 0),
+    [orders, me],
+  );
 
   const visible = useMemo(() => {
     const list = orders.filter(o => {
@@ -150,7 +182,7 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
       return next;
     });
 
-  const act = async (o: WholesaleOrder, action: string, confirmText?: string) => {
+  const act = async (o: WholesaleOrder, action: string, confirmText?: string, extra?: Record<string, unknown>) => {
     if (confirmText && !confirm(confirmText)) return;
     setBusy(true);
     setNotice(null);
@@ -158,7 +190,12 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
       const res = await fetch(`/api/admin/wholesale-orders/${o.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        // Entregar un pedido que nadie tomó deja constancia de quién lo llevó.
+        body: JSON.stringify({
+          action,
+          ...extra,
+          ...(action === 'deliver' && me ? { driver_id: me.id, driver_name: me.name } : {}),
+        }),
       });
       const body = await res.json().catch(() => ({})) as WholesaleOrder & { error?: string };
       if (!res.ok) { setNotice({ tone: 'error', text: body.error ?? 'No se pudo actualizar.' }); load(date, true); return; }
@@ -225,11 +262,31 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
     }
   };
 
+  // Rastreo GPS del reparto, desde la misma lista de pedidos.
+  const startRoute = async () => {
+    if (!me) { setIdentityOpen(true); return; }
+    setRouteBusy(true);
+    setNotice(null);
+    const ok = await track.start(me, null);
+    setRouteBusy(false);
+    if (!ok) setNotice({ tone: 'error', text: 'No se pudo iniciar la ruta. Revisa el permiso de ubicación.' });
+  };
+
+  const finishRoute = async () => {
+    if (!confirm('¿Finalizar la ruta? Se cierra el recorrido y deja de rastrear.')) return;
+    setRouteBusy(true);
+    await track.finish(false);
+    setRouteBusy(false);
+  };
+
   const chooseIdentity = (d: DriverChoice) => {
     saveDriver(d);
     setMe(d);
     setIdentityOpen(false);
   };
+
+  const routeSeconds = track.startedAt ? Math.max(0, Math.floor((now - track.startedAt) / 1000)) : 0;
+  const routeClock = `${String(Math.floor(routeSeconds / 60)).padStart(2, '0')}:${String(routeSeconds % 60).padStart(2, '0')}`;
 
   const selectable = (o: WholesaleOrder) => o.status === 'registrado' && !(me && sameDriver(me, o));
   const selectedCount = orders.filter(o => selected.has(o.id) && selectable(o)).length;
@@ -254,28 +311,57 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
         </button>
       </div>
 
-      {view !== 'nuevo' && (
-        <div className="card p-1.5 mb-3 flex items-center justify-between">
-          <button onClick={() => setDate(d => addDays(d, -1))} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-2)' }} aria-label="Día anterior">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div className="text-center">
-            <p className="text-[14px] font-bold capitalize" style={{ color: 'var(--text-1)' }}>{formatYmd(date)}</p>
-            {date === today
-              ? <p className="text-[11px] font-semibold" style={{ color: 'var(--brand-deep)' }}>Hoy</p>
-              : <button onClick={() => setDate(today)} className="text-[11px] font-semibold" style={{ color: 'var(--brand-deep)' }}>Volver a hoy</button>}
+      {view === 'dia' && (
+        <>
+          <div className="card p-1.5 mb-2 flex items-center justify-between">
+            <button onClick={() => setDate(d => addDays(d, -1))} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-2)' }} aria-label="Día anterior">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="text-center">
+              {/* Tocar la fecha abre el calendario del teléfono: cualquier día, no solo hoy y mañana. */}
+              <div className="relative inline-block">
+                <p className="text-[14px] font-bold capitalize" style={{ color: 'var(--text-1)' }}>{formatYmd(date)}</p>
+                <input
+                  type="date" value={date} aria-label="Elegir día"
+                  min={addDays(today, -365)} max={addDays(today, MAX_AHEAD_DAYS)}
+                  onChange={e => { if (e.target.value) setDate(e.target.value); }}
+                  onClick={e => { try { e.currentTarget.showPicker?.(); } catch { /* el navegador decide */ } }}
+                  className="absolute inset-0 w-full h-full opacity-0"
+                />
+              </div>
+              {date === today
+                ? <p className="text-[11px] font-semibold" style={{ color: 'var(--brand-deep)' }}>Hoy</p>
+                : <button onClick={() => setDate(today)} className="text-[11px] font-semibold" style={{ color: 'var(--brand-deep)' }}>Volver a hoy</button>}
+            </div>
+            <button onClick={() => setDate(d => addDays(d, 1))} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-2)' }} aria-label="Día siguiente">
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
-          <button onClick={() => setDate(d => addDays(d, 1))} className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ color: 'var(--text-2)' }} aria-label="Día siguiente">
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
+
+          {(data?.upcoming.length ?? 0) > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none mb-3 -mx-1 px-1">
+              <span className="text-[11.5px] font-semibold inline-flex items-center gap-1 whitespace-nowrap" style={{ color: 'var(--text-3)' }}>
+                <CalendarClock className="w-3.5 h-3.5" /> Próximos:
+              </span>
+              {data?.upcoming.map(u => (
+                <button key={u.date} onClick={() => setDate(u.date)}
+                  className="rounded-full px-2.5 py-1.5 text-[12px] font-semibold whitespace-nowrap border capitalize"
+                  style={{ background: 'var(--surface)', color: 'var(--text-2)', borderColor: 'var(--border)' }}>
+                  {formatYmd(u.date)} · {u.count}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <div className="grid grid-cols-3 gap-1.5 mb-4" role="tablist">
         {tabs.map(t => {
           const active = view === t.id;
           return (
-            <button key={t.id} role="tab" aria-selected={active} onClick={() => { setView(t.id); setNotice(null); }}
+            <button key={t.id} role="tab" aria-selected={active}
+              // Los cobros son siempre el cierre de hoy, no el del día que se esté mirando.
+              onClick={() => { setView(t.id); setNotice(null); if (t.id === 'cobros') setDate(today); }}
               className="rounded-2xl py-2.5 text-[13px] font-bold inline-flex items-center justify-center gap-1.5 border"
               style={active
                 ? { background: 'var(--brand)', color: '#fff', borderColor: 'transparent' }
@@ -317,10 +403,9 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
 
       {view === 'cobros' && data && (
         <WholesaleCollections
-          date={date}
           today={today}
           orders={data.orders}
-          debts={data.debts}
+          carryover={data.carryover}
           rates={data.rates}
           me={me}
           onOrderChange={replaceOrder}
@@ -333,6 +418,88 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
           <div className="flex justify-center py-16"><RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--brand)' }} /></div>
         ) : (
           <>
+            {/* Rastreo GPS del reparto, sin salir de la lista */}
+            <div className="mb-3">
+              {track.tracking ? (
+                <div className="card p-3.5" style={{ background: 'var(--success-soft)', borderColor: '#86EFAC' }}>
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: '#16a34a' }} />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ background: '#16a34a' }} />
+                    </span>
+                    <p className="text-[13.5px] font-bold" style={{ color: '#15803D' }}>Ruta en curso</p>
+                    <p className="text-[12px] t-num ml-auto" style={{ color: '#15803D' }}>{routeClock} · {formatDistance(track.distanceM)}</p>
+                  </div>
+                  <p className="text-[12px] mt-1" style={{ color: '#15803D' }}>
+                    {mineOpen > 0
+                      ? `Te ${mineOpen === 1 ? 'queda 1 pedido' : `quedan ${mineOpen} pedidos`} por entregar.`
+                      : 'Entregaste todos tus pedidos: ya puedes finalizar.'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 mt-2.5">
+                    <button onClick={() => router.push('/ruta')} className="rounded-xl text-[13px] font-bold inline-flex items-center justify-center gap-1.5"
+                      style={{ background: 'var(--surface)', color: '#15803D', border: '1px solid #86EFAC', minHeight: 44 }}>
+                      <MapPin className="w-4 h-4" /> Ver mapa
+                    </button>
+                    <button onClick={finishRoute} disabled={routeBusy} className="rounded-xl text-[13px] font-bold text-white inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      style={{ background: '#16a34a', minHeight: 44 }}>
+                      <Check className="w-4 h-4" /> Finalizar ruta
+                    </button>
+                  </div>
+                </div>
+              ) : track.hasRoute ? (
+                <button onClick={() => track.resume()} className="w-full rounded-2xl px-4 py-3.5 text-[14px] font-bold inline-flex items-center justify-center gap-2"
+                  style={{ background: 'var(--info-soft)', color: '#1D4ED8', border: '1px solid #93C5FD' }}>
+                  <Navigation className="w-4.5 h-4.5" /> Reanudar tu ruta
+                </button>
+              ) : (
+                <button onClick={startRoute} disabled={routeBusy} className="w-full rounded-2xl px-4 py-3.5 text-[14.5px] font-bold text-white inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                  style={{ background: 'var(--brand)' }}>
+                  <Play className="w-5 h-5" />
+                  {routeBusy ? 'Iniciando…' : mineOpen > 0 ? `Iniciar ruta · ${mineOpen} ${mineOpen === 1 ? 'pedido' : 'pedidos'}` : 'Iniciar ruta'}
+                </button>
+              )}
+              {track.error && <p className="text-[12px] mt-1.5" style={{ color: 'var(--danger)' }}>{track.error}</p>}
+            </div>
+
+            {/* Pedidos viejos que nadie cerró: si no, se pierden de vista */}
+            {date === today && stale.length > 0 && (
+              <div className="card p-3.5 mb-3" style={{ background: 'var(--warning-soft)', borderColor: '#FCD34D' }}>
+                <p className="text-[12.5px] font-bold inline-flex items-center gap-1.5 mb-2" style={{ color: '#B45309' }}>
+                  <AlertTriangle className="w-4 h-4" /> Sin entregar de días anteriores · {stale.length}
+                </p>
+                <div className="space-y-2">
+                  {stale.map(o => (
+                    <div key={o.id} className="rounded-xl p-2.5" style={{ background: 'var(--surface)' }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[13.5px] font-semibold truncate" style={{ color: 'var(--text-1)' }}>{o.client_name}</p>
+                          <p className="text-[11.5px] capitalize" style={{ color: 'var(--text-3)' }}>
+                            {formatYmd(o.delivery_date)}{o.driver_name ? ` · lo lleva ${o.driver_name}` : ' · sin asignar'}
+                          </p>
+                        </div>
+                        <p className="text-[13px] font-bold t-num flex-shrink-0" style={{ color: 'var(--text-1)' }}>{formatCop(o.total_cop)}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        <button disabled={busy} onClick={() => act(o, 'deliver')}
+                          className="rounded-xl px-3 text-[12.5px] font-bold text-white inline-flex items-center gap-1 disabled:opacity-50"
+                          style={{ background: '#16a34a', minHeight: 40 }}>
+                          <Check className="w-4 h-4" /> Entregado
+                        </button>
+                        <IconButton disabled={busy} label="Pasar a hoy"
+                          onClick={() => act(o, 'edit', `¿Pasar el pedido de ${o.client_name} a hoy?`, { delivery_date: today })}>
+                          <CalendarClock className="w-4 h-4" />
+                        </IconButton>
+                        <IconButton disabled={busy} label="Cancelar" danger
+                          onClick={() => act(o, 'cancel', `¿Cancelar el pedido de ${o.client_name}?`)}>
+                          <Ban className="w-4 h-4" />
+                        </IconButton>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-1.5 overflow-x-auto scrollbar-none mb-3 -mx-1 px-1">
               {([
                 ['todos', 'Todos'], ['sin', 'Sin asignar'], ['mios', 'Míos'], ['entregados', 'Entregados'],

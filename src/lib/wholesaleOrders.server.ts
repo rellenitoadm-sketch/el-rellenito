@@ -3,6 +3,7 @@ import type { Database } from './database.types';
 import {
   lineKey,
   orderTotals,
+  paidShareOf,
   wholesaleUnitPrices,
   type StoredRates,
   type WholesaleOrder,
@@ -163,7 +164,9 @@ export function toOrder(r: OrderRow, payments: WholesalePayment[] = []): Wholesa
     driver_name: r.driver_name,
     assigned_at: r.assigned_at,
     delivered_at: r.delivered_at,
-    paid_share: Number(r.paid_share),
+    // Los cobros mandan: si la columna quedó desfasada por dos escrituras a la
+    // vez, lo que se muestra y lo que se cobra sale igual de las filas de pago.
+    paid_share: paidShareOf(payments),
     notes: r.notes,
     created_by: r.created_by,
     created_at: r.created_at,

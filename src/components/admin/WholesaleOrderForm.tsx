@@ -7,12 +7,14 @@ import { useProductModal } from '@/components/ProductModal';
 import type { DriverChoice } from '@/components/RouteTracking';
 import { routeLabel } from '@/lib/wholesaleRoutes';
 import {
+  MAX_AHEAD_DAYS,
   addDays,
   formatCop,
   formatUsd,
   formatVes,
   formatYmd,
   lineKey,
+  normalizeSearch,
   orderTotals,
   wholesaleUnitPrices,
   type StoredRates,
@@ -48,6 +50,34 @@ interface Props {
 }
 
 const MAX_RESULTS = 12;
+const DRAFT_KEY = 'rl_wo_draft';
+
+interface Draft {
+  client: ClientLite | null;
+  date: string;
+  lines: Line[];
+  notes: string;
+}
+
+/**
+ * El pedido a medio escribir sobrevive a cambiar de pestaña o a que el teléfono
+ * cierre la app durante la llamada: se guarda en el propio teléfono.
+ */
+function loadDraft(today: string): Draft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as Draft;
+    if (!d || !Array.isArray(d.lines)) return null;
+    return { ...d, date: d.date && d.date >= today ? d.date : today };
+  } catch { return null; }
+}
+function writeDraft(d: Draft | null) {
+  try {
+    if (d) localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+    else localStorage.removeItem(DRAFT_KEY);
+  } catch { /* ignore */ }
+}
 
 /** Al editar, el panel monta el formulario con `key` del pedido: el estado arranca con sus datos. */
 export default function WholesaleOrderForm({ me, today, rates, editing, onSaved, onCancelEdit }: Props) {
@@ -56,18 +86,23 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
   const [products, setProducts] = useState<Product[]>([]);
   const [clientQuery, setClientQuery] = useState('');
   const [productQuery, setProductQuery] = useState('');
-  const [client, setClient] = useState<ClientLite | null>(() => editing && {
-    id: editing.client_id ?? '',
-    name: editing.client_name,
-    phone: editing.client_phone,
-    address: editing.client_address,
-    route: editing.client_route,
-    active: true,
-  });
-  const [date, setDate] = useState(editing?.delivery_date ?? today);
-  const [lines, setLines] = useState<Line[]>(() =>
-    (editing?.items ?? []).map(i => ({ ...i, key: lineKey(i.product_id, i.flavor_id) })));
-  const [notes, setNotes] = useState(editing?.notes ?? '');
+  // Al editar mandan los datos del pedido; si no, lo que quedó a medio escribir.
+  const [draft] = useState<Draft | null>(() => (editing ? null : loadDraft(today)));
+  const [client, setClient] = useState<ClientLite | null>(() => (editing
+    ? {
+      id: editing.client_id ?? '',
+      name: editing.client_name,
+      phone: editing.client_phone,
+      address: editing.client_address,
+      route: editing.client_route,
+      active: true,
+    }
+    : draft?.client ?? null));
+  const [date, setDate] = useState(editing?.delivery_date ?? draft?.date ?? today);
+  const [lines, setLines] = useState<Line[]>(() => (editing
+    ? editing.items.map(i => ({ ...i, key: lineKey(i.product_id, i.flavor_id) }))
+    : draft?.lines ?? []));
+  const [notes, setNotes] = useState(editing?.notes ?? draft?.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -82,27 +117,34 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
       .catch(() => {});
   }, []);
 
+  // Guarda lo escrito en este teléfono mientras el pedido no se haya guardado.
+  useEffect(() => {
+    if (editing) return;
+    const empty = !client && lines.length === 0 && !notes.trim();
+    writeDraft(empty ? null : { client, date, lines, notes });
+  }, [editing, client, date, lines, notes]);
+
   const copRate = rates?.cop_per_usd ?? 0;
 
   const clientResults = useMemo(() => {
-    const q = clientQuery.trim().toLowerCase();
+    const q = normalizeSearch(clientQuery.trim());
     if (!q) return [];
     const digits = q.replace(/\D/g, '');
     return clients
       .filter(c => c.active && (
-        c.name.toLowerCase().includes(q) ||
+        normalizeSearch(c.name).includes(q) ||
         (digits.length >= 3 && (c.phone ?? '').replace(/\D/g, '').includes(digits)) ||
-        (c.address ?? '').toLowerCase().includes(q)
+        normalizeSearch(c.address ?? '').includes(q)
       ))
       .slice(0, 8);
   }, [clients, clientQuery]);
 
   const productResults = useMemo(() => {
-    const q = productQuery.trim().toLowerCase();
+    const q = normalizeSearch(productQuery.trim());
     if (!q) return [];
     return products
       .filter(p => p.available && p.type !== 'detal' && (
-        p.name.toLowerCase().includes(q) || (p.units ?? '').toLowerCase().includes(q)
+        normalizeSearch(p.name).includes(q) || normalizeSearch(p.units ?? '').includes(q)
       ))
       .slice(0, MAX_RESULTS);
   }, [products, productQuery]);
@@ -160,9 +202,10 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
     setLines([]);
     setNotes('');
     setDate(today);
+    writeDraft(null);
   };
 
-  const save = async () => {
+  const save = async (allowDuplicate = false) => {
     setError('');
     if (!client) { setError('Elige el mayorista.'); return; }
     if (lines.length === 0) { setError('Agrega al menos un producto.'); return; }
@@ -179,9 +222,22 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
         : await fetch('/api/admin/wholesale-orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ client_id: client.id, delivery_date: date, items, notes, created_by: me?.name ?? null }),
+          body: JSON.stringify({
+            client_id: client.id,
+            delivery_date: date,
+            items,
+            notes,
+            created_by: me?.name ?? null,
+            ...(allowDuplicate ? { allow_duplicate: true } : {}),
+          }),
         });
-      const data = await res.json().catch(() => ({})) as WholesaleOrder & { error?: string };
+      const data = await res.json().catch(() => ({})) as WholesaleOrder & { error?: string; duplicate?: boolean };
+      // Ya existe un pedido de ese mayorista ese día: se guarda solo si lo confirman.
+      if (res.status === 409 && data.duplicate && !allowDuplicate) {
+        setSaving(false);
+        if (confirm(`${data.error}\n\n¿Guardar este pedido igual?`)) await save(true);
+        return;
+      }
       if (!res.ok) { setError(data.error ?? 'No se pudo guardar. Intenta de nuevo.'); return; }
       if (!editing) reset();
       onSaved(data);
@@ -258,26 +314,28 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
         )}
       </section>
 
-      {/* Fecha */}
+      {/* Fecha: hoy o cualquier día planeado */}
       <section>
-        <h3 className={label} style={{ color: 'var(--brand-deep)' }}>Entrega</h3>
-        <div className="grid grid-cols-2 gap-2">
-          {[{ label: 'Hoy', value: today }, { label: 'Mañana', value: addDays(today, 1) }].map(opt => {
-            const active = date === opt.value;
-            return (
-              <button key={opt.label} disabled={dateLocked} onClick={() => setDate(opt.value)}
-                className="py-3 rounded-2xl text-[13px] font-bold border disabled:opacity-50"
-                style={active
-                  ? { background: 'var(--brand)', color: '#fff', borderColor: 'transparent' }
-                  : { background: 'var(--surface)', color: 'var(--text-2)', borderColor: 'var(--border)' }}>
-                {opt.label} <span className="font-medium opacity-80">· {formatYmd(opt.value)}</span>
-              </button>
-            );
-          })}
+        <h3 className={label} style={{ color: 'var(--brand-deep)' }}>Día de entrega</h3>
+        <div className="flex gap-2">
+          <label htmlFor="wo-date" className="sr-only">Día de entrega</label>
+          <input
+            id="wo-date" type="date" value={date} disabled={dateLocked}
+            min={today} max={addDays(today, MAX_AHEAD_DAYS)}
+            onChange={e => { if (e.target.value) setDate(e.target.value); }}
+            className="field flex-1 t-num" style={{ minHeight: 48 }}
+          />
+          {date !== today && !dateLocked && (
+            <button onClick={() => setDate(today)} className="btn btn-ghost whitespace-nowrap"
+              style={{ minHeight: 48, border: '1px solid var(--border)' }}>
+              Hoy
+            </button>
+          )}
         </div>
-        {date !== today && date !== addDays(today, 1) && (
-          <p className="text-[12px] mt-1.5" style={{ color: 'var(--text-3)' }}>Fecha del pedido: {formatYmd(date)}</p>
-        )}
+        <p className="text-[12px] mt-1.5 capitalize" style={{ color: 'var(--text-3)' }}>
+          {formatYmd(date)}
+          {date === today ? ' · hoy' : date === addDays(today, 1) ? ' · mañana' : ''}
+        </p>
         {dateLocked && (
           <p className="text-[12px] mt-1.5" style={{ color: 'var(--text-3)' }}>Lo lleva {editing?.driver_name}: suéltalo para cambiar la fecha.</p>
         )}
@@ -379,7 +437,7 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
 
       {error && <p className="text-[13px] font-semibold" style={{ color: 'var(--danger)' }}>{error}</p>}
 
-      <button onClick={save} disabled={saving} className="btn btn-primary w-full" style={{ minHeight: 52, fontSize: 15 }}>
+      <button onClick={() => save()} disabled={saving} className="btn btn-primary w-full" style={{ minHeight: 52, fontSize: 15 }}>
         <Save className="w-5 h-5" /> {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Guardar pedido'}
       </button>
       {!editing && lines.length > 0 && (

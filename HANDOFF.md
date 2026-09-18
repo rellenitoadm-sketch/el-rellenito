@@ -1,6 +1,6 @@
 # HANDOFF — El Rellenito (→ nueva sesión)
 
-> **Actualizado 2026-09-17.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
+> **Actualizado 2026-09-18.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
 > **Secretos reales (API keys, contraseñas) NO van aquí** (este repo se sube a GitHub) → están en la memoria local del agente y en el docker-compose del VPS.
 
 ---
@@ -25,7 +25,19 @@
 - Tasa Bs del cobro: editable, validada ±20% de la guardada (a las 8pm el BCV ya puede tener la de mañana).
 - Equipo solo deshace marcas del mismo día; admin, cualquiera.
 
-**Fase 2 (no hecho):** resumen de carga por producto, tour guiado de la pestaña, cierre de día bloqueado, enlazar con el GPS.
+**Ajustes 2026-09-18 (tras probarlo en la calle):**
+- **Fecha libre:** el pedido se registra para hoy o cualquier día planeado (calendario nativo, hasta `MAX_AHEAD_DAYS`=120). El servidor rechaza fechas pasadas. En "Del día" se toca la fecha para saltar a otro día y hay atajos de los próximos días (`upcoming`).
+- **Iniciar ruta desde la lista:** la pestaña usa `useRouteTracking()` (el proveedor global del layout). Ruta libre, sin `order_id` (ese campo es de la tabla `orders` del web). Mientras la lista está abierta se oculta la píldora flotante con `setScreenOpen(true)`.
+- **`debts` pasó a llamarse `carryover`:** arrastra los pedidos viejos **sin entregar** (antes desaparecían de la vista) y los **saldados hoy** (si no, el cobro se caía de la caja del día y no se podía deshacer). Se limita a `CARRYOVER_DAYS`=90.
+- **Cobros = cierre de hoy siempre** (al entrar, la fecha vuelve a hoy).
+- **Borrador del pedido** guardado en el teléfono (`rl_wo_draft`): sobrevive a cambiar de pestaña o a que el sistema cierre la app durante la llamada.
+- Aviso al registrar dos pedidos del mismo mayorista el mismo día (409 `duplicate`, se confirma con `allow_duplicate`).
+- Entregar un pedido sin asignar lo pone a nombre de quien entrega.
+- `paid_share` que se muestra sale siempre de las filas de pago, no de la columna.
+- Búsqueda de mayoristas y productos sin acentos.
+- PIN del panel: se escribe con el teclado del portátil (dígitos, Backspace, Esc y pegar).
+
+**Fase 2 (no hecho):** resumen de carga por producto, tour guiado de la pestaña, cierre de día bloqueado, marcar en el mapa los mayoristas de la ruta.
 
 ---
 

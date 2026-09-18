@@ -75,6 +75,17 @@ export const COP_TOLERANCE = 100;
 /** Umbral usado en la consulta de saldos pendientes (paid_share < este valor). */
 export const SETTLED_SHARE = 0.9995;
 
+/** Cuánto se puede planificar hacia adelante al registrar un pedido. */
+export const MAX_AHEAD_DAYS = 120;
+
+/** Hasta cuántos días atrás se arrastran los pedidos sin cerrar. */
+export const CARRYOVER_DAYS = 90;
+
+/** Búsqueda tolerante: sin acentos ni mayúsculas ("maria" encuentra "MARÍA"). */
+export function normalizeSearch(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
 const CARACAS_DATE = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'America/Caracas', year: 'numeric', month: '2-digit', day: '2-digit',
 });
@@ -168,6 +179,12 @@ export function amountFor(share: number, currency: PaymentCurrency, order: Total
   if (currency === 'COP') return Math.round(share * order.total_cop);
   const usd = share * order.total_usd;
   return currency === 'USD' ? Math.round(usd * 100) / 100 : Math.round(usd * (rateVes || 0));
+}
+
+/** Parte pagada según los cobros guardados (la columna es solo un atajo de consulta). */
+export function paidShareOf(payments: Pick<WholesalePayment, 'share'>[]): number {
+  const sum = payments.reduce((s, p) => s + Number(p.share), 0);
+  return Math.min(1, Math.round(sum * 1e8) / 1e8);
 }
 
 export function remainingShare(paidShare: number): number {

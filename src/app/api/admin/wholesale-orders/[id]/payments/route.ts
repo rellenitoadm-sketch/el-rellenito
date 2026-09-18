@@ -106,7 +106,10 @@ export async function POST(
   if (sum > 1 + 1e-6) {
     await db.from('wholesale_payments').delete().eq('id', inserted.id);
     await recomputePaidShare(db, id);
-    return NextResponse.json({ error: 'Otro cobro se registró al mismo tiempo. Recarga la lista.' }, { status: 409 });
+    return NextResponse.json(
+      { error: 'No se guardó: se estaba registrando otro cobro de este pedido a la vez. Recarga e inténtalo de nuevo.' },
+      { status: 409 },
+    );
   }
 
   // Si cobraron, el pedido se entregó aunque nadie lo haya marcado.

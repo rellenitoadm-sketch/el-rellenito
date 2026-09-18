@@ -21,10 +21,10 @@ import {
 } from '@/lib/wholesaleOrders';
 
 interface Props {
-  date: string;
   today: string;
   orders: WholesaleOrder[];
-  debts: WholesaleOrder[];
+  /** Pedidos de días anteriores aún abiertos, y los que se cobraron hoy. */
+  carryover: WholesaleOrder[];
   rates: StoredRates | null;
   me: DriverChoice | null;
   onOrderChange: (order: WholesaleOrder) => void;
@@ -44,13 +44,13 @@ function parseAmount(raw: string, currency: PaymentCurrency): number {
   return Number(raw.replace(/\D/g, '')) || 0;
 }
 
-export default function WholesaleCollections({ date, today, orders, debts, rates, me, onOrderChange, onNeedIdentity }: Props) {
+export default function WholesaleCollections({ today, orders, carryover, rates, me, onOrderChange, onNeedIdentity }: Props) {
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
 
   const dayRows = orders.filter(o => o.status !== 'cancelado');
-  const rows = [...dayRows, ...debts];
+  const rows = [...dayRows, ...carryover];
 
   // Resumen del cierre: lo cobrado hoy separado por moneda (así se cuenta la caja).
   const collectedToday: Record<PaymentCurrency, number> = { COP: 0, VES: 0, USD: 0 };
@@ -100,7 +100,7 @@ export default function WholesaleCollections({ date, today, orders, debts, rates
     }
   };
 
-  const renderRow = (o: WholesaleOrder, isDebt: boolean) => {
+  const renderRow = (o: WholesaleOrder, isCarry: boolean) => {
     const settled = isSettled(o.paid_share, o.total_cop);
     const remaining = remainingShare(o.paid_share);
     const todayMarks = o.payments.filter(p => p.collected_on === today);
@@ -124,7 +124,7 @@ export default function WholesaleCollections({ date, today, orders, debts, rates
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-semibold" style={{ color: 'var(--text-1)' }}>{o.client_name}</p>
             <p className="text-[11.5px]" style={{ color: 'var(--text-3)' }}>
-              {isDebt ? `Entrega del ${formatYmd(o.delivery_date)}` : `${o.items.length} ${o.items.length === 1 ? 'producto' : 'productos'}`}
+              {isCarry ? `Pedido del ${formatYmd(o.delivery_date)}` : `${o.items.length} ${o.items.length === 1 ? 'producto' : 'productos'}`}
               {o.driver_name ? ` · Lo llevó ${o.driver_name}` : ''}
             </p>
           </div>
@@ -208,14 +208,9 @@ export default function WholesaleCollections({ date, today, orders, debts, rates
 
   return (
     <div className="pb-10">
-      {date !== today && (
-        <div className="card p-3 mb-3 flex items-start gap-2" style={{ background: 'var(--info-soft)' }}>
-          <Clock className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#1D4ED8' }} />
-          <p className="text-[12.5px]" style={{ color: '#1D4ED8' }}>
-            Viendo pedidos del {formatYmd(date)}. Los cobros que anotes quedan con fecha de hoy ({formatYmd(today)}).
-          </p>
-        </div>
-      )}
+      <p className="text-[12.5px] mb-3 inline-flex items-center gap-1.5 capitalize" style={{ color: 'var(--text-3)' }}>
+        <Clock className="w-3.5 h-3.5" /> Cierre de {formatYmd(today)}
+      </p>
 
       <div className="grid grid-cols-2 gap-2.5 mb-4">
         <div className="card p-3.5">
@@ -234,20 +229,20 @@ export default function WholesaleCollections({ date, today, orders, debts, rates
       </div>
 
       <h3 className="text-[12px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--brand-deep)' }}>
-        Pedidos del {formatYmd(date)}
+        Pedidos de hoy
       </h3>
       {dayRows.length === 0 ? (
-        <p className="card p-4 text-[12.5px] mb-5" style={{ color: 'var(--text-3)' }}>No hay pedidos mayoristas para esta fecha.</p>
+        <p className="card p-4 text-[12.5px] mb-5" style={{ color: 'var(--text-3)' }}>No hay pedidos mayoristas para hoy.</p>
       ) : (
         <div className="space-y-2 mb-5">{sortRows(dayRows).map(o => renderRow(o, false))}</div>
       )}
 
-      {debts.length > 0 && (
+      {carryover.length > 0 && (
         <>
           <h3 className="text-[12px] font-bold uppercase tracking-widest mb-2" style={{ color: '#B45309' }}>
-            Saldos de días anteriores · {debts.length}
+            De días anteriores · {carryover.length}
           </h3>
-          <div className="space-y-2">{sortRows(debts).map(o => renderRow(o, true))}</div>
+          <div className="space-y-2">{sortRows(carryover).map(o => renderRow(o, true))}</div>
         </>
       )}
 

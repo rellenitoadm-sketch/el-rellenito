@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireRole } from '@/lib/adminAuth';
-import { isYmd } from '@/lib/wholesaleOrders';
+import { MAX_AHEAD_DAYS, addDays, caracasDate, isYmd } from '@/lib/wholesaleOrders';
 import {
   OrderInputError,
   cleanText,
@@ -51,10 +51,20 @@ export async function PATCH(
   };
 
   switch (body.action) {
-    case 'deliver':
+    case 'deliver': {
       if (order.status === 'entregado') return NextResponse.json(order);
       if (order.status !== 'registrado') return conflict('Este pedido está cancelado.');
-      return apply({ status: 'entregado', delivered_at: new Date().toISOString() }, ['registrado']);
+      // Entregar un pedido que nadie había tomado deja constancia de quién lo llevó.
+      const driverName = cleanText(body.driver_name, 80);
+      const takes = !order.driver_name && driverName
+        ? {
+          driver_name: driverName,
+          driver_id: typeof body.driver_id === 'string' ? body.driver_id : null,
+          assigned_at: new Date().toISOString(),
+        }
+        : {};
+      return apply({ status: 'entregado', delivered_at: new Date().toISOString(), ...takes }, ['registrado']);
+    }
 
     case 'undeliver':
       if (order.status !== 'entregado') return conflict('Este pedido no está marcado como entregado.');
@@ -76,6 +86,13 @@ export async function PATCH(
       const patch: OrderUpdate = {};
       if (body.delivery_date !== undefined && body.delivery_date !== order.delivery_date) {
         if (!isYmd(body.delivery_date)) return NextResponse.json({ error: 'Fecha de entrega inválida.' }, { status: 400 });
+        const today = caracasDate();
+        if (body.delivery_date < today) {
+          return NextResponse.json({ error: 'Esa fecha ya pasó. Elige hoy o un día siguiente.' }, { status: 400 });
+        }
+        if (body.delivery_date > addDays(today, MAX_AHEAD_DAYS)) {
+          return NextResponse.json({ error: 'Esa fecha está demasiado lejos. Revísala.' }, { status: 400 });
+        }
         if (order.driver_name) return conflict(`Lo lleva ${order.driver_name}; suéltalo antes de cambiar la fecha.`);
         patch.delivery_date = body.delivery_date;
       }

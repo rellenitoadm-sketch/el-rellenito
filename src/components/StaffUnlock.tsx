@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Delete, Lock, Check, X } from 'lucide-react';
@@ -12,6 +12,8 @@ function hasHintCookie(): boolean {
   if (typeof document === 'undefined') return false;
   return document.cookie.split(';').some(c => c.trim().startsWith(`${HINT_COOKIE}=`));
 }
+/** La cookie no emite eventos: basta con leerla al montar. */
+const subscribeNever = () => () => { /* sin suscripción */ };
 
 /**
  * Hidden staff access — a full-screen "vault" pinpad.
@@ -25,12 +27,25 @@ export default function StaffUnlock() {
   const [pin, setPin] = useState('');
   const [status, setStatus] = useState<'idle' | 'checking' | 'error' | 'success'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  const [showShortcut, setShowShortcut] = useState(false);
+  // La cookie solo existe en el navegador: en el servidor se renderiza sin atajo.
+  const showShortcut = useSyncExternalStore(subscribeNever, hasHintCookie, () => false);
 
-  useEffect(() => { setShowShortcut(hasHintCookie()); }, []);
+  // El teclado físico escribe más rápido de lo que React re-renderiza, así que
+  // las teclas leen el PIN de un ref, no del estado.
+  const pinRef = useRef('');
+  const statusRef = useRef(status);
+
+  const writePin = useCallback((value: string) => {
+    pinRef.current = value;
+    setPin(value);
+  }, []);
+  const writeStatus = useCallback((value: typeof status) => {
+    statusRef.current = value;
+    setStatus(value);
+  }, []);
 
   // Clear the pad back to an empty, idle state.
-  const resetPad = useCallback(() => { setPin(''); setStatus('idle'); }, []);
+  const resetPad = useCallback(() => { writePin(''); writeStatus('idle'); }, [writePin, writeStatus]);
   // Open the vault on a fresh pad.
   const openVault = useCallback(() => { setOpen(true); resetPad(); }, [resetPad]);
 
@@ -59,7 +74,7 @@ export default function StaffUnlock() {
   }, [open]);
 
   const submit = useCallback(async (fullPin: string) => {
-    setStatus('checking');
+    writeStatus('checking');
     try {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
@@ -67,36 +82,58 @@ export default function StaffUnlock() {
         body: JSON.stringify({ pin: fullPin }),
       });
       if (res.ok) {
-        setStatus('success');
+        writeStatus('success');
         setTimeout(() => router.push('/admin/dashboard'), 650);
       } else {
         const data = await res.json().catch(() => ({} as { error?: string }));
-        setStatus('error');
+        writeStatus('error');
         setErrorMsg(res.status === 429 ? (data.error ?? 'Demasiados intentos') : 'Código incorrecto');
         setTimeout(resetPad, 950);
       }
     } catch {
-      setStatus('error');
+      writeStatus('error');
       setErrorMsg('Error de conexión');
       setTimeout(resetPad, 950);
     }
-  }, [router, resetPad]);
+  }, [router, resetPad, writeStatus]);
 
-  const press = (digit: string) => {
-    if (status === 'checking' || status === 'success') return;
-    setPin(prev => {
-      if (prev.length >= PIN_LENGTH) return prev;
-      const next = prev + digit;
-      if (next.length === PIN_LENGTH) submit(next);
-      return next;
-    });
-  };
+  const press = useCallback((digit: string) => {
+    if (statusRef.current === 'checking' || statusRef.current === 'success') return;
+    if (pinRef.current.length >= PIN_LENGTH) return;
+    const next = pinRef.current + digit;
+    writePin(next);
+    if (next.length === PIN_LENGTH) submit(next);
+  }, [submit, writePin]);
 
-  const backspace = () => {
-    if (status === 'checking' || status === 'success') return;
-    setStatus('idle');
-    setPin(prev => prev.slice(0, -1));
-  };
+  const backspace = useCallback(() => {
+    if (statusRef.current === 'checking' || statusRef.current === 'success') return;
+    writeStatus('idle');
+    writePin(pinRef.current.slice(0, -1));
+  }, [writePin, writeStatus]);
+
+  // Teclado físico (portátil): dígitos, borrar y Esc. En el teléfono no estorba.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      if (/^\d$/.test(e.key)) { e.preventDefault(); press(e.key); }
+      else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); backspace(); }
+      else if (e.key === 'Escape') setOpen(false);
+    };
+    // Pegar el código (gestor de contraseñas) también entra.
+    const onPaste = (e: ClipboardEvent) => {
+      const digits = (e.clipboardData?.getData('text') ?? '').replace(/\D/g, '');
+      if (!digits) return;
+      e.preventDefault();
+      for (const d of digits.slice(0, PIN_LENGTH)) press(d);
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('paste', onPaste);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('paste', onPaste);
+    };
+  }, [open, press, backspace]);
 
   return (
     <>
@@ -196,7 +233,10 @@ function KeypadButton({
 }) {
   return (
     <motion.button
+      type="button"
       whileTap={{ scale: 0.88 }}
+      // Sin foco: si no, en el portátil la barra espaciadora repetiría la última tecla.
+      onMouseDown={e => e.preventDefault()}
       onClick={onClick}
       aria-label={ariaLabel}
       className="w-[70px] h-[70px] rounded-full flex items-center justify-center text-[26px] font-light text-white"
