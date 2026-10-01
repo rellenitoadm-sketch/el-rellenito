@@ -1,0 +1,50 @@
+#  Mantiene al día la tasa del dólar (BCV) y la del peso (TRM) del sitio.
+#
+#  Reemplaza al cron de n8n que vivía en el VPS: llama a la misma dirección,
+#  /api/rates?refresh=1, que consulta las fuentes en vivo y guarda el resultado.
+#  Es idempotente: llamarla de más no hace daño, solo refresca.
+#
+#  Horarios en UTC (Caracas = UTC−4, Bogotá = UTC−5):
+#    · BCV publica L-V entre las 15:00 y las 21:00 de Caracas → 19:00–01:00 UTC
+#    · La TRM se certifica L-V entre las 17:00 y las 21:00 de Bogotá → 22:00–02:00 UTC
+#  Fuera de esa franja las tasas no se mueven, así que no se llama.
+#
+#  OJO: GitHub apaga solo los crons de un repositorio que pasa 60 días sin
+#  commits, y avisa por correo. Si eso pasa, se reactiva desde la pestaña Actions.
+name: Tasa del día
+
+on:
+  schedule:
+    - cron: '0,15,30,45 19-23 * * 1-5'   # tarde de L-V (Caracas y Bogotá)
+    - cron: '0,15,30,45 0-1 * * 2-6'     # esa misma tarde pasada la medianoche UTC
+    - cron: '0 12 * * *'                 # chequeo diario, 8:00 de Caracas
+  workflow_dispatch:                      # botón para correrlo a mano
+
+# Si una corrida se atrasa y se cruza con la siguiente, no se pisan.
+concurrency:
+  group: tasa
+  cancel-in-progress: false
+
+jobs:
+  refrescar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Pedirle al sitio que refresque las tasas
+        run: |
+          set -euo pipefail
+          # Con www y --location: el dominio sin www responde una redirección,
+          # y sin seguirla se guardaba la página de redirección en vez de la tasa.
+          curl --silent --show-error --fail --location \
+               --retry 3 --retry-delay 15 --retry-all-errors \
+               --max-time 60 \
+               'https://www.elrellenito.com/api/rates?refresh=1' > tasa.json
+          cat tasa.json
+
+      - name: Verificar que devolvió tasas usables
+        run: |
+          set -euo pipefail
+          # jq -e falla si la respuesta no es JSON o si alguna tasa viene en cero,
+          # así una respuesta rota no pasa como éxito.
+          jq -e '(.bs_per_usd // 0) > 0 and (.cop_per_usd // 0) > 0' tasa.json > /dev/null
+          jq -r '"Tasa BCV: \(.bs_per_usd) Bs/USD · TRM: \(.cop_per_usd) COP/USD"' tasa.json
