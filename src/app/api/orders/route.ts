@@ -4,6 +4,10 @@ import { checkRateLimit, recordFailure } from '@/lib/rateLimit';
 import { getClientIp } from '@/lib/getClientIp';
 import { sendPushToAll } from '@/lib/push';
 import { fireOrderEvent } from '@/lib/webhook';
+import { parseWebItems } from '@/lib/inventory';
+import { registerSaleSafely } from '@/lib/inventory.server';
+import { caracasDate, isYmd } from '@/lib/wholesaleOrders';
+import { createWebTicket } from '@/lib/tickets.server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,6 +29,19 @@ export async function POST(request: NextRequest) {
     if (!result) {
       return NextResponse.json({ error: 'Error al guardar el pedido' }, { status: 500 });
     }
+
+    // Inventario: aparta las unidades desde que entra el pedido, aunque falte
+    // verificar el pago. Un encargo para otro día descuenta de ESE día. Si algo
+    // falla, el pedido igual queda guardado: vender nunca se bloquea.
+    await registerSaleSafely(supabaseAdmin, {
+      day: isYmd(body.scheduled_date) ? body.scheduled_date : caracasDate(),
+      lines: parseWebItems(body.items),
+      orderId: result.id,
+      actor: body.customer_name,
+    });
+
+    // Ticket (factura) para reenviar al cliente. Si falla, el pedido sigue.
+    const ticketCode = await createWebTicket(supabaseAdmin, result.id, body);
 
     // Maintain the CRM (best-effort, non-blocking for the customer).
     if (supabaseAdmin && body.status !== 'cancelado') {
@@ -80,7 +97,7 @@ export async function POST(request: NextRequest) {
       items: body.items,
     });
 
-    return NextResponse.json({ id: result.id, status: 'pendiente' }, { status: 201 });
+    return NextResponse.json({ id: result.id, status: 'pendiente', ticket_code: ticketCode }, { status: 201 });
   } catch (err) {
     console.error('Orders API error:', err);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });

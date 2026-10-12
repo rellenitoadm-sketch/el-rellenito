@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import {
   ChevronLeft, ChevronRight, RefreshCw, UserRound, X, Check, Pencil, Ban, Undo2,
   PackagePlus, ListChecks, Wallet, Truck, MapPin, Square, SquareCheck,
-  Navigation, Play, CalendarClock, AlertTriangle,
+  Navigation, Play, CalendarClock, AlertTriangle, Receipt,
 } from 'lucide-react';
 import { loadSavedDriver, saveDriver, useRouteTracking, type DriverChoice } from '@/components/RouteTracking';
 import { formatDistance } from '@/lib/routes';
 import { routeLabel } from '@/lib/wholesaleRoutes';
+import TicketSheet from './TicketSheet';
 import {
   MAX_AHEAD_DAYS,
   addDays,
@@ -62,6 +63,7 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
   const router = useRouter();
   const track = useRouteTracking();
   const [view, setView] = useState<View>('dia');
+  const [ticketFor, setTicketFor] = useState<string | null>(null);
   const [date, setDate] = useState(() => caracasDate());
   const [data, setData] = useState<DayData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -299,6 +301,7 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
 
   return (
     <div className={selectedCount > 0 && view === 'dia' ? 'pb-28' : 'pb-10'}>
+      {ticketFor && <TicketSheet source={{ wholesaleOrderId: ticketFor }} onClose={() => setTicketFor(null)} />}
       {/* Quién soy + fecha */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <button onClick={() => setIdentityOpen(true)} className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] font-semibold"
@@ -394,6 +397,7 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
           onCancelEdit={() => { setEditing(null); setView('dia'); }}
           onSaved={o => {
             setNotice({ tone: 'ok', text: editing ? `Pedido de ${o.client_name} actualizado.` : `Pedido de ${o.client_name} guardado.` });
+            if (!editing) setTicketFor(o.id); // recién guardado: el ticket queda listo para mandar
             setEditing(null);
             setView('dia');
             if (o.delivery_date === date) replaceOrder(o); else setDate(o.delivery_date);
@@ -596,6 +600,13 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
                                   {pay === 'pagado' ? 'Pagado' : pay === 'abonado' ? 'Abonó' : 'Por cobrar'}
                                 </Chip>
                               </>
+                            )}
+                            {o.status !== 'cancelado' && (
+                              <button onClick={() => setTicketFor(o.id)} data-tour="wo-ticket"
+                                className="rounded-full px-2.5 text-[11px] font-bold inline-flex items-center gap-1"
+                                style={{ background: 'var(--brand-soft)', color: 'var(--brand-deep)', minHeight: 28 }}>
+                                <Receipt className="w-3 h-3" /> Ticket
+                              </button>
                             )}
                           </div>
 

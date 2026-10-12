@@ -72,6 +72,7 @@ export default function WholesalePage({ onBack, onNavInfo }: WholesalePageProps)
   const [advancePct, setAdvancePct] = useState(50);
   const [proofData, setProofData] = useState<ProofData | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [ticketCode, setTicketCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [submitError, setSubmitError] = useState('');
@@ -171,8 +172,9 @@ export default function WholesalePage({ onBack, onNavInfo }: WholesalePageProps)
         return;
       }
 
-      const data = await res.json() as { id?: string };
+      const data = await res.json() as { id?: string; ticket_code?: string | null };
       setOrderNumber(data.id ?? `RL-MAY-${Date.now().toString().slice(-6)}`);
+      setTicketCode(data.ticket_code ?? null);
       setSubmitted(true);
     } catch {
       setSubmitError('Error de conexión. Intenta de nuevo.');
@@ -207,6 +209,12 @@ export default function WholesalePage({ onBack, onNavInfo }: WholesalePageProps)
           {selectedDate?.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}{' '}
           ({selectedTime}).
         </p>
+        {ticketCode && (
+          <a href={`/t/${ticketCode}`} target="_blank" rel="noopener noreferrer"
+            className="mb-5 text-sm font-semibold underline" style={{ color: 'var(--brand-orange)' }}>
+            Ver mi ticket
+          </a>
+        )}
         <button onClick={onBack} className="btn-gradient text-white font-bold px-6 py-3 rounded-2xl">
           Volver al menú
         </button>

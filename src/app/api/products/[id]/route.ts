@@ -32,6 +32,7 @@ export async function PATCH(
   if (body.image_url !== undefined) patch.image_url = body.image_url;
   if (body.is_best_seller !== undefined) patch.is_best_seller = body.is_best_seller;
   if (body.cobra_frito !== undefined) patch.cobra_frito = !!body.cobra_frito;
+  if (body.low_stock_threshold !== undefined) patch.low_stock_threshold = Math.max(0, Math.round(Number(body.low_stock_threshold)) || 0);
 
   const db = supabaseAdmin ?? supabase;
   if (!db) {

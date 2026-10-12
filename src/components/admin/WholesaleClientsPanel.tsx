@@ -6,7 +6,8 @@ import {
   MapPin, Phone, CalendarDays,
 } from 'lucide-react';
 import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
-import { ROUTES, routeLabel } from '@/lib/wholesaleRoutes';
+import { useOnboarding } from '../Onboarding';
+import { ROUTES, WEEKDAYS, buildCustomRoute, routeLabel, routeOptions } from '@/lib/wholesaleRoutes';
 
 interface WClient {
   id: string;
@@ -26,6 +27,11 @@ function waNumber(phone: string | null): string | null {
 
 type Draft = Partial<WClient> & { id?: string };
 
+/** Ruta nueva en construcción dentro del formulario. */
+interface NewRoute { days: string[]; area: string }
+
+const NEW_ROUTE = '__new__';
+
 export default function WholesaleClientsPanel() {
   const [rows, setRows] = useState<WClient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +39,16 @@ export default function WholesaleClientsPanel() {
   const [draft, setDraft] = useState<Draft | null>(null); // null = cerrado
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [newRoute, setNewRoute] = useState<NewRoute | null>(null);
+  const { maybeStart } = useOnboarding();
+
+  // Aviso de las rutas nuevas la primera vez que se abre el formulario.
+  const formOpen = draft !== null;
+  useEffect(() => {
+    if (!formOpen) return;
+    const t = setTimeout(() => maybeStart('adminMayoristasRutas'), 450);
+    return () => clearTimeout(t);
+  }, [formOpen, maybeStart]);
 
   const load = async () => {
     setLoading(true);
@@ -53,12 +69,14 @@ export default function WholesaleClientsPanel() {
     );
   }, [rows, search]);
 
-  // Agrupar por ruta, respetando el orden de ROUTES y dejando "sin ruta" al final.
+  const options = useMemo(() => routeOptions(rows), [rows]);
+
+  // Agrupar por ruta, respetando el orden de las opciones y dejando "sin ruta" al final.
   const groups = useMemo(() => {
-    const order = [...ROUTES.map(r => r.value), '__none__'];
+    const order = [...options.map(r => r.value), '__none__'];
     const byRoute = new Map<string, WClient[]>();
     for (const c of filtered) {
-      const key = c.route && ROUTES.some(r => r.value === c.route) ? c.route : '__none__';
+      const key = c.route || '__none__';
       const arr = byRoute.get(key) ?? [];
       arr.push(c);
       byRoute.set(key, arr);
@@ -66,7 +84,7 @@ export default function WholesaleClientsPanel() {
     return order
       .filter(k => byRoute.has(k))
       .map(k => ({ key: k, items: byRoute.get(k)!, label: k === '__none__' ? 'Sin ruta asignada' : routeLabel(k) }));
-  }, [filtered]);
+  }, [filtered, options]);
 
   const deleteClient = async (c: WClient) => {
     if (!confirm(`¿Eliminar a ${c.name} de la cartera? Esta acción no se puede deshacer.`)) return;
@@ -80,23 +98,30 @@ export default function WholesaleClientsPanel() {
     }
   };
 
-  const openNew = () => { setFormError(''); setDraft({ route: 'lun_jue', active: true }); };
-  const openEdit = (c: WClient) => { setFormError(''); setDraft({ ...c }); };
+  const openNew = () => { setFormError(''); setNewRoute(null); setDraft({ route: 'lun_jue', active: true }); };
+  const openEdit = (c: WClient) => { setFormError(''); setNewRoute(null); setDraft({ ...c }); };
 
   const save = async () => {
     if (!draft) return;
     const name = (draft.name ?? '').trim();
     if (!name) { setFormError('El nombre es obligatorio.'); return; }
+    // Ruta nueva: se arma con los días y la zona que escribieron. Si no, la zona
+    // sale de la ruta elegida (las fijas traen la suya).
+    let route = draft.route ?? null;
+    let area = options.find(r => r.value === route)?.area || null;
+    if (newRoute) {
+      route = buildCustomRoute(newRoute.days, newRoute.area);
+      if (!route) { setFormError('Elige al menos un día o escribe la ubicación de la ruta.'); return; }
+      area = newRoute.area.trim() || null;
+    }
     setSaving(true);
     setFormError('');
     const isEdit = !!draft.id;
-    // Asigna la zona automáticamente según la ruta elegida.
-    const area = ROUTES.find(r => r.value === draft.route)?.area ?? null;
     const payload = {
       name,
       phone: draft.phone ?? null,
       address: draft.address ?? null,
-      route: draft.route ?? null,
+      route,
       area,
       notes: draft.notes ?? null,
       active: draft.active ?? true,
@@ -137,10 +162,10 @@ export default function WholesaleClientsPanel() {
           <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>Clientes</p>
           <p className="text-[20px] font-bold mt-0.5 t-num" style={{ color: 'var(--text-1)' }}>{rows.length}</p>
         </div>
-        {ROUTES.map(r => (
+        {options.filter(r => ROUTES.some(b => b.value === r.value) || rows.some(c => c.route === r.value)).map(r => (
           <div key={r.value} className="card p-3.5">
             <CalendarDays className="w-4 h-4 mb-1.5" style={{ color: 'var(--text-3)' }} />
-            <p className="text-[11px] leading-tight" style={{ color: 'var(--text-3)' }}>{r.label}</p>
+            <p className="text-[11px] leading-tight" style={{ color: 'var(--text-3)' }}>{routeLabel(r.value)}</p>
             <p className="text-[20px] font-bold mt-0.5 t-num" style={{ color: 'var(--text-1)' }}>
               {rows.filter(c => c.route === r.value).length}
             </p>
@@ -256,12 +281,52 @@ export default function WholesaleClientsPanel() {
               </div>
               <div>
                 <label htmlFor="wc-route" className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-2)' }}>Ruta / día de entrega</label>
-                <select id="wc-route" value={draft.route ?? ''} onChange={e => setDraft({ ...draft, route: e.target.value || null })} className="field">
+                <select
+                  id="wc-route"
+                  data-tour="mayoristas-route"
+                  value={newRoute ? NEW_ROUTE : draft.route ?? ''}
+                  onChange={e => {
+                    if (e.target.value === NEW_ROUTE) { setNewRoute({ days: [], area: '' }); return; }
+                    setNewRoute(null);
+                    setDraft({ ...draft, route: e.target.value || null });
+                  }}
+                  className="field"
+                >
                   <option value="">Sin ruta asignada</option>
-                  {ROUTES.map(r => (
-                    <option key={r.value} value={r.value}>{r.label} · {r.area}</option>
+                  {options.map(r => (
+                    <option key={r.value} value={r.value}>{r.area && r.area !== r.value ? `${routeLabel(r.value)} · ${r.area}` : routeLabel(r.value)}</option>
                   ))}
+                  <option value={NEW_ROUTE}>＋ Nueva ruta o día…</option>
                 </select>
+                {newRoute && (
+                  <div className="mt-2.5 rounded-2xl p-3 space-y-3" style={{ background: 'var(--brand-soft)' }}>
+                    <fieldset>
+                      <legend className="text-xs font-semibold mb-1.5" style={{ color: 'var(--brand-deep)' }}>Días de entrega</legend>
+                      <div className="flex flex-wrap gap-1.5">
+                        {WEEKDAYS.map(d => {
+                          const on = newRoute.days.includes(d);
+                          return (
+                            <button
+                              key={d} type="button" aria-pressed={on}
+                              onClick={() => setNewRoute({ ...newRoute, days: on ? newRoute.days.filter(x => x !== d) : [...newRoute.days, d] })}
+                              className="px-3 rounded-full text-[12.5px] font-semibold"
+                              style={{ minHeight: 40, background: on ? 'var(--brand)' : '#fff', color: on ? '#fff' : 'var(--text-2)' }}
+                            >
+                              {d.slice(0, 3)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
+                    <div>
+                      <label htmlFor="wc-newarea" className="block text-xs font-semibold mb-1" style={{ color: 'var(--brand-deep)' }}>Ubicación / zona</label>
+                      <input id="wc-newarea" value={newRoute.area} onChange={e => setNewRoute({ ...newRoute, area: e.target.value })} placeholder="Ej: Centro / La Floresta" className="field" />
+                    </div>
+                    <p className="text-[12px]" style={{ color: 'var(--text-2)' }}>
+                      Quedará como: <strong>{buildCustomRoute(newRoute.days, newRoute.area) || '—'}</strong>
+                    </p>
+                  </div>
+                )}
               </div>
               <div>
                 <label htmlFor="wc-notes" className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-2)' }}>Notas</label>

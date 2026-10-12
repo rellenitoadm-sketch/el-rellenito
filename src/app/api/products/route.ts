@@ -48,6 +48,8 @@ export async function POST(request: NextRequest) {
     image_url: body.image_url ?? null,
     is_best_seller: body.is_best_seller ?? false,
     cobra_frito: body.cobra_frito ?? false,
+    // Solo se escribe si lo mandan: así crear productos no exige la migración 006.
+    ...(body.low_stock_threshold != null && { low_stock_threshold: Math.max(0, Math.round(Number(body.low_stock_threshold)) || 0) }),
   };
 
   const db = supabaseAdmin ?? supabase;

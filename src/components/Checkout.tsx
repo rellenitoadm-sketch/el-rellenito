@@ -50,6 +50,7 @@ export default function Checkout({ onClose }: CheckoutProps) {
 
   const [step, setStep] = useState<Step>('form');
   const [orderId, setOrderId] = useState<string>('');
+  const [ticketCode, setTicketCode] = useState<string | null>(null);
 
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'retiro'>('delivery');
 
@@ -197,8 +198,9 @@ export default function Checkout({ onClose }: CheckoutProps) {
         return;
       }
 
-      const data = await res.json() as { id?: string };
+      const data = await res.json() as { id?: string; ticket_code?: string | null };
       setOrderId(data.id ?? `RL-${Date.now()}`);
+      setTicketCode(data.ticket_code ?? null);
       clearCart();
       setStep('success');
     } catch {
@@ -240,6 +242,12 @@ export default function Checkout({ onClose }: CheckoutProps) {
           Verificaremos tu pago y nos pondremos en contacto contigo pronto por WhatsApp
           {isDelivery ? ' para confirmar el costo del envío y la entrega' : ''}.
         </p>
+        {ticketCode && (
+          <a href={`/t/${ticketCode}`} target="_blank" rel="noopener noreferrer"
+            className="mt-5 text-sm font-semibold underline" style={{ color: 'var(--brand-deep)' }}>
+            Ver mi ticket
+          </a>
+        )}
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={onClose}

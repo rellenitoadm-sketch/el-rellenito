@@ -3,21 +3,39 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { X, Upload, Loader2, Trash2, Star, Plus } from 'lucide-react';
+import { X, Upload, Loader2, Trash2, Star, Plus, Info, Tag, Boxes, Layers } from 'lucide-react';
 import { type Product, type ProductCategory, type ProductType } from '@/lib/products';
 import type { ExchangeRates } from '@/lib/rates';
 import { useCategories } from '../CategoriesContext';
 import { useOnboarding } from '../Onboarding';
 import ProductFlavorsEditor from './ProductFlavorsEditor';
 import { normalizeDecimalInput } from '@/lib/decimalInput';
+import type { StockRow } from '@/lib/inventory';
+import StockAdjust from './StockAdjust';
 
 interface ProductEditorProps {
   product: Product | null; // null = creating new
+  /** Pestaña con la que abre (al tocar la existencia desde la lista). */
+  initialTab?: Tab;
   rates: ExchangeRates;
+  /** Existencias de hoy de este producto; null si el inventario no está disponible. */
+  stockRows: StockRow[] | null;
+  stockDate: string;
+  /** Recibe todas las filas del día ya actualizadas tras registrar un movimiento. */
+  onStockRows: (all: StockRow[]) => void;
   onClose: () => void;
   onSaved: (p: Product) => void;
   onDeleted: (id: string) => void;
 }
+
+type Tab = 'info' | 'precios' | 'stock' | 'sabores';
+
+const TABS: { id: Tab; label: string; Icon: React.ElementType; onlyExisting?: boolean }[] = [
+  { id: 'info', label: 'Info', Icon: Info },
+  { id: 'precios', label: 'Precios', Icon: Tag },
+  { id: 'stock', label: 'Inventario', Icon: Boxes },
+  { id: 'sabores', label: 'Sabores', Icon: Layers, onlyExisting: true },
+];
 
 const TYPE_OPTIONS: { id: ProductType; label: string }[] = [
   { id: 'detal', label: 'Detal' },
@@ -25,14 +43,16 @@ const TYPE_OPTIONS: { id: ProductType; label: string }[] = [
   { id: 'ambos', label: 'Ambos' },
 ];
 
-export default function ProductEditor({ product, rates, onClose, onSaved, onDeleted }: ProductEditorProps) {
+export default function ProductEditor({ product, initialTab, rates, stockRows, stockDate, onStockRows, onClose, onSaved, onDeleted }: ProductEditorProps) {
   const isNew = product === null;
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'info');
+  const tabs = TABS.filter(t => !t.onlyExisting || !isNew);
   const { order, labelOf, reload: reloadCats } = useCategories();
   const { maybeStart } = useOnboarding();
 
   // Tutorial del editor la primera vez que se abre (crear o editar un producto).
   useEffect(() => {
-    const t = setTimeout(() => maybeStart('productEditor'), 450);
+    const t = setTimeout(() => maybeStart('productEditor2'), 450);
     return () => clearTimeout(t);
   }, [maybeStart]);
   const [name, setName] = useState(product?.name ?? '');
@@ -74,6 +94,7 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
   const [bestSeller, setBestSeller] = useState(product?.is_best_seller ?? false);
   const [cobraFrito, setCobraFrito] = useState(product?.cobra_frito ?? false);
   const [imageUrl, setImageUrl] = useState<string | null>(product?.image_url ?? null);
+  const [lowStock, setLowStock] = useState(String(product?.low_stock_threshold ?? 0));
 
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -141,6 +162,8 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
       is_best_seller: bestSeller,
       cobra_frito: cobraFrito,
       image_url: imageUrl,
+      // Solo si lo cambió: así guardar un producto no exige la migración 006.
+      ...(Number(lowStock) !== (product?.low_stock_threshold ?? 0) && { low_stock_threshold: Math.max(0, Math.round(Number(lowStock)) || 0) }),
     };
     try {
       const res = await fetch(
@@ -191,13 +214,30 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
           <h3 className="font-bold text-[15px]" style={{ color: 'var(--text-1)' }}>
-            {isNew ? 'Nuevo producto' : 'Editar producto'}
+            {isNew ? 'Nuevo producto' : name.trim() || 'Editar producto'}
           </h3>
-          <button onClick={onClose} className="p-1" style={{ color: 'var(--text-3)' }}><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="w-11 h-11 -mr-2 flex items-center justify-center" style={{ color: 'var(--text-3)' }} aria-label="Cerrar"><X className="w-5 h-5" /></button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {/* Pestañas */}
+        <div className="flex gap-1 px-3 py-2 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }} role="tablist" aria-label="Secciones del producto" data-tour="pe-tabs">
+          {tabs.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl text-[12.5px] font-semibold transition-colors"
+              style={{ minHeight: 44, ...(tab === id ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--surface-2)', color: 'var(--text-2)' }) }}
+            >
+              <Icon className="w-4 h-4" aria-hidden /> {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Body: cada pestaña queda montada (solo oculta) para no perder lo escrito al cambiar */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div role="tabpanel" className={tab === 'info' ? 'space-y-4' : 'hidden'}>
           {/* Image */}
           <div data-tour="pe-image">
             <label className="text-[12px] font-semibold block mb-1.5" style={{ color: 'var(--text-2)' }}>Imagen</label>
@@ -292,6 +332,38 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Breve descripción del producto" className="field resize-none" />
           </div>
 
+            <button
+              onClick={() => setBestSeller(b => !b)}
+              aria-pressed={bestSeller}
+              className="w-full py-2.5 rounded-xl text-[13px] font-semibold border transition-all inline-flex items-center justify-center gap-1.5"
+              style={{ minHeight: 44, ...(bestSeller
+                ? { borderColor: 'var(--accent)', background: 'rgba(251,77,10,0.1)', color: 'var(--brand-deep)' }
+                : { borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--text-3)' }) }}
+            >
+              <Star className={`w-3.5 h-3.5 ${bestSeller ? 'fill-current' : ''}`} /> Destacado en el catálogo
+            </button>
+          </div>
+
+          <div role="tabpanel" className={tab === 'precios' ? 'space-y-4' : 'hidden'}>
+          {/* Type */}
+          <div data-tour="pe-type">
+            <label className="text-[12px] font-semibold block mb-1.5" style={{ color: 'var(--text-2)' }}>Disponible para</label>
+            <div className="grid grid-cols-3 gap-2">
+              {TYPE_OPTIONS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setType(t.id)}
+                  className="py-2 rounded-xl text-[13px] font-semibold border transition-all"
+                  style={type === t.id
+                    ? { borderColor: 'var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand-deep)' }
+                    : { borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text-2)' }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Precio al detal: USD y COP los define el cliente; Bs se calcula solo con la tasa BCV */}
           <div data-tour="pe-price">
             <label className="text-[12px] font-semibold block mb-1.5" style={{ color: 'var(--text-2)' }}>Precio al detal *</label>
@@ -368,53 +440,47 @@ export default function ProductEditor({ product, rates, onClose, onSaved, onDele
             </button>
           </div>
 
-          {/* Type */}
-          <div data-tour="pe-type">
-            <label className="text-[12px] font-semibold block mb-1.5" style={{ color: 'var(--text-2)' }}>Disponible para</label>
-            <div className="grid grid-cols-3 gap-2">
-              {TYPE_OPTIONS.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setType(t.id)}
-                  className="py-2 rounded-xl text-[13px] font-semibold border transition-all"
-                  style={type === t.id
-                    ? { borderColor: 'var(--brand)', background: 'var(--brand-soft)', color: 'var(--brand-deep)' }
-                    : { borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text-2)' }}
-                >
-                  {t.label}
-                </button>
-              ))}
+          </div>
+
+          <div role="tabpanel" className={tab === 'stock' ? 'space-y-4' : 'hidden'} data-tour="pe-stock">
+            <button
+              onClick={() => setAvailable(a => !a)}
+              aria-pressed={available}
+              className="w-full py-2.5 rounded-xl text-[13px] font-semibold border transition-all"
+              style={{ minHeight: 44, ...(available
+                ? { borderColor: 'var(--success)', background: 'var(--success-soft)', color: '#15803D' }
+                : { borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--text-3)' }) }}
+            >
+              {available ? '✓ Disponible para vender' : 'Agotado (no se puede pedir)'}
+            </button>
+
+            <div>
+              <label htmlFor="pe-lowstock" className="text-[12px] font-semibold block mb-1" style={{ color: 'var(--text-2)' }}>Avisar de stock bajo cuando queden</label>
+              <input id="pe-lowstock" type="number" inputMode="numeric" min={0} step="1" value={lowStock} onChange={e => setLowStock(e.target.value)} className="field t-num" />
+              <p className="text-[10.5px] mt-1" style={{ color: 'var(--text-3)' }}>Con 0 solo avisa cuando se acaba. Vender nunca se bloquea.</p>
+            </div>
+
+            <div>
+              <h4 className="text-[12px] font-semibold mb-2" style={{ color: 'var(--text-2)' }}>Existencia de hoy</h4>
+              {isNew ? (
+                <p className="text-[12px]" style={{ color: 'var(--text-3)' }}>Guarda el producto y aquí podrás cargar la producción del día.</p>
+              ) : stockRows === null ? (
+                <p className="text-[12px]" style={{ color: 'var(--text-3)' }}>El inventario aún no está activo (falta la migración 006 en Supabase).</p>
+              ) : stockRows.length === 0 ? (
+                <p className="text-[12px]" style={{ color: 'var(--text-3)' }}>Este producto está marcado como agotado y no se cuenta. Actívalo, guarda, y vuelve aquí.</p>
+              ) : (
+                <StockAdjust rows={stockRows} date={stockDate} onRows={onStockRows} />
+              )}
             </div>
           </div>
 
-          {/* Toggles */}
-          <div className="flex gap-2" data-tour="pe-flags">
-            <button
-              onClick={() => setAvailable(a => !a)}
-              className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold border transition-all"
-              style={available
-                ? { borderColor: 'var(--success)', background: 'var(--success-soft)', color: '#15803D' }
-                : { borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--text-3)' }}
-            >
-              {available ? '✓ Disponible' : 'Agotado'}
-            </button>
-            <button
-              onClick={() => setBestSeller(b => !b)}
-              className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold border transition-all inline-flex items-center justify-center gap-1.5"
-              style={bestSeller
-                ? { borderColor: 'var(--accent)', background: 'rgba(251,77,10,0.1)', color: 'var(--brand-deep)' }
-                : { borderColor: 'var(--border)', background: 'var(--surface-2)', color: 'var(--text-3)' }}
-            >
-              <Star className={`w-3.5 h-3.5 ${bestSeller ? 'fill-current' : ''}`} /> Destacado
-            </button>
-          </div>
-
-          {/* Sabores con precio (productos existentes) */}
           {!isNew && product && (
-            <ProductFlavorsEditor productId={product.id} type={type} />
+            <div role="tabpanel" className={tab === 'sabores' ? '' : 'hidden'}>
+              <ProductFlavorsEditor productId={product.id} type={type} />
+            </div>
           )}
 
-          {error && <p className="text-[12px]" style={{ color: 'var(--danger)' }}>{error}</p>}
+          {error && <p className="mt-3 text-[12px]" style={{ color: 'var(--danger)' }}>{error}</p>}
         </div>
 
         {/* Footer */}

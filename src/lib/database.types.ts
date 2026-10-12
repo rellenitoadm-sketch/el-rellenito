@@ -350,6 +350,7 @@ export type Database = {
           image_url: string | null
           is_best_seller: boolean
           limite_unidades_mayor: number
+          low_stock_threshold: number
           name: string
           price_cop: number | null
           price_usd: number
@@ -370,6 +371,7 @@ export type Database = {
           image_url?: string | null
           is_best_seller?: boolean
           limite_unidades_mayor?: number
+          low_stock_threshold?: number
           name: string
           price_cop?: number | null
           price_usd?: number
@@ -390,6 +392,7 @@ export type Database = {
           image_url?: string | null
           is_best_seller?: boolean
           limite_unidades_mayor?: number
+          low_stock_threshold?: number
           name?: string
           price_cop?: number | null
           price_usd?: number
@@ -431,6 +434,78 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_alerts: {
+        Row: {
+          created_at: string
+          day: string
+          flavor_id: string | null
+          id: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          flavor_id?: string | null
+          id?: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          flavor_id?: string | null
+          id?: string
+          product_id?: string
+        }
+        Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          actor: string | null
+          created_at: string
+          day: string
+          flavor_id: string | null
+          flavor_name: string | null
+          id: string
+          kind: string
+          note: string | null
+          order_id: string | null
+          product_id: string
+          product_name: string | null
+          qty: number
+          wholesale_order_id: string | null
+        }
+        Insert: {
+          actor?: string | null
+          created_at?: string
+          day: string
+          flavor_id?: string | null
+          flavor_name?: string | null
+          id?: string
+          kind: string
+          note?: string | null
+          order_id?: string | null
+          product_id: string
+          product_name?: string | null
+          qty: number
+          wholesale_order_id?: string | null
+        }
+        Update: {
+          actor?: string | null
+          created_at?: string
+          day?: string
+          flavor_id?: string | null
+          flavor_name?: string | null
+          id?: string
+          kind?: string
+          note?: string | null
+          order_id?: string | null
+          product_id?: string
+          product_name?: string | null
+          qty?: number
+          wholesale_order_id?: string | null
+        }
+        Relationships: []
+      }
       wholesale_clients: {
         Row: {
           active: boolean
@@ -467,6 +542,57 @@ export type Database = {
           phone?: string | null
           route?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      tickets: {
+        Row: {
+          code: string
+          created_at: string
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          items: Json
+          kind: string
+          meta: Json
+          number: number
+          order_id: string | null
+          payment_method: string | null
+          total_cop: number
+          total_usd: number
+          wholesale_order_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          items?: Json
+          kind: string
+          meta?: Json
+          number?: number
+          order_id?: string | null
+          payment_method?: string | null
+          total_cop?: number
+          total_usd: number
+          wholesale_order_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          items?: Json
+          kind?: string
+          meta?: Json
+          number?: number
+          order_id?: string | null
+          payment_method?: string | null
+          total_cop?: number
+          total_usd?: number
+          wholesale_order_id?: string | null
         }
         Relationships: []
       }

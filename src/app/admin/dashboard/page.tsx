@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { LogOut, ShoppingBag, Boxes, BarChart3, Users, Store, Truck, Bike, ClipboardList } from 'lucide-react';
+import { LogOut, ShoppingBag, Boxes, BarChart3, Users, Store, Truck, Bike, ClipboardList, Receipt } from 'lucide-react';
 import OrdersPanel from '@/components/admin/OrdersPanel';
 import ProductsPanel from '@/components/admin/ProductsPanel';
 import MetricsPanel from '@/components/admin/MetricsPanel';
@@ -12,10 +12,11 @@ import WholesaleClientsPanel from '@/components/admin/WholesaleClientsPanel';
 import RoutesPanel from '@/components/admin/RoutesPanel';
 import RepartoPanel from '@/components/admin/RepartoPanel';
 import WholesaleOrdersPanel from '@/components/admin/WholesaleOrdersPanel';
+import TicketsPanel from '@/components/admin/TicketsPanel';
 import { useOnboarding } from '@/components/Onboarding';
 import type { StaffRole } from '@/lib/adminAuth';
 
-type Tab = 'pedidos' | 'productos' | 'reparto' | 'pedidosMayoristas' | 'metricas' | 'crm' | 'mayoristas' | 'rutas';
+type Tab = 'pedidos' | 'productos' | 'reparto' | 'pedidosMayoristas' | 'tickets' | 'metricas' | 'crm' | 'mayoristas' | 'rutas';
 
 interface TabDef {
   id: Tab;
@@ -32,6 +33,7 @@ const TABS: TabDef[] = [
   { id: 'productos', label: 'Productos', Icon: Boxes },
   { id: 'reparto', label: 'Reparto', Icon: Bike, staffOnly: true },
   { id: 'pedidosMayoristas', label: 'Pedidos mayoristas', Icon: ClipboardList },
+  { id: 'tickets', label: 'Tickets', Icon: Receipt },
   { id: 'metricas', label: 'Métricas', Icon: BarChart3, adminOnly: true },
   { id: 'crm', label: 'Clientes', Icon: Users, adminOnly: true },
   { id: 'mayoristas', label: 'Mayoristas', Icon: Store, adminOnly: true },
@@ -85,15 +87,16 @@ export default function AdminDashboard() {
     if (!ready) return;
     // El tour de Productos se guarda con clave por rol (scope), para que el equipo
     // lo vea aunque el administrador ya haya visto el suyo en este mismo dispositivo.
-    const which = tab === 'productos' ? 'adminProductos'
+    const which = tab === 'productos' ? 'adminInventario'
       : tab === 'reparto' ? 'adminReparto'
+      : tab === 'tickets' ? 'adminTickets'
       : tab === 'metricas' ? 'adminMetricas'
       : tab === 'crm' ? 'adminCrm'
       : tab === 'mayoristas' ? 'adminMayoristas'
       : tab === 'rutas' ? 'adminRutas'
       : null;
     if (!which) return;
-    const scope = which === 'adminProductos' ? (role ?? undefined) : undefined;
+    const scope = which === 'adminInventario' ? (role ?? undefined) : undefined;
     const t = setTimeout(() => maybeStart(which, scope), 650);
     return () => clearTimeout(t);
   }, [tab, ready, role, maybeStart]);
@@ -168,6 +171,7 @@ export default function AdminDashboard() {
         {tab === 'productos' && <ProductsPanel />}
         {tab === 'reparto' && role !== 'admin' && <RepartoPanel />}
         {tab === 'pedidosMayoristas' && <WholesaleOrdersPanel isAdmin={role === 'admin'} />}
+        {tab === 'tickets' && <TicketsPanel />}
         {tab === 'metricas' && role === 'admin' && <MetricsPanel />}
         {tab === 'crm' && role === 'admin' && <CrmPanel />}
         {tab === 'mayoristas' && role === 'admin' && <WholesaleClientsPanel />}

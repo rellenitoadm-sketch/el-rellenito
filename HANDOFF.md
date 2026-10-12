@@ -1,7 +1,20 @@
 # HANDOFF — El Rellenito (→ nueva sesión)
 
-> **Actualizado 2026-09-18.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
+> **Actualizado 2026-10-12.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
 > **Secretos reales (API keys, contraseñas) NO van aquí** (este repo se sube a GitHub) → están en la memoria local del agente y en el docker-compose del VPS.
+
+---
+
+## ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-10-12 — Tickets, rutas nuevas, inventario (PENDIENTE: migraciones 006 + 007 y deploy)
+
+**Pedido del cliente:** ticket/factura por pedido (detal y mayor) para reenviar al cliente por WhatsApp y llevar registro de ventas; poder crear rutas/días nuevos al registrar un mayorista; el editor de productos como sistema de inventario; tutorial al día.
+
+- **Tickets** (`supabase/migrations/007_tickets.sql`, correr en SQL Editor): tabla `tickets` con copia congelada del pedido y `code` aleatorio de 8 caracteres. Se crean en `POST /api/orders` y `POST /api/admin/wholesale-orders` (si falla, el pedido igual se guarda; `ensureTicket` lo crea después, también para pedidos viejos). Público: `/t/[code]` (noindex) y `/t/[code]/image` (PNG con `next/og`, fuentes de Google Fonts en `lib/ticketFonts.ts`). `components/TicketCard.tsx` lo comparten página, imagen y panel: todo `display:flex`, colores hex y un texto por nodo (restricciones de satori). Panel: pestaña **Tickets** (`TicketsPanel`) + botón "Ticket" en `OrdersPanel` y `WholesaleOrdersPanel` (`TicketSheet`: compartir imagen con `navigator.share`, o `wa.me` con el link). Quien tenga el link ve nombre, productos y dirección (sin teléfono).
+- **Rutas nuevas**: sin migración (`route`/`area` ya eran texto libre). `lib/wholesaleRoutes.ts`: `routeLabel` devuelve el texto propio si no es una de las 3 fijas; `buildCustomRoute(días, zona)`; `routeOptions(clientes)`. El form de mayoristas tiene "＋ Nueva ruta o día…".
+- **Inventario**: `ProductsPanel` ahora es vista de inventario (KPIs, existencia de hoy con barra y estado por producto, filtros Stock bajo/Agotados). `ProductEditor` en pestañas Info · Precios · Inventario · Sabores; `StockAdjust` registra producción/merma/ajuste en `/api/admin/inventory/movimientos`. Si 006 no está aplicada la lista funciona sin existencias; `low_stock_threshold` solo se envía si cambió.
+- **Tutorial**: `adminInventario` (reemplaza `adminProductos`), `adminTickets`, `adminMayoristasRutas`, `productEditor2` (reemplaza `productEditor`). `VERSION` sigue en v3.
+- Se borró código muerto de `lib/whatsapp.ts` (`buildWhatsAppMessage`, `openWhatsApp`).
+- **Falta:** aplicar 006 y 007 en Supabase (006 sigue sin commit), probar el flujo con pedidos reales en el panel, deploy con Vercel CLI. No se probó el panel logueado (PIN real).
 
 ---
 

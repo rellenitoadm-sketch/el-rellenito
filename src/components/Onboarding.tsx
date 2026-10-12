@@ -73,23 +73,34 @@ const STEPS: Record<TourId, Step[]> = {
   ],
   admin: [
     { target: 'admin-title', title: 'Panel El Rellenito', body: 'Desde aquí gestionas todo el negocio. Te muestro lo principal.' },
-    { target: 'admin-tabs', title: 'Secciones', body: 'Cada pestaña gestiona una parte del negocio: pedidos, productos, métricas, clientes, mayoristas y rutas. Toca cada una; te guío dentro al abrirla.' },
+    { target: 'admin-tabs', title: 'Secciones', body: 'Cada pestaña gestiona una parte del negocio: pedidos, inventario, tickets, métricas, clientes, mayoristas y rutas. Toca cada una; te guío dentro al abrirla.' },
     ...ORDERS_FILTER_STEPS,
-    { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido apruebas el pago, lo marcas en camino o entregado y abres el mapa o el contacto del cliente.' },
+    { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido apruebas el pago, lo marcas en camino o entregado y abres el mapa o el contacto del cliente. El botón “Ticket” abre su factura para mandarla por WhatsApp.' },
     { target: 'admin-logout', title: 'Cerrar sesión', body: 'Sal del panel de forma segura cuando termines.' },
   ],
   adminStaff: [
     { target: 'admin-title', title: 'Panel del equipo', body: 'Bienvenido. Aquí atiendes los pedidos y mantienes los productos al día.' },
-    { target: 'admin-tabs', title: 'Tus secciones', body: 'Como equipo ves Pedidos, Productos, Reparto y Pedidos mayoristas. (Métricas, Clientes y demás son del administrador.)' },
+    { target: 'admin-tabs', title: 'Tus secciones', body: 'Como equipo ves Pedidos, Productos (inventario), Reparto, Pedidos mayoristas y Tickets. (Métricas, Clientes y demás son del administrador.)' },
     ...ORDERS_FILTER_STEPS,
-    { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido verificas el pago, lo marcas en camino o entregado y contactas al cliente desde su ficha.' },
+    { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido verificas el pago, lo marcas en camino o entregado y contactas al cliente desde su ficha. El botón “Ticket” abre su factura para mandarla por WhatsApp.' },
     { target: 'admin-logout', title: 'Cerrar sesión', body: 'Sal del panel de forma segura cuando termines tu turno.' },
   ],
-  adminProductos: [
+  adminInventario: [
+    { target: 'products-kpis', title: 'Resumen del inventario', body: 'Cuántos productos tienes, cuáles tienen el stock bajo o están agotados, y el valor de lo que hay hoy en existencia.' },
     { target: 'products-rate', title: 'Tasa del día', body: 'La tasa BCV (Bs y COP) del día. Recárgala con el botón cuando lo necesites.' },
     { target: 'products-toolbar', title: 'Buscar y categorías', body: 'Busca un producto por nombre o entra a gestionar tus categorías.' },
-    { target: 'products-cats', title: 'Filtrar por categoría', body: 'Filtra por categoría. “Incompletos” reúne los productos a los que les falta información.' },
-    { target: 'products-add', title: 'Crear y editar', body: 'Crea un producto nuevo con +. Toca uno existente para editar precios, foto, umbral al mayor y el servicio de fritos.' },
+    { target: 'products-cats', title: 'Filtros', body: 'Filtra por categoría, o por “Stock bajo”, “Agotados” e “Incompletos” para ver de una vez lo que necesita atención.' },
+    { target: 'product-stock', title: 'Existencia de hoy', body: 'A la derecha de cada producto ves cuántas unidades quedan hoy. Tócalo para anotar la producción que salió del horno, una merma o corregir el conteo.' },
+    { target: 'products-add', title: 'Crear y editar', body: 'Crea un producto nuevo con +. Toca uno existente para editar su foto, precios, inventario y sabores.' },
+  ],
+  adminTickets: [
+    { target: 'tk-stats', title: 'Lo vendido', body: 'Total en dólares y número de tickets de hoy, de los últimos 7 días y de los últimos 30.' },
+    { target: 'tk-search', title: 'Buscar un ticket', body: 'Encuéntralo por el nombre del cliente, su teléfono o el número del ticket.' },
+    { target: 'tk-filters', title: 'Filtrar', body: 'Elige el periodo y si quieres ver solo ventas al detal o al mayor.' },
+    { target: 'tk-list', title: 'Abrir y reenviar', body: 'Toca un ticket para verlo. Con “Enviar por WhatsApp” se manda como imagen (o con el link) al cliente. Cada pedido nuevo crea su ticket solo.' },
+  ],
+  adminMayoristasRutas: [
+    { target: 'mayoristas-route', title: 'Ruta o día de entrega', body: 'Elige una ruta de la lista, o toca “＋ Nueva ruta o día…” para crear una: marca los días y escribe la ubicación. Queda guardada para los demás clientes.' },
   ],
   adminReparto: [
     { target: 'reparto-start', title: 'Iniciar una ruta', body: 'Abre el rastreo con GPS aquí mismo, sin salir del panel. Mantén la pantalla abierta mientras repartes.' },
@@ -118,7 +129,7 @@ const STEPS: Record<TourId, Step[]> = {
   adminMayoristas: [
     { target: 'mayoristas-stats', title: 'Tu cartera al mayor', body: 'Cuántos clientes al mayor tienes y cómo se reparten entre tus rutas de entrega.' },
     { target: 'mayoristas-search', title: 'Buscar cliente', body: 'Encuentra a un cliente por su nombre, teléfono o dirección.' },
-    { target: 'mayoristas-add', title: 'Agregar cliente', body: 'Registra un cliente nuevo con su ruta de entrega. Abajo se agrupan por ruta para organizar tus repartos.' },
+    { target: 'mayoristas-add', title: 'Agregar cliente', body: 'Registra un cliente nuevo con su ruta de entrega (puedes crear rutas y días nuevos). Abajo se agrupan por ruta para organizar tus repartos.' },
   ],
   adminRutas: [
     { target: 'rutas-map', title: 'Mapa en vivo', body: 'Mira en el mapa dónde están tus domiciliarios en tiempo real.' },
@@ -126,24 +137,21 @@ const STEPS: Record<TourId, Step[]> = {
     { target: 'rutas-history', title: 'Recorridos anteriores', body: 'Revisa rutas pasadas con su duración y distancia. Toca una para verla dibujada en el mapa.' },
     { target: 'rutas-drivers', title: 'Domiciliarios', body: 'Registra a tu equipo de reparto y actívalos o desactívalos cuando lo necesites.' },
   ],
-  productEditor: [
+  productEditor2: [
+    { target: 'pe-tabs', title: 'Cuatro secciones', body: 'Info (foto, nombre, categoría), Precios (detal, mayor y fritos), Inventario (disponible, aviso de stock bajo y existencia de hoy) y Sabores. Cambia entre ellas sin perder lo que escribiste.' },
     { target: 'pe-image', title: 'Foto del producto', body: 'Sube una foto: es la que se ve en el catálogo. Puedes quitarla o cambiarla cuando quieras.' },
     { target: 'pe-name', title: 'Nombre y presentación', body: 'El nombre del producto y, debajo, las unidades o presentación (ej. “25 unidades · 1 kg”).' },
     { target: 'pe-category', title: 'Categoría', body: 'Elige su categoría. Con el botón + creas una categoría nueva sin salir de aquí.' },
-    { target: 'pe-price', title: 'Precio al detal', body: 'Defines el USD y el COP. El Bs se calcula solo con la tasa BCV. Si dejas el COP vacío, se estima del USD.' },
-    { target: 'pe-type', title: 'Detal, mayor o ambos', body: 'Elige dónde se vende. Al activar “Al Mayor” o “Ambos” aparece su precio al mayor y el umbral de unidades.' },
-    { target: 'pe-fritos', title: 'Servicio de fritos', body: 'Actívalo si el producto puede pedirse ya frito (listo para comer): suma un recargo por bandeja en la tienda.' },
-    { target: 'pe-flags', title: 'Disponible y destacado', body: 'Marca si está disponible o agotado, y si quieres destacarlo como recomendado.' },
     { target: 'pe-save', title: 'Guardar', body: 'Guarda los cambios o crea el producto. Aparece al instante en el catálogo.' },
   ],
 };
 
 type TourId =
   | 'home' | 'catalog' | 'mayor' | 'cart' | 'checkout' | 'wcheckout'
-  | 'admin' | 'adminStaff' | 'adminProductos' | 'adminReparto' | 'adminMetricas'
-  | 'adminCrm' | 'adminMayoristas' | 'adminRutas'
+  | 'admin' | 'adminStaff' | 'adminInventario' | 'adminTickets' | 'adminReparto' | 'adminMetricas'
+  | 'adminCrm' | 'adminMayoristas' | 'adminMayoristasRutas' | 'adminRutas'
   | 'routeStart' | 'routeLive'
-  | 'productEditor';
+  | 'productEditor2';
 
 const KEY_PREFIX = 'rl_tour_';
 const VERSION = 'v3';

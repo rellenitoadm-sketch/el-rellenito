@@ -3,6 +3,9 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { mockStore } from '@/lib/mockStore';
 import { isAuthorized, requireRole } from '@/lib/adminAuth';
 import { fireOrderEvent } from '@/lib/webhook';
+import { parseWebItems } from '@/lib/inventory';
+import { reapplySale, releaseSale } from '@/lib/inventory.server';
+import { caracasDate, isYmd } from '@/lib/wholesaleOrders';
 
 // Only these status values may be set, and only via this endpoint.
 const VALID_STATUSES = ['pendiente', 'confirmado', 'en_camino', 'entregado', 'cancelado'] as const;
@@ -51,6 +54,14 @@ export async function PATCH(
     return NextResponse.json({ id, ...patch });
   }
 
+  // Estado anterior: decide si el inventario tiene que devolver las unidades
+  // (se canceló) o volver a descontarlas (se revivió un pedido cancelado).
+  const { data: antes } = await db
+    .from('orders')
+    .select('status, items, scheduled_date')
+    .eq('id', id)
+    .maybeSingle();
+
   const { data: updated, error } = await db
     .from('orders')
     .update(patch)
@@ -60,6 +71,23 @@ export async function PATCH(
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // El inventario nunca tumba el cambio de estado: si falla, queda en el log.
+  if (supabaseAdmin && antes && antes.status !== patch.status) {
+    try {
+      if (patch.status === 'cancelado') {
+        await releaseSale(supabaseAdmin, {
+          day: isYmd(antes.scheduled_date) ? antes.scheduled_date : caracasDate(),
+          lines: parseWebItems(antes.items),
+          orderId: id,
+        });
+      } else if (antes.status === 'cancelado') {
+        await reapplySale(supabaseAdmin, { orderId: id });
+      }
+    } catch (err) {
+      console.warn('Inventario (cambio de estado):', err instanceof Error ? err.message : err);
+    }
   }
 
   // Webhook saliente para automatizaciones (n8n): WhatsApp de "en camino",

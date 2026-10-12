@@ -17,6 +17,9 @@ import {
   priceItems,
   toOrder,
 } from '@/lib/wholesaleOrders.server';
+import { parseWholesaleItems } from '@/lib/inventory';
+import { registerSaleSafely } from '@/lib/inventory.server';
+import { createWholesaleTicket } from '@/lib/tickets.server';
 import type { Json } from '@/lib/database.types';
 
 /**
@@ -164,7 +167,17 @@ export async function POST(request: NextRequest) {
       .select('*')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(toOrder(data), { status: 201 });
+
+    // Inventario: el pedido aparta las unidades del día en que se entrega.
+    await registerSaleSafely(supabaseAdmin, {
+      day: deliveryDate,
+      lines: parseWholesaleItems(priced.items),
+      wholesaleOrderId: data.id,
+      actor: cleanText(body.created_by, 80),
+    });
+
+    const ticketCode = await createWholesaleTicket(supabaseAdmin, data);
+    return NextResponse.json({ ...toOrder(data), ticket_code: ticketCode }, { status: 201 });
   } catch (e) {
     if (e instanceof OrderInputError) return NextResponse.json({ error: e.message }, { status: 400 });
     return NextResponse.json({ error: 'No se pudo guardar el pedido.' }, { status: 500 });

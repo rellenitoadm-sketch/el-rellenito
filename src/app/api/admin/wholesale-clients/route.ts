@@ -55,8 +55,8 @@ export async function POST(request: NextRequest) {
     name,
     phone: body.phone?.trim() || null,
     address: body.address?.trim() || null,
-    route: body.route?.trim() || null,
-    area: body.area?.trim() || null,
+    route: body.route?.trim().slice(0, 80) || null,
+    area: body.area?.trim().slice(0, 80) || null,
     notes: body.notes?.trim() || null,
     active: body.active ?? true,
   };

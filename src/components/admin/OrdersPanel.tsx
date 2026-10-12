@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { StaffRole } from '@/lib/adminAuth';
 import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
+import TicketSheet from './TicketSheet';
 
 interface Order {
   id: string;
@@ -94,6 +95,7 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
     try { return localStorage.getItem('rl_admin_alerts') === '1'; } catch { return false; }
   });
   const [toast, setToast] = useState('');
+  const [ticketFor, setTicketFor] = useState<string | null>(null);
 
   useEffect(() => {
     const sync = () => {
@@ -217,6 +219,7 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
 
   return (
     <div>
+      {ticketFor && <TicketSheet source={{ orderId: ticketFor }} onClose={() => setTicketFor(null)} />}
       {/* Sub-view switch */}
       <div className="flex gap-1.5 mb-4" data-tour="orders-views">
         {VIEWS.map(v => (
@@ -369,6 +372,16 @@ export default function OrdersPanel({ role }: { role: StaffRole | null }) {
                       >
                         <MapPin className="w-3.5 h-3.5" /> Ver mapa
                       </a>
+                    )}
+                    {order.status !== 'cancelado' && (
+                      <button
+                        onClick={() => setTicketFor(order.id)}
+                        data-tour="order-ticket"
+                        className="inline-flex items-center gap-1 mt-1 ml-1.5 text-[12px] font-semibold px-2.5 py-1 min-h-8 rounded-lg"
+                        style={{ background: 'var(--surface-2)', color: 'var(--text-1)' }}
+                      >
+                        <Receipt className="w-3.5 h-3.5" /> Ticket
+                      </button>
                     )}
                     {order.scheduled_date && (
                       <p className="text-[12px] mt-0.5 inline-flex items-center gap-1" style={{ color: 'var(--text-2)' }}>

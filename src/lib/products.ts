@@ -43,6 +43,8 @@ export interface Product {
    * `product_flavors`). NOT NULL en Supabase (default false).
    */
   has_flavors?: boolean;
+  /** Avisa "stock bajo" cuando lo que queda del día llega a este número (0 = solo al agotarse). */
+  low_stock_threshold?: number;
 }
 
 /*

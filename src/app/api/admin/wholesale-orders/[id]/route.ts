@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireRole } from '@/lib/adminAuth';
 import { MAX_AHEAD_DAYS, addDays, caracasDate, isYmd } from '@/lib/wholesaleOrders';
+import { parseWholesaleItems } from '@/lib/inventory';
+import { clearOrderMovements, registerSaleSafely, releaseSale } from '@/lib/inventory.server';
 import {
   OrderInputError,
   cleanText,
@@ -38,7 +40,8 @@ export async function PATCH(
   const hasPayments = order.payments.length > 0;
 
   const conflict = (error: string) => NextResponse.json({ error }, { status: 409 });
-  const apply = async (patch: OrderUpdate, expectedStatus: string[]) => {
+  /** `afterOk` solo corre si el pedido se actualizó de verdad (inventario). */
+  const apply = async (patch: OrderUpdate, expectedStatus: string[], afterOk?: () => Promise<void>) => {
     const { data, error } = await db
       .from('wholesale_orders')
       .update(patch)
@@ -47,6 +50,14 @@ export async function PATCH(
       .select('id');
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!data || data.length === 0) return conflict('El pedido cambió mientras tanto. Recarga la lista.');
+    if (afterOk) {
+      try {
+        await afterOk();
+      } catch (err) {
+        // El inventario nunca tumba el cambio del pedido.
+        console.warn('Inventario (pedido mayorista):', err instanceof Error ? err.message : err);
+      }
+    }
     return NextResponse.json(await loadOrder(db, id));
   };
 
@@ -74,7 +85,13 @@ export async function PATCH(
     case 'cancel':
       if (order.status === 'cancelado') return NextResponse.json(order);
       if (hasPayments) return conflict('No se puede cancelar un pedido con cobros registrados.');
-      return apply({ status: 'cancelado' }, ['registrado', 'entregado']);
+      // Lo que apartaba este pedido vuelve al inventario de su día de entrega.
+      return apply({ status: 'cancelado' }, ['registrado', 'entregado'], () => releaseSale(db, {
+        day: order.delivery_date,
+        lines: parseWholesaleItems(order.items),
+        wholesaleOrderId: id,
+        actor: cleanText(body.driver_name, 80),
+      }));
 
     case 'release':
       if (order.status !== 'registrado') return conflict('Solo se puede soltar un pedido sin entregar.');
@@ -109,7 +126,22 @@ export async function PATCH(
           return NextResponse.json({ error: 'No se pudo recalcular el pedido.' }, { status: 500 });
         }
       }
-      return apply(patch, ['registrado']);
+      // Cambiaron los productos o la fecha: se rehacen los movimientos de este
+      // pedido en vez de intentar calcular diferencias línea por línea.
+      const rehacerInventario = patch.items !== undefined || patch.delivery_date !== undefined
+        ? async () => {
+          await clearOrderMovements(db, { wholesaleOrderId: id });
+          const fresco = await loadOrder(db, id);
+          if (!fresco || fresco.status === 'cancelado') return;
+          await registerSaleSafely(db, {
+            day: fresco.delivery_date,
+            lines: parseWholesaleItems(fresco.items),
+            wholesaleOrderId: id,
+            actor: cleanText(body.actor, 80),
+          });
+        }
+        : undefined;
+      return apply(patch, ['registrado'], rehacerInventario);
     }
 
     default:

@@ -37,8 +37,8 @@ export async function PATCH(
   }
   if (body.phone !== undefined) patch.phone = body.phone?.trim() || null;
   if (body.address !== undefined) patch.address = body.address?.trim() || null;
-  if (body.route !== undefined) patch.route = body.route?.trim() || null;
-  if (body.area !== undefined) patch.area = body.area?.trim() || null;
+  if (body.route !== undefined) patch.route = body.route?.trim().slice(0, 80) || null;
+  if (body.area !== undefined) patch.area = body.area?.trim().slice(0, 80) || null;
   if (body.notes !== undefined) patch.notes = body.notes?.trim() || null;
   if (body.active !== undefined) patch.active = body.active;
 
