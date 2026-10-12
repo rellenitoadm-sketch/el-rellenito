@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Check, Copy, Download, Loader2, MessageCircle, X } from 'lucide-react';
+import { Check, Copy, Download, Loader2, MessageCircle, Printer, Share2, X } from 'lucide-react';
 import { TicketCard } from '../TicketCard';
 import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
 import { ticketNumber, ticketShareText, ticketUrl, type Ticket } from '@/lib/tickets';
@@ -61,8 +61,11 @@ export default function TicketSheet({ source, onClose }: { source: Source; onClo
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
   }, [phone, text]);
 
-  /** Móvil: comparte la imagen. Si el navegador no puede, abre WhatsApp con el link. */
-  const share = async () => {
+  /** Chat directo con el cliente y el mensaje listo: WhatsApp muestra el ticket como tarjeta con su imagen. */
+  const sendToCustomer = openWhatsApp;
+
+  /** Móvil: manda la imagen misma. Hay que elegir el contacto en el menú de compartir. */
+  const shareImage = async () => {
     if (!ticket) return;
     setSharing(true);
     try {
@@ -72,12 +75,12 @@ export default function TicketSheet({ source, onClose }: { source: Source; onClo
         await navigator.share({ files: [file], text });
         return;
       }
+      setError('Este navegador no puede compartir la imagen. Usa "Descargar" y adjúntala en el chat.');
     } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return; // canceló el menú de compartir
+      if (!(e instanceof DOMException && e.name === 'AbortError')) setError('No se pudo compartir la imagen.');
     } finally {
       setSharing(false);
     }
-    openWhatsApp();
   };
 
   const copy = async () => {
@@ -111,7 +114,7 @@ export default function TicketSheet({ source, onClose }: { source: Source; onClo
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
-          {error ? (
+          {!ticket && error ? (
             <p className="text-[13px] text-center py-10" style={{ color: '#B91C1C' }}>{error}</p>
           ) : !ticket ? (
             <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--brand)' }} /></div>
@@ -122,19 +125,25 @@ export default function TicketSheet({ source, onClose }: { source: Source; onClo
 
         {ticket && (
           <div className="px-4 pt-3 pb-4 flex-shrink-0 space-y-2" style={{ background: 'var(--surface)' }}>
-            <button onClick={share} disabled={sharing} className="btn btn-primary w-full justify-center" style={{ minHeight: 48 }}>
-              {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
-              Enviar por WhatsApp
+            <button onClick={sendToCustomer} className="btn btn-primary w-full justify-center" style={{ minHeight: 48 }}>
+              <MessageCircle className="w-4 h-4" /> Enviar al WhatsApp del cliente
             </button>
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={copy} className="btn btn-secondary justify-center" style={{ minHeight: 44 }}>
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Copiado' : 'Copiar link'}
+            <div className="grid grid-cols-3 gap-2">
+              <button onClick={shareImage} disabled={sharing} className="btn btn-secondary justify-center px-2" style={{ minHeight: 44 }}>
+                {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />} Imagen
               </button>
-              <a href={`/t/${ticket.code}/image`} download={`ticket-${ticket.number}.png`} className="btn btn-secondary justify-center" style={{ minHeight: 44 }}>
-                <Download className="w-4 h-4" /> Descargar
-              </a>
+              <button onClick={copy} className="btn btn-secondary justify-center px-2" style={{ minHeight: 44 }}>
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Copiado' : 'Link'}
+              </button>
+              <button onClick={() => window.open(`/t/${ticket.code}?print=1`, '_blank', 'noopener')} className="btn btn-secondary justify-center px-2" style={{ minHeight: 44 }}>
+                <Printer className="w-4 h-4" /> Imprimir
+              </button>
             </div>
+            <a href={`/t/${ticket.code}/image`} download={`ticket-${ticket.number}.png`} className="btn btn-ghost w-full justify-center" style={{ minHeight: 40 }}>
+              <Download className="w-4 h-4" /> Descargar imagen
+            </a>
+            {error && <p className="text-[12px] text-center" style={{ color: '#B91C1C' }}>{error}</p>}
             {!phone && <p className="text-[11px] text-center" style={{ color: 'var(--text-3)' }}>Sin teléfono: WhatsApp te dejará elegir el contacto.</p>}
           </div>
         )}

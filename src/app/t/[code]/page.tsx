@@ -4,11 +4,11 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { fmtUsd, isTicketCode, ticketNumber } from '@/lib/tickets';
 import { getTicketByCode } from '@/lib/tickets.server';
 import { TicketCard } from '@/components/TicketCard';
-import { PrintButton } from './PrintButton';
+import { AutoPrint, TicketActions } from '@/components/TicketActions';
 
 const WEB_FONTS = { serif: 'var(--font-playfair), Georgia, serif', sans: 'var(--font-inter), Helvetica, sans-serif' };
 
-type Props = { params: Promise<{ code: string }> };
+type Props = { params: Promise<{ code: string }>; searchParams: Promise<{ print?: string }> };
 
 async function load(code: string) {
   if (!supabaseAdmin || !isTicketCode(code)) return null;
@@ -27,20 +27,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function TicketPage({ params }: Props) {
+export default async function TicketPage({ params, searchParams }: Props) {
   const { code } = await params;
+  const { print } = await searchParams;
   const ticket = await load(code);
   if (!ticket) notFound();
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center gap-4 px-4 py-8" style={{ background: '#FFE9DC' }}>
       <TicketCard ticket={ticket} logoSrc="/logo-circle.png" fonts={WEB_FONTS} />
-      <div className="flex w-full gap-3 print:hidden">
-        <PrintButton />
-        <a className="btn btn-secondary flex-1 justify-center" href={`/t/${code}/image`} download={`ticket-${ticket.number}.png`}>
-          Descargar imagen
-        </a>
-      </div>
+      <TicketActions code={code} number={ticket.number} inline />
+      {print === '1' && <AutoPrint />}
     </main>
   );
 }

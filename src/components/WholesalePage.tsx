@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Minus, Plus, ShoppingBag, Check, X, CalendarDays, MapPin, Navigation, Loader2, AlertCircle, Lock } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, ShoppingBag, X, CalendarDays, MapPin, Navigation, Loader2, AlertCircle, Lock } from 'lucide-react';
 import { useProducts } from './ProductsContext';
 import { useCategories } from './CategoriesContext';
 import { useCurrency } from './CurrencyContext';
@@ -18,6 +18,8 @@ import ProofUpload, { type ProofData } from './ProofUpload';
 import type { PaymentMethodId } from '@/lib/payments';
 import { toCop, isPricedIn, CURRENCY_NAME } from '@/lib/rates';
 import { useGeolocationZone } from '@/hooks/useGeolocationZone';
+import OrderConfirmation from './OrderConfirmation';
+import type { Ticket } from '@/lib/tickets';
 
 interface WholesaleCartItem {
   id: string;
@@ -72,9 +74,8 @@ export default function WholesalePage({ onBack, onNavInfo }: WholesalePageProps)
   const [advancePct, setAdvancePct] = useState(50);
   const [proofData, setProofData] = useState<ProofData | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [ticketCode, setTicketCode] = useState<string | null>(null);
+  const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(false);
-  const [orderNumber, setOrderNumber] = useState('');
   const [submitError, setSubmitError] = useState('');
 
   // Ubicación de entrega por GPS (opcional)
@@ -172,9 +173,8 @@ export default function WholesalePage({ onBack, onNavInfo }: WholesalePageProps)
         return;
       }
 
-      const data = await res.json() as { id?: string; ticket_code?: string | null };
-      setOrderNumber(data.id ?? `RL-MAY-${Date.now().toString().slice(-6)}`);
-      setTicketCode(data.ticket_code ?? null);
+      const data = await res.json() as { ticket?: Ticket | null };
+      setTicket(data.ticket ?? null);
       setSubmitted(true);
     } catch {
       setSubmitError('Error de conexión. Intenta de nuevo.');
@@ -186,39 +186,13 @@ export default function WholesalePage({ onBack, onNavInfo }: WholesalePageProps)
   // ── SUCCESS ──
   if (submitted) {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="min-h-screen flex flex-col items-center justify-center px-6 text-center"
-        style={{ background: 'var(--bg-main)' }}
-      >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-          className="w-20 h-20 rounded-full bg-[var(--brand-orange)] flex items-center justify-center mb-6"
-          style={{ boxShadow: 'var(--glow-md)' }}
-        >
-          <Check className="w-10 h-10 text-white" strokeWidth={2.5} />
-        </motion.div>
-        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>¡Pedido recibido!</h2>
-        <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Número de pedido:</p>
-        <p className="text-lg font-bold mb-4" style={{ color: 'var(--brand-orange)' }}>{orderNumber}</p>
-        <p className="text-sm mb-6 max-w-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+      <OrderConfirmation ticket={ticket} onClose={onBack} closeLabel="Volver al menú">
+        <p>
           Te contactaremos por WhatsApp para confirmar tu pedido al mayor del{' '}
           {selectedDate?.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}{' '}
-          ({selectedTime}).
+          ({selectedTime}). Guarda tu ticket.
         </p>
-        {ticketCode && (
-          <a href={`/t/${ticketCode}`} target="_blank" rel="noopener noreferrer"
-            className="mb-5 text-sm font-semibold underline" style={{ color: 'var(--brand-orange)' }}>
-            Ver mi ticket
-          </a>
-        )}
-        <button onClick={onBack} className="btn-gradient text-white font-bold px-6 py-3 rounded-2xl">
-          Volver al menú
-        </button>
-      </motion.div>
+      </OrderConfirmation>
     );
   }
 

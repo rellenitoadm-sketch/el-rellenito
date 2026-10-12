@@ -176,8 +176,8 @@ export async function POST(request: NextRequest) {
       actor: cleanText(body.created_by, 80),
     });
 
-    const ticketCode = await createWholesaleTicket(supabaseAdmin, data);
-    return NextResponse.json({ ...toOrder(data), ticket_code: ticketCode }, { status: 201 });
+    const ticket = await createWholesaleTicket(supabaseAdmin, data);
+    return NextResponse.json({ ...toOrder(data), ticket_code: ticket?.code ?? null }, { status: 201 });
   } catch (e) {
     if (e instanceof OrderInputError) return NextResponse.json({ error: e.message }, { status: 400 });
     return NextResponse.json({ error: 'No se pudo guardar el pedido.' }, { status: 500 });

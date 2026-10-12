@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Ticket (factura) para reenviar al cliente. Si falla, el pedido sigue.
-    const ticketCode = await createWebTicket(supabaseAdmin, result.id, body);
+    const ticket = await createWebTicket(supabaseAdmin, result.id, body);
 
     // Maintain the CRM (best-effort, non-blocking for the customer).
     if (supabaseAdmin && body.status !== 'cancelado') {
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       items: body.items,
     });
 
-    return NextResponse.json({ id: result.id, status: 'pendiente', ticket_code: ticketCode }, { status: 201 });
+    return NextResponse.json({ id: result.id, status: 'pendiente', ticket }, { status: 201 });
   } catch (err) {
     console.error('Orders API error:', err);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });

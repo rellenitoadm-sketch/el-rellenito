@@ -62,7 +62,7 @@ export function newTicketCode(): string {
 }
 
 export function ticketNumber(n: number): string {
-  return `#${String(n).padStart(5, '0')}`;
+  return `#${String(n).padStart(3, '0')}`;
 }
 
 export function ticketUrl(origin: string, code: string): string {
@@ -131,7 +131,7 @@ export function fmtTicketDate(iso: string): string {
   return d.toLocaleDateString('es-VE', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Caracas' });
 }
 
-/** Texto que acompaña al link cuando se manda por WhatsApp. */
+/** Mensaje predeterminado al mandar el ticket por WhatsApp. El link se ve como tarjeta con la imagen. */
 export function ticketShareText(t: Pick<Ticket, 'customer_name' | 'number' | 'total_usd'>, url: string): string {
-  return `Hola ${t.customer_name}, este es tu ticket ${ticketNumber(t.number)} de El Rellenito por ${fmtUsd(t.total_usd)}. ¡Gracias por tu compra!\n${url}`;
+  return `¡Hola ${t.customer_name}! 🧡 Gracias por tu compra en El Rellenito. Aquí está tu ticket ${ticketNumber(t.number)} por ${fmtUsd(t.total_usd)}:\n${url}`;
 }

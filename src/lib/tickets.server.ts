@@ -67,7 +67,7 @@ export function toTicket(row: Database['public']['Tables']['tickets']['Row']): T
 }
 
 /** Ticket de un pedido de la web (detal o mayor por la tienda). Nunca lanza. */
-export async function createWebTicket(db: Db | null, orderId: string, o: OrderInsert): Promise<string | null> {
+export async function createWebTicket(db: Db | null, orderId: string, o: OrderInsert): Promise<Ticket | null> {
   if (!db) return null;
   try {
     const t = await insertTicket(db, {
@@ -90,7 +90,7 @@ export async function createWebTicket(db: Db | null, orderId: string, o: OrderIn
         remaining_usd: o.remaining_usd ?? null,
       },
     });
-    return t?.code ?? null;
+    return t;
   } catch (e) {
     console.warn('Ticket (web):', e);
     return null;
@@ -100,7 +100,7 @@ export async function createWebTicket(db: Db | null, orderId: string, o: OrderIn
 type WholesaleRow = Database['public']['Tables']['wholesale_orders']['Row'];
 
 /** Ticket de un pedido mayorista registrado por teléfono. Nunca lanza. */
-export async function createWholesaleTicket(db: Db, o: WholesaleRow): Promise<string | null> {
+export async function createWholesaleTicket(db: Db, o: WholesaleRow): Promise<Ticket | null> {
   try {
     const t = await insertTicket(db, {
       kind: 'mayor',
@@ -118,7 +118,7 @@ export async function createWholesaleTicket(db: Db, o: WholesaleRow): Promise<st
         notes: o.notes,
       },
     });
-    return t?.code ?? null;
+    return t;
   } catch (e) {
     console.warn('Ticket (mayorista):', e);
     return null;
@@ -143,13 +143,10 @@ export async function ensureTicket(
   const { data: existing } = await db.from('tickets').select('*').eq(col, id).limit(1).maybeSingle();
   if (existing) return toTicket(existing);
 
-  let code: string | null = null;
   if ('order_id' in ref) {
     const { data: row } = await db.from('orders').select('*').eq('id', id).maybeSingle();
-    if (row) code = await createWebTicket(db, id, row as unknown as OrderInsert);
-  } else {
-    const { data: row } = await db.from('wholesale_orders').select('*').eq('id', id).maybeSingle();
-    if (row) code = await createWholesaleTicket(db, row);
+    return row ? createWebTicket(db, id, row as unknown as OrderInsert) : null;
   }
-  return code ? getTicketByCode(db, code) : null;
+  const { data: row } = await db.from('wholesale_orders').select('*').eq('id', id).maybeSingle();
+  return row ? createWholesaleTicket(db, row) : null;
 }

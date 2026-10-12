@@ -10,6 +10,8 @@ import PaymentTabs from './PaymentTabs';
 import PaymentDetails from './PaymentDetails';
 import ProofUpload, { type ProofData } from './ProofUpload';
 import { deliveryZones } from '@/lib/zones';
+import OrderConfirmation from './OrderConfirmation';
+import type { Ticket } from '@/lib/tickets';
 import { estimateForZone, globalDeliveryRange, type DeliveryEstimate } from '@/lib/zoneDetection';
 import { unitUsd, unitCop, isWholesaleQty, wholesaleThreshold } from '@/lib/rates';
 import { fritoUnitCop, hasFrito } from '@/lib/fritos';
@@ -49,8 +51,7 @@ export default function Checkout({ onClose }: CheckoutProps) {
   const { rates, currency, format } = useCurrency();
 
   const [step, setStep] = useState<Step>('form');
-  const [orderId, setOrderId] = useState<string>('');
-  const [ticketCode, setTicketCode] = useState<string | null>(null);
+  const [ticket, setTicket] = useState<Ticket | null>(null);
 
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'retiro'>('delivery');
 
@@ -198,9 +199,8 @@ export default function Checkout({ onClose }: CheckoutProps) {
         return;
       }
 
-      const data = await res.json() as { id?: string; ticket_code?: string | null };
-      setOrderId(data.id ?? `RL-${Date.now()}`);
-      setTicketCode(data.ticket_code ?? null);
+      const data = await res.json() as { ticket?: Ticket | null };
+      setTicket(data.ticket ?? null);
       clearCart();
       setStep('success');
     } catch {
@@ -212,25 +212,9 @@ export default function Checkout({ onClose }: CheckoutProps) {
 
   if (step === 'success') {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex flex-col items-center justify-center h-full px-6 text-center"
-      >
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
-          className="w-20 h-20 rounded-full flex items-center justify-center mb-5"
-          style={{ background: 'var(--success-soft)' }}
-        >
-          <CheckCircle className="w-10 h-10" style={{ color: 'var(--success)' }} />
-        </motion.div>
-        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-1)' }}>¡Pedido recibido!</h2>
-        <p className="text-sm mb-1" style={{ color: 'var(--text-2)' }}>Número de pedido:</p>
-        <p className="text-lg font-bold mb-4" style={{ color: 'var(--brand)' }}>{orderId}</p>
+      <OrderConfirmation ticket={ticket} onClose={onClose}>
         {selectedDate && selectedTime && (
-          <p className="text-sm mb-3 max-w-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
+          <p className="mb-2">
             {isDelivery ? 'Entrega' : 'Retiro'} agendado para el{' '}
             <strong style={{ color: 'var(--text-1)' }}>
               {selectedDate.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -238,24 +222,11 @@ export default function Checkout({ onClose }: CheckoutProps) {
             ({selectedTime}).
           </p>
         )}
-        <p className="text-sm max-w-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
-          Verificaremos tu pago y nos pondremos en contacto contigo pronto por WhatsApp
-          {isDelivery ? ' para confirmar el costo del envío y la entrega' : ''}.
+        <p>
+          Verificaremos tu pago y te contactaremos por WhatsApp
+          {isDelivery ? ' para confirmar el costo del envío y la entrega' : ''}. Guarda tu ticket.
         </p>
-        {ticketCode && (
-          <a href={`/t/${ticketCode}`} target="_blank" rel="noopener noreferrer"
-            className="mt-5 text-sm font-semibold underline" style={{ color: 'var(--brand-deep)' }}>
-            Ver mi ticket
-          </a>
-        )}
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={onClose}
-          className="mt-8 w-full btn-gradient text-white font-bold py-4 rounded-2xl"
-        >
-          Cerrar
-        </motion.button>
-      </motion.div>
+      </OrderConfirmation>
     );
   }
 

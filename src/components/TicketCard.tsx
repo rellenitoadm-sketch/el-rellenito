@@ -58,7 +58,11 @@ export function TicketCard({ ticket: t, logoSrc, fonts = IMAGE_FONTS }: { ticket
   const when = t.meta.date ? fmtTicketDate(t.meta.date) : '';
   const details: [string, string][] = [];
   if (when) details.push([t.kind === 'mayor' ? 'Entrega' : 'Fecha', t.meta.time ? `${when} · ${t.meta.time}` : when]);
-  if (delivery) details.push(['Modalidad', t.meta.delivery_zone ? `${delivery} · ${t.meta.delivery_zone}` : delivery]);
+  if (delivery) {
+    // En retiro la zona viene como "Retiro en tienda": no se repite.
+    const zone = t.meta.delivery_zone;
+    details.push(['Modalidad', zone && zone.trim().toLowerCase() !== delivery.toLowerCase() ? `${delivery} · ${zone}` : delivery]);
+  }
   if (t.meta.route) details.push(['Ruta', t.meta.route]);
   if (t.meta.delivery_address) details.push(['Dirección', t.meta.delivery_address.split('\n')[0].slice(0, 90)]);
   if (pay) details.push(['Pago', pay]);
