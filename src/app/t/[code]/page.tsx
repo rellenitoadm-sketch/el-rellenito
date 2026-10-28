@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { fmtUsd, isTicketCode, ticketNumber } from '@/lib/tickets';
 import { getTicketByCode } from '@/lib/tickets.server';
 import { TicketCard } from '@/components/TicketCard';
+import { TicketSlip, SLIP_CSS } from '@/components/TicketSlip';
 import { AutoPrint, TicketActions } from '@/components/TicketActions';
 
 const WEB_FONTS = { serif: 'var(--font-playfair), Georgia, serif', sans: 'var(--font-inter), Helvetica, sans-serif' };
@@ -34,17 +35,10 @@ export default async function TicketPage({ params, searchParams }: Props) {
   if (!ticket) notFound();
 
   return (
-    <main className="ticket-page mx-auto flex min-h-dvh max-w-md flex-col items-center gap-4 px-4 py-8" style={{ background: '#FFE9DC' }}>
-      <style>{`
-        @page { margin: 8mm; }
-        @media print {
-          html, body { background: #fff !important; }
-          .ticket-page { background: #fff !important; max-width: none !important; min-height: 0 !important; padding: 0 !important; }
-          .ticket-page > div:first-of-type { max-width: 110mm; margin: 0 auto; box-shadow: none !important; border: 1px solid #000; }
-          * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        }
-      `}</style>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center gap-4 px-4 py-8" style={{ background: '#FFE9DC' }}>
+      <style>{SLIP_CSS}</style>
       <TicketCard ticket={ticket} logoSrc="/logo-circle.png" fonts={WEB_FONTS} />
+      <TicketSlip ticket={ticket} />
       <TicketActions code={code} number={ticket.number} inline />
       {print === '1' && <AutoPrint />}
     </main>

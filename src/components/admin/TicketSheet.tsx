@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Check, ChefHat, Copy, Download, Loader2, MessageCircle, Printer, Share2, X } from 'lucide-react';
+import { Check, ChefHat, Copy, Download, Loader2, MessageCircle, Share2, X } from 'lucide-react';
 import { TicketCard } from '../TicketCard';
 import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
 import { ticketNumber, ticketShareText, ticketUrl, type Ticket } from '@/lib/tickets';
@@ -125,22 +125,19 @@ export default function TicketSheet({ source, onClose }: { source: Source; onClo
 
         {ticket && (
           <div className="px-4 pt-3 pb-4 flex-shrink-0 space-y-2" style={{ background: 'var(--surface)' }}>
-            <button onClick={() => window.open(`/t/${ticket.code}/cocina?print=1`, '_blank', 'noopener')} className="btn w-full justify-center" style={{ minHeight: 56, background: '#1A1A1A', color: '#fff', fontSize: 16 }}>
-              <ChefHat className="w-5 h-5" /> Imprimir comanda para cocina (80 mm)
+            <button onClick={() => window.open(`/t/${ticket.code}?print=1`, '_blank', 'noopener')} className="btn w-full justify-center" style={{ minHeight: 56, background: '#1A1A1A', color: '#fff', fontSize: 16 }}>
+              <ChefHat className="w-5 h-5" /> Imprimir ticket para cocina (80 mm)
             </button>
             <button onClick={sendToCustomer} className="btn btn-primary w-full justify-center" style={{ minHeight: 48 }}>
               <MessageCircle className="w-4 h-4" /> Enviar al WhatsApp del cliente
             </button>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button onClick={shareImage} disabled={sharing} className="btn btn-secondary justify-center px-2" style={{ minHeight: 44 }}>
                 {sharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />} Imagen
               </button>
               <button onClick={copy} className="btn btn-secondary justify-center px-2" style={{ minHeight: 44 }}>
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copied ? 'Copiado' : 'Link'}
-              </button>
-              <button onClick={() => window.open(`/t/${ticket.code}?print=1`, '_blank', 'noopener')} className="btn btn-secondary justify-center px-2" style={{ minHeight: 44 }}>
-                <Printer className="w-4 h-4" /> Imprimir
               </button>
             </div>
             <a href={`/t/${ticket.code}/image`} download={`ticket-${ticket.number}.png`} className="btn btn-ghost w-full justify-center" style={{ minHeight: 40 }}>

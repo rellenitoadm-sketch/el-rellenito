@@ -34,11 +34,3 @@ export function AutoPrint() {
   return null;
 }
 
-/** Botón grande de imprimir para la comanda de cocina (se oculta al imprimir). */
-export function PrintButton({ className = '' }: { className?: string }) {
-  return (
-    <button type="button" onClick={() => window.print()} className={`btn btn-primary ${className}`} style={{ minHeight: 56, minWidth: 220, justifyContent: 'center', fontSize: 16 }}>
-      <Printer className="w-5 h-5" aria-hidden /> Imprimir comanda
-    </button>
-  );
-}
