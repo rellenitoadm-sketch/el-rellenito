@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { X, Upload, Loader2, Trash2, Star, Plus, Info, Tag, Boxes, Layers } from 'lucide-react';
 import { type Product, type ProductCategory, type ProductType } from '@/lib/products';
 import type { ExchangeRates } from '@/lib/rates';
 import { useCategories } from '../CategoriesContext';
 import { useOnboarding } from '../Onboarding';
-import ProductFlavorsEditor from './ProductFlavorsEditor';
+import ProductFlavorsEditor, { type FlavorsHandle } from './ProductFlavorsEditor';
 import { normalizeDecimalInput } from '@/lib/decimalInput';
 import type { StockRow } from '@/lib/inventory';
 import StockAdjust from './StockAdjust';
@@ -30,11 +29,11 @@ interface ProductEditorProps {
 
 type Tab = 'info' | 'precios' | 'stock' | 'sabores';
 
-const TABS: { id: Tab; label: string; Icon: React.ElementType; onlyExisting?: boolean }[] = [
+const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
   { id: 'info', label: 'Info', Icon: Info },
   { id: 'precios', label: 'Precios', Icon: Tag },
   { id: 'stock', label: 'Inventario', Icon: Boxes },
-  { id: 'sabores', label: 'Sabores', Icon: Layers, onlyExisting: true },
+  { id: 'sabores', label: 'Sabores', Icon: Layers },
 ];
 
 const TYPE_OPTIONS: { id: ProductType; label: string }[] = [
@@ -46,7 +45,7 @@ const TYPE_OPTIONS: { id: ProductType; label: string }[] = [
 export default function ProductEditor({ product, initialTab, rates, stockRows, stockDate, onStockRows, onClose, onSaved, onDeleted }: ProductEditorProps) {
   const isNew = product === null;
   const [tab, setTab] = useState<Tab>(initialTab ?? 'info');
-  const tabs = TABS.filter(t => !t.onlyExisting || !isNew);
+  const tabs = TABS;
   const { order, labelOf, reload: reloadCats } = useCategories();
   const { maybeStart } = useOnboarding();
 
@@ -101,6 +100,7 @@ export default function ProductEditor({ product, initialTab, rates, stockRows, s
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const flavorsRef = useRef<FlavorsHandle>(null);
 
   // Lock body scroll
   useEffect(() => {
@@ -121,25 +121,34 @@ export default function ProductEditor({ product, initialTab, rates, stockRows, s
   const bs = Math.round(usd * rates.bs_per_usd);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const input = e.target;
+    const picked = input.files?.[0];
+    if (!picked) return;
     setUploading(true);
     setError('');
     try {
+      // Las fotos del celular pesan varios MB y el servidor rechaza >4 MB:
+      // se reducen aquí antes de subir.
+      const file = await shrinkImage(picked);
       // Se manda el archivo como body crudo (no FormData/multipart): el
       // parsing multipart en producción corrompía los bytes binarios.
       const res = await fetch('/api/admin/upload', {
         method: 'POST',
-        headers: { 'Content-Type': file.type, 'X-File-Name': encodeURIComponent(file.name) },
+        headers: { 'Content-Type': file.type || 'image/jpeg', 'X-File-Name': encodeURIComponent(file.name) },
         body: file,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Error al subir');
+      const data = await res.json().catch(() => ({} as { error?: string; url?: string }));
+      if (!res.ok) {
+        throw new Error(
+          data.error ?? (res.status === 413 ? 'La foto es demasiado pesada. Prueba con otra.' : `Error al subir (${res.status})`),
+        );
+      }
       setImageUrl(data.url);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir la imagen');
     } finally {
       setUploading(false);
+      input.value = ''; // permite volver a elegir la misma foto
     }
   };
 
@@ -176,6 +185,14 @@ export default function ProductEditor({ product, initialTab, rates, stockRows, s
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Error al guardar');
+      // Los sabores escritos y sin guardar se guardan junto con el producto.
+      try {
+        await flavorsRef.current?.saveIfDirty((data as Product).id);
+      } catch (err) {
+        if (isNew) onSaved(data as Product); // el producto ya existe; no se duplica
+        else { setTab('sabores'); }
+        throw new Error(`Producto guardado, pero los sabores no: ${err instanceof Error ? err.message : 'error'}`);
+      }
       onSaved(data as Product); // parent unmounts this editor
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar');
@@ -247,7 +264,8 @@ export default function ProductEditor({ product, initialTab, rates, stockRows, s
                 style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}
               >
                 {imageUrl
-                  ? <Image src={imageUrl} alt="" width={80} height={80} sizes="80px" className="object-cover w-full h-full" unoptimized={imageUrl.startsWith('data:')} />
+                  // eslint-disable-next-line @next/next/no-img-element -- vista previa: la URL puede ser data: o de Supabase
+                  ? <img src={imageUrl} alt="" width={80} height={80} className="object-cover w-full h-full" />
                   : <Upload className="w-6 h-6" style={{ color: 'var(--text-3)' }} />}
               </div>
               <div className="flex-1">
@@ -474,11 +492,9 @@ export default function ProductEditor({ product, initialTab, rates, stockRows, s
             </div>
           </div>
 
-          {!isNew && product && (
-            <div role="tabpanel" className={tab === 'sabores' ? '' : 'hidden'}>
-              <ProductFlavorsEditor productId={product.id} type={type} />
-            </div>
-          )}
+          <div role="tabpanel" className={tab === 'sabores' ? '' : 'hidden'}>
+            <ProductFlavorsEditor ref={flavorsRef} productId={product?.id ?? null} type={type} />
+          </div>
 
           {error && <p className="mt-3 text-[12px]" style={{ color: 'var(--danger)' }}>{error}</p>}
         </div>
@@ -508,4 +524,23 @@ export default function ProductEditor({ product, initialTab, rates, stockRows, s
       </motion.div>
     </div>
   );
+}
+
+/** Reduce la foto a máx. 1600 px y ~WebP/JPEG liviano. Si algo falla, devuelve la original. */
+async function shrinkImage(file: File): Promise<File> {
+  if (file.type === 'image/gif') return file;
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close();
+    const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+    if (!blob || blob.size >= file.size) return file.size <= 4 * 1024 * 1024 ? file : (blob ? new File([blob], 'foto.jpg', { type: 'image/jpeg' }) : file);
+    return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
 }

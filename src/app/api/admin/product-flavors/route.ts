@@ -97,24 +97,29 @@ export async function PUT(request: NextRequest) {
 
   // 3) Crea los sabores nuevos (uno por nombre) y sus asignaciones con precio.
   if (incoming.length > 0) {
-    const { data: created, error: insFlavorsErr } = await supabaseAdmin
-      .from('flavors')
-      .insert(incoming.map((f, i) => ({ name: f.name, sort_order: i })))
-      .select('id, name');
-    if (insFlavorsErr || !created) {
-      return NextResponse.json({ error: insFlavorsErr?.message ?? 'No se pudieron crear los sabores' }, { status: 500 });
+    // Uno por uno: así cada sabor queda con su id sin depender del orden que devuelva el insert.
+    const rows = [];
+    for (let i = 0; i < incoming.length; i++) {
+      const f = incoming[i];
+      const { data: created, error: insFlavorErr } = await supabaseAdmin
+        .from('flavors')
+        .insert({ name: f.name, sort_order: i })
+        .select('id')
+        .single();
+      if (insFlavorErr || !created) {
+        return NextResponse.json({ error: insFlavorErr?.message ?? 'No se pudieron crear los sabores' }, { status: 500 });
+      }
+      rows.push({
+        product_id: productId,
+        flavor_id: created.id,
+        available: true,
+        sort_order: i,
+        price_usd: num(f.price_usd),
+        price_cop: num(f.price_cop),
+        wholesale_price_usd: num(f.wholesale_price_usd),
+        wholesale_price_cop: num(f.wholesale_price_cop),
+      });
     }
-
-    const rows = incoming.map((f, i) => ({
-      product_id: productId,
-      flavor_id: created[i].id,
-      available: true,
-      sort_order: i,
-      price_usd: num(f.price_usd),
-      price_cop: num(f.price_cop),
-      wholesale_price_usd: num(f.wholesale_price_usd),
-      wholesale_price_cop: num(f.wholesale_price_cop),
-    }));
     const insPf = await supabaseAdmin.from('product_flavors').insert(rows);
     if (insPf.error) return NextResponse.json({ error: insPf.error.message }, { status: 500 });
   }

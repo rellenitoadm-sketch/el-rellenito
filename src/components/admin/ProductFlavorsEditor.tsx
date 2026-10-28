@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Plus, Trash2, Loader2, Candy, Check } from 'lucide-react';
 import type { ProductType } from '@/lib/products';
 import { normalizeDecimalInput } from '@/lib/decimalInput';
@@ -30,18 +30,31 @@ interface ApiFlavor {
 const emptyRow = (): Row => ({ name: '', price_usd: '', price_cop: '', wholesale_price_usd: '', wholesale_price_cop: '' });
 const s = (n: number | null): string => (n == null ? '' : String(n));
 
-export default function ProductFlavorsEditor({ productId, type }: { productId: string; type: ProductType }) {
+/** Lo usa el editor del producto para guardar los sabores junto con "Guardar cambios". */
+export interface FlavorsHandle {
+  /** Guarda los sabores si hay cambios sin guardar; `forProductId` es el id del producto recién creado. */
+  saveIfDirty: (forProductId?: string) => Promise<void>;
+}
+
+const ProductFlavorsEditor = forwardRef<FlavorsHandle, { productId: string | null; type: ProductType }>(function ProductFlavorsEditor({ productId, type }, ref) {
   const showWholesale = type === 'mayorista' || type === 'ambos';
   const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(productId !== null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const dirty = useRef(false);
+  const rowsRef = useRef<Row[]>([]);
+  useEffect(() => { rowsRef.current = rows; }, [rows]);
 
   useEffect(() => {
+    if (!productId) return;
     let cancelled = false;
     fetch(`/api/admin/product-flavors?product=${encodeURIComponent(productId)}`)
-      .then(r => (r.ok ? r.json() : []))
+      .then(async r => {
+        if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error ?? 'No se pudieron cargar los sabores'); }
+        return r.json();
+      })
       .then((data: ApiFlavor[]) => {
         if (cancelled) return;
         setRows(
@@ -56,26 +69,27 @@ export default function ProductFlavorsEditor({ productId, type }: { productId: s
             : [],
         );
       })
-      .catch(() => { /* ignore */ })
+      .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'No se pudieron cargar los sabores'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [productId]);
 
-  const update = (i: number, patch: Partial<Row>) =>
+  const update = (i: number, patch: Partial<Row>) => {
+    dirty.current = true;
     setRows(rs => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const addRow = () => { setRows(rs => [...rs, emptyRow()]); setSaved(false); };
-  const removeRow = (i: number) => { setRows(rs => rs.filter((_, idx) => idx !== i)); setSaved(false); };
+  };
+  const addRow = () => { dirty.current = true; setRows(rs => [...rs, emptyRow()]); setSaved(false); };
+  const removeRow = (i: number) => { dirty.current = true; setRows(rs => rs.filter((_, idx) => idx !== i)); setSaved(false); };
 
-  const save = async () => {
-    const clean = rows.filter(r => r.name.trim());
-    setSaving(true); setError(''); setSaved(false);
+  const put = async (id: string) => {
+    const clean = rowsRef.current.filter(r => r.name.trim());
     const numOrNull = (v: string) => (v.trim() === '' ? null : Number(v));
-    try {
+    {
       const res = await fetch('/api/admin/product-flavors', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          product_id: productId,
+          product_id: id,
           flavors: clean.map(r => ({
             name: r.name.trim(),
             price_usd: numOrNull(r.price_usd),
@@ -86,6 +100,23 @@ export default function ProductFlavorsEditor({ productId, type }: { productId: s
         }),
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error ?? 'No se pudo guardar'); }
+      dirty.current = false;
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    saveIfDirty: async (forProductId?: string) => {
+      const id = forProductId ?? productId;
+      if (!id || !dirty.current) return;
+      await put(id);
+    },
+  }));
+
+  const save = async () => {
+    if (!productId) return;
+    setSaving(true); setError(''); setSaved(false);
+    try {
+      await put(productId);
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar los sabores');
@@ -156,7 +187,10 @@ export default function ProductFlavorsEditor({ productId, type }: { productId: s
 
           {error && <p className="text-[11px] mt-2" style={{ color: 'var(--danger)' }}>{error}</p>}
 
-          <button
+          {!productId && (
+            <p className="text-[11px] mt-2" style={{ color: 'var(--text-3)' }}>Se guardan junto con el producto al tocar “Crear producto”.</p>
+          )}
+          {productId && <button
             onClick={save}
             disabled={saving}
             className="mt-2.5 w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-[13px] font-bold disabled:opacity-60"
@@ -165,12 +199,14 @@ export default function ProductFlavorsEditor({ productId, type }: { productId: s
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando sabores…</>
               : saved ? <><Check className="w-4 h-4" /> Sabores guardados</>
               : 'Guardar sabores'}
-          </button>
+          </button>}
         </>
       )}
     </div>
   );
-}
+});
+
+export default ProductFlavorsEditor;
 
 function PriceInput({ label, prefix, value, onChange }: { label: string; prefix: string; value: string; onChange: (v: string) => void }) {
   const padLeft = prefix === 'COP' ? '3.25rem' : '1.75rem';
