@@ -1,19 +1,27 @@
 // Service worker de la PWA: instalable, offline básico y notificaciones push.
 // No cachea de forma agresiva (evita servir assets viejos tras un deploy).
-const CACHE = 'rellenito-shell-v2';
+const CACHE = 'rellenito-shell-v3';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async () => {
+    // Borra cachés de versiones anteriores (guardaban respuestas de /api).
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
 // Network-first con fallback a caché sólo si falla la red (offline básico).
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
+  // Los datos del panel (pedidos, rutas, tickets…) NUNCA se sirven de caché: sin red
+  // mostraban información vieja como si fuera actual. Solo se cachea el cascarón.
+  if (new URL(req.url).pathname.startsWith('/api/')) return;
   event.respondWith(
     fetch(req)
       .then((res) => {

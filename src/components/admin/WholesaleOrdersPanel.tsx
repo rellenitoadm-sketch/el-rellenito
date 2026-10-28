@@ -277,8 +277,9 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
   const finishRoute = async () => {
     if (!confirm('¿Finalizar la ruta? Se cierra el recorrido y deja de rastrear.')) return;
     setRouteBusy(true);
-    await track.finish(false);
+    const closed = await track.finish(false);
     setRouteBusy(false);
+    if (!closed) setNotice({ tone: 'error', text: 'No se pudo finalizar la ruta. Revisa la conexión e intenta de nuevo.' });
   };
 
   const chooseIdentity = (d: DriverChoice) => {

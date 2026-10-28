@@ -116,9 +116,9 @@ export default function RouteTracker({ order: orderProp, onExit }: { order?: Tra
 
   const finish = async (markDelivered = false) => {
     setBusy(true);
-    await t.finish(markDelivered);
+    const ok = await t.finish(markDelivered);
     setBusy(false);
-    onExit?.();
+    if (ok) onExit?.();
   };
 
   const pause = async () => {

@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, MapPin, Trash2, Radio, Route as RouteIcon, Clock, Plus, Users } from 'lucide-react';
+import { RefreshCw, Trash2, Radio, Plus, Users, Flag } from 'lucide-react';
 import RouteMap, { type MapRoute } from './RouteMap';
+import RouteHistory from './RouteHistory';
 import { formatDistance, type RoutePoint } from '@/lib/routes';
 
 interface RouteRow {
@@ -28,9 +29,6 @@ const POLL_MS = 6000;
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 }
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
-}
 function fmtDuration(startIso: string, endIso: string | null): string {
   const end = endIso ? new Date(endIso).getTime() : Date.now();
   const mins = Math.max(0, Math.round((end - new Date(startIso).getTime()) / 60000));
@@ -53,9 +51,7 @@ function fmtAgo(mins: number): string {
 
 export default function RoutesPanel() {
   const [active, setActive] = useState<RouteRow[]>([]);
-  const [history, setHistory] = useState<RouteRow[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedRoute, setSelectedRoute] = useState<RouteRow | null>(null);
+  const [historyKey, setHistoryKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const firstLoad = useRef(true);
 
@@ -69,9 +65,8 @@ export default function RoutesPanel() {
     try {
       const res = await fetch('/api/admin/routes');
       if (res.ok) {
-        const data = await res.json() as { active: RouteRow[]; history: RouteRow[] };
+        const data = await res.json() as { active: RouteRow[] };
         setActive(data.active ?? []);
-        setHistory(data.history ?? []);
       }
     } catch { /* ignore */ } finally {
       if (firstLoad.current) { setLoading(false); firstLoad.current = false; }
@@ -92,19 +87,6 @@ export default function RoutesPanel() {
     return () => clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    if (!selectedId) { setSelectedRoute(null); return; }
-    if (active.some(a => a.id === selectedId)) { setSelectedRoute(null); return; }
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/admin/routes/${selectedId}`);
-        if (res.ok && !cancelled) setSelectedRoute(await res.json());
-      } catch { /* ignore */ }
-    })();
-    return () => { cancelled = true; };
-  }, [selectedId, active]);
-
   const drawn: MapRoute[] = useMemo(() => {
     const out: MapRoute[] = active.map((r, i) => ({
       id: r.id,
@@ -114,38 +96,35 @@ export default function RoutesPanel() {
       points: (r.points as RoutePoint[]) ?? [],
       dest: destOf(r),
     }));
-    if (selectedRoute && !active.some(a => a.id === selectedRoute.id)) {
-      out.push({
-        id: selectedRoute.id,
-        driver: selectedRoute.driver,
-        status: selectedRoute.status,
-        color: '#FF5100',
-        points: (selectedRoute.points as RoutePoint[]) ?? [],
-        dest: destOf(selectedRoute),
-      });
-    }
     return out;
-  }, [active, selectedRoute]);
+  }, [active]);
 
-  const deleteRoute = async (r: RouteRow, isActive = false) => {
-    const msg = isActive
-      ? `¿Eliminar la ruta activa de ${r.driver}? Se detiene el rastreo, se borra el recorrido y, si era una entrega, el pedido vuelve a "por entregar".`
-      : `¿Eliminar el recorrido de ${r.driver} del ${fmtDate(r.started_at)}? No se puede deshacer.`;
-    if (!confirm(msg)) return;
-    const prevA = active, prevH = history;
+  const deleteRoute = async (r: RouteRow) => {
+    if (!confirm(`¿Eliminar la ruta activa de ${r.driver}? Se detiene el rastreo, se borra el recorrido y, si era una entrega, el pedido vuelve a "por entregar".`)) return;
+    const prev = active;
     setActive(curr => curr.filter(x => x.id !== r.id));
-    setHistory(curr => curr.filter(x => x.id !== r.id));
-    if (selectedId === r.id) setSelectedId(null);
     try {
-      // Rutas activas: cancel (borra + revierte el pedido). Historial: delete simple.
-      const res = isActive
-        ? await fetch('/api/route/cancel', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: r.id }),
-          })
-        : await fetch(`/api/admin/routes/${r.id}`, { method: 'DELETE' });
+      const res = await fetch('/api/route/cancel', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: r.id }),
+      });
       if (!res.ok) throw new Error();
-    } catch { setActive(prevA); setHistory(prevH); }
+    } catch { setActive(prev); }
+  };
+
+  /** Cierra una ruta que quedó abierta (el domiciliario no la finalizó): se guarda en el historial. */
+  const finishRoute = async (r: RouteRow) => {
+    if (!confirm(`¿Finalizar la ruta de ${r.driver}? Se guarda en "Recorridos anteriores" con lo que alcanzó a registrar.`)) return;
+    const prev = active;
+    setActive(curr => curr.filter(x => x.id !== r.id));
+    try {
+      const res = await fetch('/api/route/end', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: r.id }),
+      });
+      if (!res.ok) throw new Error();
+      setHistoryKey(k => k + 1);
+    } catch { setActive(prev); }
   };
 
   const addDriver = async () => {
@@ -246,10 +225,20 @@ export default function RoutesPanel() {
                 {live ? 'EN VIVO' : 'SIN SEÑAL'}
               </span>
               <button
-                onClick={() => deleteRoute(r, true)}
-                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                onClick={() => finishRoute(r)}
+                className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: 'var(--success-soft)', color: '#15803D' }}
+                aria-label={`Finalizar ruta de ${r.driver}`}
+                title="Finalizar y guardar en el historial"
+              >
+                <Flag className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => deleteRoute(r)}
+                className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ background: 'var(--danger-soft)', color: '#B91C1C' }}
                 aria-label={`Eliminar ruta activa de ${r.driver}`}
+                title="Eliminar la ruta"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -260,42 +249,7 @@ export default function RoutesPanel() {
       )}
 
       {/* Historial */}
-      <h3 data-tour="rutas-history" className="text-[12px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2" style={{ color: 'var(--text-2)' }}>
-        <RouteIcon className="w-3.5 h-3.5" /> Recorridos anteriores
-      </h3>
-      {history.length === 0 ? (
-        <p className="text-[12px] px-1 mb-6" style={{ color: 'var(--text-3)' }}>Aún no hay recorridos guardados.</p>
-      ) : (
-        <div className="space-y-2 mb-6">
-          {history.map(r => {
-            const sel = selectedId === r.id;
-            return (
-              <div
-                key={r.id}
-                className="card p-3.5 flex items-center gap-3 cursor-pointer transition-all"
-                style={sel ? { borderColor: 'var(--brand)', background: 'var(--brand-soft)' } : undefined}
-                onClick={() => setSelectedId(sel ? null : r.id)}
-              >
-                <MapPin className="w-4 h-4 flex-shrink-0" style={{ color: sel ? 'var(--brand)' : 'var(--text-3)' }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold" style={{ color: 'var(--text-1)' }}>{r.driver}</p>
-                  <p className="text-[11.5px] inline-flex items-center gap-1" style={{ color: 'var(--text-3)' }}>
-                    <Clock className="w-3 h-3" /> {fmtDate(r.started_at)} · {fmtDuration(r.started_at, r.ended_at)} · {formatDistance(r.distance_m)}
-                  </p>
-                </div>
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteRoute(r); }}
-                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'var(--danger-soft)', color: '#B91C1C' }}
-                  aria-label={`Eliminar recorrido de ${r.driver}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div className="mb-8"><RouteHistory key={historyKey} days={60} canDelete /></div>
 
       {/* Domiciliarios (registro) */}
       <h3 data-tour="rutas-drivers" className="text-[12px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2" style={{ color: 'var(--text-2)' }}>

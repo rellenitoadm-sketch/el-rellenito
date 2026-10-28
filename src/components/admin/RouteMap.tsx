@@ -216,6 +216,7 @@ export default function RouteMap({ routes, height = 420, follow = false }: Props
     // Ajusta el encuadre solo cuando cambia el conjunto de rutas mostradas
     // (no en cada actualización de posición, para no marear al verlo en vivo).
     const sig = routes.map(r => r.id).sort().join(',');
+    if (all.length === 0) fittedRef.current = ''; // al volver a abrir la misma ruta, se vuelve a encuadrar
     if (all.length > 0 && fittedRef.current !== sig) {
       map.fitBounds(all, { padding: [30, 30], maxZoom: 16 });
       fittedRef.current = sig;

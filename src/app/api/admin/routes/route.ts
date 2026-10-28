@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireRole } from '@/lib/adminAuth';
+import { closeStaleRoutes } from '@/lib/routes.server';
 
 /**
  * Listado de rutas para el panel admin:
@@ -12,6 +13,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (!supabaseAdmin) return NextResponse.json({ active: [], history: [] });
+
+  // Rutas olvidadas (app cerrada sin finalizar) pasan al historial en vez de quedar como fantasmas.
+  await closeStaleRoutes(supabaseAdmin);
 
   const [{ data: active }, { data: history }] = await Promise.all([
     supabaseAdmin

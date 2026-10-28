@@ -91,7 +91,8 @@ interface TrackingValue {
   error: string;
   start: (driver: DriverChoice, order: TrackerOrder | null) => Promise<boolean>;
   resume: () => void;
-  finish: (markDelivered?: boolean) => Promise<void>;
+  /** Devuelve false si no pudo cerrar la ruta (sin internet): la ruta sigue abierta para reintentar. */
+  finish: (markDelivered?: boolean) => Promise<boolean>;
   pause: () => Promise<void>;
   cancel: () => Promise<void>;
   resumeForOrder: (order: TrackerOrder) => Promise<boolean>;
@@ -347,29 +348,49 @@ export default function RouteTrackingProvider({ children }: { children: React.Re
     } catch { return false; }
   }, [adopt]);
 
-  const finish = useCallback(async (markDelivered = false) => {
-    stopWatch();
-    await flush();
-    const ord = order;
-    if (markDelivered && ord?.id) {
+  /** POST/PATCH con un reintento; true si el servidor respondió bien. */
+  const sendOk = useCallback(async (url: string, init: RequestInit): Promise<boolean> => {
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        await fetch(`/api/admin/orders/${ord.id}`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'entregado' }),
-        });
-      } catch { /* ignore */ }
+        const res = await fetch(url, init);
+        if (res.ok) return true;
+        if (res.status >= 400 && res.status < 500 && res.status !== 408) return false;
+      } catch { /* sin red: se reintenta */ }
+      await new Promise(r => setTimeout(r, 800));
     }
+    return false;
+  }, []);
+
+  const finish = useCallback(async (markDelivered = false): Promise<boolean> => {
     const id = routeIdRef.current;
+    const ord = order;
+    setError('');
+    await flush();
+
+    // Primero lo que puede fallar por red; solo si sale bien se cierra el rastreo.
+    // (Antes los errores se ignoraban: la ruta quedaba "activa" para siempre en el
+    // servidor y el pedido en "en camino" aunque en el teléfono todo pareciera cerrado.)
+    if (markDelivered && ord?.id) {
+      const ok = await sendOk(`/api/admin/orders/${ord.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'entregado' }),
+      });
+      if (!ok) { setError('No se pudo marcar el pedido como entregado. Revisa la conexión e intenta de nuevo.'); return false; }
+    }
     if (id) {
-      try {
-        await fetch('/api/route/end', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id }),
-        });
-      } catch { /* ignore */ }
+      const ok = await sendOk('/api/route/end', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      // 409/404 = ya estaba cerrada en el servidor: se limpia igual.
+      if (!ok) {
+        const check = await fetch(`/api/route/active?id=${encodeURIComponent(id)}`).then(r => (r.ok ? r.json() : 'err')).catch(() => 'err');
+        if (check !== null) { setError('No se pudo finalizar la ruta. Revisa la conexión e intenta de nuevo.'); return false; }
+      }
     }
     reset();
-  }, [order, flush, reset, stopWatch]);
+    return true;
+  }, [order, flush, reset, sendOk]);
 
   // Detener: para el GPS pero la ruta sigue abierta (se retoma al volver).
   const pause = useCallback(async () => {
