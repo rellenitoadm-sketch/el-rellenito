@@ -9,6 +9,69 @@ import { registerSaleSafely } from '@/lib/inventory.server';
 import { caracasDate, isYmd } from '@/lib/wholesaleOrders';
 import { createWebTicket } from '@/lib/tickets.server';
 
+const str = (v: unknown, max: number): string | null =>
+  typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
+const money = (v: unknown): number | null =>
+  typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100000 ? v : null;
+const isHttps = (v: unknown): v is string => typeof v === 'string' && /^https:\/\//.test(v) && v.length <= 600;
+
+/**
+ * Lo que llega del navegador NO es de fiar: antes se insertaba tal cual en la tabla,
+ * así que alguien podía mandar `status: 'entregado'`, un total en 0 o columnas ajenas.
+ * Aquí se toma solo lo permitido, el estado siempre arranca en "pendiente" y los
+ * números se validan. Devuelve el pedido limpio o el motivo del rechazo.
+ */
+function sanitizeOrder(raw: Record<string, unknown>): OrderInsert | string {
+  const name = str(raw.customer_name, 120);
+  const whatsapp = str(raw.customer_whatsapp, 30);
+  const payment = str(raw.payment_method, 40);
+  if (!name || !whatsapp || !payment) return 'Faltan campos requeridos';
+
+  if (!Array.isArray(raw.items) || raw.items.length === 0 || raw.items.length > 80) return 'El pedido no tiene productos válidos';
+  let sum = 0;
+  for (const it of raw.items as Record<string, unknown>[]) {
+    const qty = it?.qty;
+    const price = money(it?.price_usd);
+    if (!it || typeof it.name !== 'string' || typeof qty !== 'number' || !Number.isInteger(qty) || qty < 1 || qty > 1000 || price === null) {
+      return 'El pedido tiene un producto inválido';
+    }
+    sum += qty * price;
+  }
+
+  const total = money(raw.total_usd);
+  if (total === null) return 'Total inválido';
+  // El total puede ser mayor que la suma (recargo de fritura), nunca menor.
+  if (total < sum - 0.05) return 'El total no coincide con los productos';
+
+  const totalCop = raw.total_cop == null ? null : money(raw.total_cop);
+  if (raw.total_cop != null && totalCop === null) return 'Total en COP inválido';
+
+  const opt = (v: unknown) => (v == null ? null : money(v));
+  return {
+    customer_name: name,
+    customer_whatsapp: whatsapp,
+    delivery_type: str(raw.delivery_type, 20) ?? 'delivery',
+    delivery_zone: str(raw.delivery_zone, 120),
+    delivery_cost_cop: money(raw.delivery_cost_cop) ?? 0,
+    delivery_address: str(raw.delivery_address, 600),
+    items: raw.items as OrderInsert['items'],
+    total_usd: total,
+    total_cop: totalCop,
+    currency_shown: str(raw.currency_shown, 10) ?? 'USD',
+    payment_method: payment,
+    notes: str(raw.notes, 600),
+    status: 'pendiente',
+    payment_proof_ref: str(raw.payment_proof_ref, 200),
+    payment_proof_url: isHttps(raw.payment_proof_url) ? raw.payment_proof_url : null,
+    is_wholesale: raw.is_wholesale === true,
+    advance_pct: opt(raw.advance_pct),
+    advance_usd: opt(raw.advance_usd),
+    remaining_usd: opt(raw.remaining_usd),
+    scheduled_date: isYmd(raw.scheduled_date) ? (raw.scheduled_date as string) : null,
+    scheduled_time: str(raw.scheduled_time, 20),
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Throttle order spam per IP (bots / accidental double-submits at scale).
@@ -17,12 +80,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Demasiados pedidos seguidos. Espera un momento.' }, { status: 429 });
     }
 
-    const body = await request.json() as OrderInsert;
-
-    // Basic validation
-    if (!body.customer_name || !body.customer_whatsapp || !body.items || !body.payment_method) {
-      return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
-    }
+    const raw = await request.json().catch(() => null) as Record<string, unknown> | null;
+    if (!raw || typeof raw !== 'object') return NextResponse.json({ error: 'Pedido inválido' }, { status: 400 });
+    const clean = sanitizeOrder(raw);
+    if (typeof clean === 'string') return NextResponse.json({ error: clean }, { status: 400 });
+    const body = clean;
     recordFailure(`order:${ip}`); // count this submission toward the per-IP cap
 
     const result = await saveOrder(body);
