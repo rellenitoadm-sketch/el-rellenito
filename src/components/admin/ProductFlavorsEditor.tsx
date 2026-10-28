@@ -12,6 +12,8 @@ import { normalizeDecimalInput } from '@/lib/decimalInput';
  * precio base; si tiene, la tarjeta muestra "Desde" y el cliente elige en el modal.
  */
 interface Row {
+  /** Id del sabor ya guardado; se manda al guardar para que conserve su inventario e historial. */
+  flavor_id?: string;
   name: string;
   price_usd: string;
   price_cop: string;
@@ -20,6 +22,7 @@ interface Row {
 }
 
 interface ApiFlavor {
+  flavor_id?: string;
   name: string;
   price_usd: number | null;
   price_cop: number | null;
@@ -60,6 +63,7 @@ const ProductFlavorsEditor = forwardRef<FlavorsHandle, { productId: string | nul
         setRows(
           Array.isArray(data) && data.length > 0
             ? data.map(f => ({
+                flavor_id: f.flavor_id,
                 name: f.name,
                 price_usd: s(f.price_usd),
                 price_cop: s(f.price_cop),
@@ -91,6 +95,7 @@ const ProductFlavorsEditor = forwardRef<FlavorsHandle, { productId: string | nul
         body: JSON.stringify({
           product_id: id,
           flavors: clean.map(r => ({
+            flavor_id: r.flavor_id,
             name: r.name.trim(),
             price_usd: numOrNull(r.price_usd),
             price_cop: numOrNull(r.price_cop),

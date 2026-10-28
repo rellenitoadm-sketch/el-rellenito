@@ -12,6 +12,8 @@ import { requireRole } from '@/lib/adminAuth';
  *   `products.has_flavors` lo mantiene un trigger en la BD.
  */
 interface FlavorInput {
+  /** Sabor ya existente de este producto: se actualiza en vez de recrearse. */
+  flavor_id?: string;
   name?: string;
   price_usd?: number | null;
   price_cop?: number | null;
@@ -71,56 +73,62 @@ export async function PUT(request: NextRequest) {
     .map(f => ({ ...f, name: (f.name ?? '').trim() }))
     .filter(f => f.name);
 
-  // Sabores actuales del producto (para limpiar los suyos: son por-producto).
+  // Sabores actuales del producto.
   const { data: existing } = await supabaseAdmin
     .from('product_flavors')
     .select('flavor_id')
     .eq('product_id', productId);
-  const oldFlavorIds = (existing ?? []).map(r => r.flavor_id);
+  const currentIds = new Set((existing ?? []).map(r => r.flavor_id));
 
-  // 1) Quita las asignaciones actuales del producto.
-  const delPf = await supabaseAdmin.from('product_flavors').delete().eq('product_id', productId);
-  if (delPf.error) return NextResponse.json({ error: delPf.error.message }, { status: 500 });
+  // Los sabores que ya existen CONSERVAN su id (si no, el inventario del día y su
+  // historial —que se llevan por sabor— quedarían huérfanos con cada guardado).
+  const keep = incoming.filter(f => f.flavor_id && currentIds.has(f.flavor_id));
+  const keepIds = new Set(keep.map(f => f.flavor_id as string));
+  const fresh = incoming.filter(f => !(f.flavor_id && currentIds.has(f.flavor_id)));
+  const removedIds = [...currentIds].filter(id => !keepIds.has(id));
 
-  // 2) Borra los sabores que quedaron huérfanos (ya no los usa ningún producto).
-  if (oldFlavorIds.length > 0) {
-    const { data: stillUsed } = await supabaseAdmin
-      .from('product_flavors')
-      .select('flavor_id')
-      .in('flavor_id', oldFlavorIds);
-    const usedSet = new Set((stillUsed ?? []).map(r => r.flavor_id));
-    const orphans = oldFlavorIds.filter(id => !usedSet.has(id));
-    if (orphans.length > 0) {
-      await supabaseAdmin.from('flavors').delete().in('id', orphans);
-    }
+  const prices = (f: FlavorInput) => ({
+    price_usd: num(f.price_usd),
+    price_cop: num(f.price_cop),
+    wholesale_price_usd: num(f.wholesale_price_usd),
+    wholesale_price_cop: num(f.wholesale_price_cop),
+  });
+
+  // 1) Sabores que siguen: actualiza nombre, orden y precios.
+  for (const f of keep) {
+    const i = incoming.indexOf(f);
+    const r1 = await supabaseAdmin.from('flavors').update({ name: f.name, sort_order: i }).eq('id', f.flavor_id as string);
+    if (r1.error) return NextResponse.json({ error: r1.error.message }, { status: 500 });
+    const r2 = await supabaseAdmin.from('product_flavors')
+      .update({ sort_order: i, available: true, ...prices(f) })
+      .eq('product_id', productId).eq('flavor_id', f.flavor_id as string);
+    if (r2.error) return NextResponse.json({ error: r2.error.message }, { status: 500 });
   }
 
-  // 3) Crea los sabores nuevos (uno por nombre) y sus asignaciones con precio.
-  if (incoming.length > 0) {
-    // Uno por uno: así cada sabor queda con su id sin depender del orden que devuelva el insert.
-    const rows = [];
-    for (let i = 0; i < incoming.length; i++) {
-      const f = incoming[i];
-      const { data: created, error: insFlavorErr } = await supabaseAdmin
-        .from('flavors')
-        .insert({ name: f.name, sort_order: i })
-        .select('id')
-        .single();
-      if (insFlavorErr || !created) {
-        return NextResponse.json({ error: insFlavorErr?.message ?? 'No se pudieron crear los sabores' }, { status: 500 });
-      }
-      rows.push({
-        product_id: productId,
-        flavor_id: created.id,
-        available: true,
-        sort_order: i,
-        price_usd: num(f.price_usd),
-        price_cop: num(f.price_cop),
-        wholesale_price_usd: num(f.wholesale_price_usd),
-        wholesale_price_cop: num(f.wholesale_price_cop),
-      });
+  // 2) Sabores quitados: se sueltan del producto y se borran si ningún otro los usa.
+  if (removedIds.length > 0) {
+    const delPf = await supabaseAdmin.from('product_flavors').delete().eq('product_id', productId).in('flavor_id', removedIds);
+    if (delPf.error) return NextResponse.json({ error: delPf.error.message }, { status: 500 });
+    const { data: stillUsed } = await supabaseAdmin.from('product_flavors').select('flavor_id').in('flavor_id', removedIds);
+    const usedSet = new Set((stillUsed ?? []).map(r => r.flavor_id));
+    const orphans = removedIds.filter(id => !usedSet.has(id));
+    if (orphans.length > 0) await supabaseAdmin.from('flavors').delete().in('id', orphans);
+  }
+
+  // 3) Sabores nuevos: uno por uno, para que cada uno quede con su id y su precio.
+  for (const f of fresh) {
+    const i = incoming.indexOf(f);
+    const { data: created, error: insFlavorErr } = await supabaseAdmin
+      .from('flavors')
+      .insert({ name: f.name, sort_order: i })
+      .select('id')
+      .single();
+    if (insFlavorErr || !created) {
+      return NextResponse.json({ error: insFlavorErr?.message ?? 'No se pudieron crear los sabores' }, { status: 500 });
     }
-    const insPf = await supabaseAdmin.from('product_flavors').insert(rows);
+    const insPf = await supabaseAdmin.from('product_flavors').insert({
+      product_id: productId, flavor_id: created.id, available: true, sort_order: i, ...prices(f),
+    });
     if (insPf.error) return NextResponse.json({ error: insPf.error.message }, { status: 500 });
   }
 

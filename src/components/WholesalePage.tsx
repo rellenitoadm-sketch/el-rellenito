@@ -169,7 +169,10 @@ export default function WholesalePage({ onBack, onNavInfo }: WholesalePageProps)
       });
 
       if (!res.ok) {
-        setSubmitError('Error al registrar el pedido. Intenta de nuevo.');
+        // Si el servidor rechazó el pedido por una razón concreta (precios cambiados, límite de
+        // pedidos…), se le dice al cliente en vez de un error genérico.
+        const info = res.status < 500 ? await res.json().catch(() => null) as { error?: string } | null : null;
+        setSubmitError(info?.error ?? 'Error al registrar el pedido. Intenta de nuevo.');
         return;
       }
 

@@ -8,6 +8,7 @@ import { parseWebItems } from '@/lib/inventory';
 import { registerSaleSafely } from '@/lib/inventory.server';
 import { caracasDate, isYmd } from '@/lib/wholesaleOrders';
 import { createWebTicket } from '@/lib/tickets.server';
+import { verifyWebPrices } from '@/lib/orderPrices.server';
 
 const str = (v: unknown, max: number): string | null =>
   typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
@@ -85,6 +86,10 @@ export async function POST(request: NextRequest) {
     const clean = sanitizeOrder(raw);
     if (typeof clean === 'string') return NextResponse.json({ error: clean }, { status: 400 });
     const body = clean;
+
+    // Los precios deben ser los del catálogo (no los que diga el navegador).
+    const priceError = await verifyWebPrices(supabaseAdmin, body.items, body.total_usd, body.is_wholesale === true);
+    if (priceError) return NextResponse.json({ error: priceError }, { status: 409 });
     recordFailure(`order:${ip}`); // count this submission toward the per-IP cap
 
     const result = await saveOrder(body);
