@@ -3,20 +3,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { LogOut, ShoppingBag, Boxes, BarChart3, Users, Store, Truck, Bike, ClipboardList, Receipt } from 'lucide-react';
+import { LogOut, ShoppingBag, Boxes, BarChart3, Store, Truck, Bike, ClipboardList, Receipt } from 'lucide-react';
 import OrdersPanel from '@/components/admin/OrdersPanel';
 import ProductsPanel from '@/components/admin/ProductsPanel';
 import MetricsPanel from '@/components/admin/MetricsPanel';
-import CrmPanel from '@/components/admin/CrmPanel';
 import WholesaleClientsPanel from '@/components/admin/WholesaleClientsPanel';
 import RoutesPanel from '@/components/admin/RoutesPanel';
 import RepartoPanel from '@/components/admin/RepartoPanel';
 import WholesaleOrdersPanel from '@/components/admin/WholesaleOrdersPanel';
-import TicketsPanel from '@/components/admin/TicketsPanel';
+import VentasPanel from '@/components/admin/VentasPanel';
 import { useOnboarding } from '@/components/Onboarding';
 import type { StaffRole } from '@/lib/adminAuth';
 
-type Tab = 'pedidos' | 'productos' | 'reparto' | 'pedidosMayoristas' | 'tickets' | 'metricas' | 'crm' | 'mayoristas' | 'rutas';
+type Tab = 'pedidos' | 'productos' | 'reparto' | 'pedidosMayoristas' | 'ventas' | 'metricas' | 'mayoristas' | 'rutas';
 
 interface TabDef {
   id: Tab;
@@ -32,11 +31,10 @@ const TABS: TabDef[] = [
   { id: 'pedidos', label: 'Pedidos', Icon: ShoppingBag },
   { id: 'productos', label: 'Productos', Icon: Boxes },
   { id: 'reparto', label: 'Reparto', Icon: Bike, staffOnly: true },
-  { id: 'pedidosMayoristas', label: 'Pedidos mayoristas', Icon: ClipboardList },
-  { id: 'tickets', label: 'Tickets', Icon: Receipt },
+  { id: 'pedidosMayoristas', label: 'Pedidos al mayor', Icon: ClipboardList },
+  { id: 'ventas', label: 'Ventas', Icon: Receipt },
   { id: 'metricas', label: 'Métricas', Icon: BarChart3, adminOnly: true },
-  { id: 'crm', label: 'Clientes', Icon: Users, adminOnly: true },
-  { id: 'mayoristas', label: 'Mayoristas', Icon: Store, adminOnly: true },
+  { id: 'mayoristas', label: 'Clientes mayor', Icon: Store, adminOnly: true },
   { id: 'rutas', label: 'Rutas', Icon: Truck, adminOnly: true },
 ];
 
@@ -89,9 +87,7 @@ export default function AdminDashboard() {
     // lo vea aunque el administrador ya haya visto el suyo en este mismo dispositivo.
     const which = tab === 'productos' ? 'adminInventario'
       : tab === 'reparto' ? 'adminReparto'
-      : tab === 'tickets' ? 'adminTickets'
       : tab === 'metricas' ? 'adminMetricas'
-      : tab === 'crm' ? 'adminCrm'
       : tab === 'mayoristas' ? 'adminMayoristas'
       : tab === 'rutas' ? 'adminRutas'
       : null;
@@ -136,7 +132,7 @@ export default function AdminDashboard() {
             <Image src="/logo-circle.png" alt="" width={44} height={44} className="object-cover w-full h-full" />
           </div>
           <div>
-            <h1 className="text-[14px] font-bold" style={{ color: 'var(--text-1)' }}>Panel El Rellenito</h1>
+            <h1 className="text-[16px] font-extrabold" style={{ color: 'var(--text-1)' }}>Panel El Rellenito</h1>
             <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>
               {role === 'admin' ? 'Administrador' : 'Equipo'}
             </p>
@@ -147,33 +143,38 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      {/* Tab bar */}
-      <div className="sticky top-[60px] z-20 px-3 py-2 border-b backdrop-blur-md" style={{ background: 'rgba(255,255,255,0.9)', borderColor: 'var(--border)' }}>
-        <div data-tour="admin-tabs" className="flex gap-1.5 overflow-x-auto scrollbar-none max-w-2xl mx-auto">
-          {tabs.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-all"
-              style={tab === id
-                ? { background: 'var(--brand)', color: '#fff' }
-                : { background: 'var(--surface-2)', color: 'var(--text-2)' }}
-            >
-              <Icon className="w-4 h-4" /> {label}
-            </button>
-          ))}
+      {/* Menú: todos los botones a la vista, grandes y con icono */}
+      <nav aria-label="Secciones del panel" className="px-3 pt-4 pb-1 max-w-2xl mx-auto">
+        <div data-tour="admin-tabs" className="grid grid-cols-4 gap-2">
+          {tabs.map(({ id, label, Icon }) => {
+            const active = tab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                aria-current={active ? 'page' : undefined}
+                className="flex flex-col items-center justify-center gap-1.5 rounded-2xl px-1 text-center transition-all active:scale-95"
+                style={{ minHeight: 84, ...(active
+                  ? { background: '#1A1A1A', color: '#fff', boxShadow: '0 4px 14px rgba(0,0,0,0.22)' }
+                  : { background: 'var(--surface)', color: 'var(--text-1)', border: '1px solid var(--border)' }) }}
+              >
+                <Icon className="w-7 h-7" strokeWidth={active ? 2.4 : 2} style={active ? undefined : { color: 'var(--brand)' }} aria-hidden />
+                <span className="text-[12.5px] font-bold leading-tight">{label}</span>
+              </button>
+            );
+          })}
         </div>
-      </div>
+      </nav>
 
       {/* Content */}
-      <div className="max-w-2xl mx-auto px-4 py-5" data-tour="admin-content">
+      <div className="max-w-2xl mx-auto px-4 pt-4 pb-8" data-tour="admin-content">
+        <h2 className="text-[22px] font-extrabold mb-4" style={{ color: 'var(--text-1)' }}>{tabs.find(t => t.id === tab)?.label}</h2>
         {tab === 'pedidos' && <OrdersPanel role={role} />}
         {tab === 'productos' && <ProductsPanel />}
         {tab === 'reparto' && role !== 'admin' && <RepartoPanel />}
         {tab === 'pedidosMayoristas' && <WholesaleOrdersPanel isAdmin={role === 'admin'} />}
-        {tab === 'tickets' && <TicketsPanel />}
+        {tab === 'ventas' && <VentasPanel isAdmin={role === 'admin'} />}
         {tab === 'metricas' && role === 'admin' && <MetricsPanel />}
-        {tab === 'crm' && role === 'admin' && <CrmPanel />}
         {tab === 'mayoristas' && role === 'admin' && <WholesaleClientsPanel />}
         {tab === 'rutas' && role === 'admin' && <RoutesPanel />}
       </div>

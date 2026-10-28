@@ -11,6 +11,7 @@ import ProductFlavorsEditor, { type FlavorsHandle } from './ProductFlavorsEditor
 import { normalizeDecimalInput } from '@/lib/decimalInput';
 import type { StockRow } from '@/lib/inventory';
 import StockAdjust from './StockAdjust';
+import { withBrandBackground } from '@/lib/brandPhoto';
 
 interface ProductEditorProps {
   product: Product | null; // null = creating new
@@ -96,6 +97,8 @@ export default function ProductEditor({ product, initialTab, rates, stockRows, s
   const [lowStock, setLowStock] = useState(String(product?.low_stock_threshold ?? 0));
 
   const [uploading, setUploading] = useState(false);
+  const [uploadStep, setUploadStep] = useState('');
+  const [brandBg, setBrandBg] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -129,7 +132,17 @@ export default function ProductEditor({ product, initialTab, rates, stockRows, s
     try {
       // Las fotos del celular pesan varios MB y el servidor rechaza >4 MB:
       // se reducen aquí antes de subir.
-      const file = await shrinkImage(picked);
+      let file = await shrinkImage(picked);
+      if (brandBg && file.type !== 'image/gif') {
+        setUploadStep('Quitando el fondo…');
+        try {
+          file = await withBrandBackground(file);
+        } catch {
+          // Si falla (celular sin memoria, sin internet para el modelo), se sube la foto tal cual.
+          setError('No se pudo quitar el fondo; se subió la foto original.');
+        }
+      }
+      setUploadStep('Subiendo…');
       // Se manda el archivo como body crudo (no FormData/multipart): el
       // parsing multipart en producción corrompía los bytes binarios.
       const res = await fetch('/api/admin/upload', {
@@ -148,6 +161,7 @@ export default function ProductEditor({ product, initialTab, rates, stockRows, s
       setError(err instanceof Error ? err.message : 'Error al subir la imagen');
     } finally {
       setUploading(false);
+      setUploadStep('');
       input.value = ''; // permite volver a elegir la misma foto
     }
   };
@@ -276,8 +290,12 @@ export default function ProductEditor({ product, initialTab, rates, stockRows, s
                   className="btn btn-ghost text-[13px] w-full"
                   style={{ border: '1px solid var(--border)' }}
                 >
-                  {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Subiendo…</> : 'Subir foto'}
+                  {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> {uploadStep || 'Subiendo…'}</> : 'Subir foto'}
                 </button>
+                <label className="flex items-center gap-2 mt-2 text-[12px] cursor-pointer" style={{ color: 'var(--text-2)' }}>
+                  <input type="checkbox" checked={brandBg} onChange={e => setBrandBg(e.target.checked)} className="w-4 h-4" />
+                  Quitar fondo y usar el fondo de la marca
+                </label>
                 {imageUrl && (
                   <button onClick={() => setImageUrl(null)} className="text-[11px] mt-1.5" style={{ color: 'var(--danger)' }}>
                     Quitar imagen
