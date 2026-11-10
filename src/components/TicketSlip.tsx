@@ -66,11 +66,12 @@ export const SLIP_CSS = `
   .ticket-slip { display: none; }
   @media print {
     @page { size: 58mm auto; margin: 0; }
-    html, body { background: #fff !important; margin: 0 !important; }
-    main { padding: 0 !important; margin: 0 !important; min-height: 0 !important; max-width: none !important; background: #fff !important; display: block !important; }
+    html, body { background: #fff !important; margin: 0 !important; height: auto !important; }
+    main { padding: 0 !important; margin: 0 !important; min-height: 0 !important; height: auto !important; max-width: none !important; background: #fff !important; display: block !important; }
     main > *:not(.ticket-slip) { display: none !important; }
     .ticket-slip * { color: #000 !important; }
-    .ticket-slip { display: block; width: 58mm; box-sizing: border-box; padding: 2mm 2mm 8mm; background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.3; }
+    .ticket-slip { display: block; width: 58mm; box-sizing: border-box; padding: 2mm 2mm 4mm; background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.3; break-inside: avoid; page-break-inside: avoid; }
+    .ticket-slip p, .ticket-slip hr, .ticket-slip .s-item { break-inside: avoid; page-break-inside: avoid; }
     .ticket-slip p { margin: 2px 0; }
     .ticket-slip hr { border: 0; border-top: 2px dashed #000; margin: 8px 0; }
     .ticket-slip .s-center { text-align: center; }
