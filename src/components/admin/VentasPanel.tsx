@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Download, Receipt, RefreshCw, ShoppingBag, Store, Users } from 'lucide-react';
+import { BarChart3, Download, Receipt, RefreshCw, ShoppingBag, Store, Users, Wallet } from 'lucide-react';
 import TicketsPanel from './TicketsPanel';
 import CrmPanel from './CrmPanel';
+import PagosPanel from './PagosPanel';
 import { useOnboarding } from '../Onboarding';
 import { fmtUsd, ticketNumber, type Ticket } from '@/lib/tickets';
 
-type Sub = 'resumen' | 'tickets' | 'clientes';
+type Sub = 'resumen' | 'tickets' | 'clientes' | 'pagos';
 
 interface Totals { count: number; usd: number }
 interface Data { tickets: Ticket[]; totals: { today: Totals; week: Totals; month: Totals } }
@@ -24,7 +25,7 @@ export default function VentasPanel({ isAdmin }: { isAdmin: boolean }) {
   const { maybeStart } = useOnboarding();
 
   useEffect(() => {
-    const which = sub === 'tickets' ? 'adminTickets' : sub === 'clientes' ? 'adminCrm' : null;
+    const which = sub === 'tickets' ? 'adminTickets' : sub === 'clientes' ? 'adminCrm' : sub === 'pagos' ? 'adminPagos' : null;
     if (!which) return;
     const t = setTimeout(() => maybeStart(which), 650);
     return () => clearTimeout(t);
@@ -34,6 +35,7 @@ export default function VentasPanel({ isAdmin }: { isAdmin: boolean }) {
     { id: 'resumen', label: 'Resumen', Icon: BarChart3 },
     { id: 'tickets', label: 'Tickets', Icon: Receipt },
     ...(isAdmin ? [{ id: 'clientes' as Sub, label: 'Clientes', Icon: Users }] : []),
+    ...(isAdmin ? [{ id: 'pagos' as Sub, label: 'Pagos', Icon: Wallet }] : []),
   ];
 
   return (
@@ -56,6 +58,7 @@ export default function VentasPanel({ isAdmin }: { isAdmin: boolean }) {
       {sub === 'resumen' && <Resumen onOpenTickets={() => setSub('tickets')} />}
       {sub === 'tickets' && <TicketsPanel />}
       {sub === 'clientes' && isAdmin && <CrmPanel />}
+      {sub === 'pagos' && isAdmin && <PagosPanel />}
     </div>
   );
 }

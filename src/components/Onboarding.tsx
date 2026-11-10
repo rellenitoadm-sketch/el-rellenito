@@ -97,7 +97,12 @@ const STEPS: Record<TourId, Step[]> = {
     { target: 'tk-stats', title: 'Lo vendido', body: 'Total en dólares y número de tickets de hoy, de los últimos 7 días y de los últimos 30.' },
     { target: 'tk-search', title: 'Buscar un ticket', body: 'Encuéntralo por el nombre del cliente, su teléfono o el número del ticket.' },
     { target: 'tk-filters', title: 'Filtrar', body: 'Elige el periodo y si quieres ver solo ventas al detal o al mayor.' },
-    { target: 'tk-list', title: 'Abrir y reenviar', body: 'Toca un ticket para verlo. Con “Enviar por WhatsApp” se manda como imagen (o con el link) al cliente. Cada pedido nuevo crea su ticket solo.' },
+    { target: 'tk-list', title: 'Abrir, imprimir y reenviar', body: 'Toca un ticket para verlo. Ahí puedes imprimirlo en la impresora de ventas o mandarlo por WhatsApp al cliente. Cada pedido nuevo crea su ticket solo.' },
+  ],
+  adminPagos: [
+    { target: 'pagos-intro', title: 'Métodos de pago', body: 'Lo que ve el cliente al pagar en el carrito, al detal y al mayor: Pago Móvil, Zelle, transferencias, etc.' },
+    { target: 'pagos-list', title: 'Editar un método', body: 'Toca el lápiz para cambiar el banco, teléfono, cuenta o cédula. Se actualiza al instante en todos los carritos. Desactívalo si quieres ocultarlo sin borrarlo.' },
+    { target: 'pagos-add', title: 'Agregar método nuevo', body: 'Crea uno nuevo (otro banco, otra cuenta) con sus propios datos.' },
   ],
   adminMayoristasRutas: [
     { target: 'mayoristas-route', title: 'Ruta o día de entrega', body: 'Elige una ruta de la lista, o toca “＋ Nueva ruta o día…” para crear una: marca los días y escribe la ubicación. Queda guardada para los demás clientes.' },
@@ -149,7 +154,7 @@ const STEPS: Record<TourId, Step[]> = {
 type TourId =
   | 'home' | 'catalog' | 'mayor' | 'cart' | 'checkout' | 'wcheckout'
   | 'admin' | 'adminStaff' | 'adminInventario' | 'adminTickets' | 'adminReparto' | 'adminMetricas'
-  | 'adminCrm' | 'adminMayoristas' | 'adminMayoristasRutas' | 'adminRutas'
+  | 'adminCrm' | 'adminPagos' | 'adminMayoristas' | 'adminMayoristasRutas' | 'adminRutas'
   | 'routeStart' | 'routeLive'
   | 'productEditor2';
 

@@ -1,10 +1,11 @@
 'use client';
 
-import { Smartphone, DollarSign, Coins, Building2, CreditCard, Banknote } from 'lucide-react';
-import { paymentMethods, type PaymentMethodId } from '@/lib/payments';
+import { Smartphone, DollarSign, Coins, Building2, CreditCard, Banknote, Wallet } from 'lucide-react';
+import { type PaymentMethodId } from '@/lib/payments';
+import { usePaymentMethods } from '@/components/PaymentMethodsContext';
 
 const ICONS: Record<string, React.ElementType> = {
-  Smartphone, DollarSign, Coins, Building2, CreditCard, Banknote,
+  Smartphone, DollarSign, Coins, Building2, CreditCard, Banknote, Wallet,
 };
 
 interface PaymentTabsProps {
@@ -13,9 +14,10 @@ interface PaymentTabsProps {
 }
 
 export default function PaymentTabs({ selected, onSelect }: PaymentTabsProps) {
+  const { methods } = usePaymentMethods();
   return (
     <div className="grid grid-cols-3 gap-2">
-      {paymentMethods.map(method => {
+      {methods.map(method => {
         const Icon = ICONS[method.icon] ?? Banknote;
         const isSelected = selected === method.id;
         return (

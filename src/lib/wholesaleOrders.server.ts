@@ -1,10 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from './database.types';
+import type { Database, Json } from './database.types';
 import {
+  MASA_CATEGORY,
   lineKey,
   orderTotals,
   paidShareOf,
   wholesaleUnitPrices,
+  type MasaPriceMap,
   type StoredRates,
   type WholesaleOrder,
   type WholesaleOrderItem,
@@ -27,20 +29,34 @@ export async function getStoredRates(db: Db): Promise<StoredRates | null> {
   return { bs_per_usd: Number(data.bs_per_usd), cop_per_usd: Number(data.cop_per_usd) };
 }
 
+/** Número finito y positivo mandado por el formulario, o `null` si no viene uno usable. */
+function positiveOrNull(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /**
  * Convierte las líneas del formulario en ítems con precio de catálogo. Los
- * precios que mande el navegador se ignoran: un teléfono con el catálogo viejo
- * en caché no puede guardar un pedido con precios equivocados.
+ * precios que mande el navegador se ignoran para TODO excepto las Masas: ahí
+ * cada mayorista negocia su propio precio por teléfono y el domiciliario lo
+ * escribe a mano. `unit_cop`/`unit_usd` en una línea de Masas se respetan (con
+ * validación); en cualquier otra categoría se ignoran igual que siempre, para
+ * que un teléfono con el catálogo viejo en caché no guarde precios equivocados.
+ *
+ * Devuelve también `masaOverrides`: lo que se usó de precio manual en Masas,
+ * para que la ruta lo guarde en `wholesale_clients.masa_prices` del mayorista.
  */
 export async function priceItems(
   db: Db,
   raw: unknown,
   copPerUsd: number | null,
-): Promise<{ items: WholesaleOrderItem[]; total_usd: number; total_cop: number }> {
+): Promise<{ items: WholesaleOrderItem[]; total_usd: number; total_cop: number; masaOverrides: MasaPriceMap }> {
   if (!Array.isArray(raw) || raw.length === 0) throw new OrderInputError('Agrega al menos un producto.');
   if (raw.length > MAX_LINES) throw new OrderInputError('Demasiados productos en un solo pedido.');
 
-  const merged = new Map<string, { product_id: string; flavor_id: string | null; qty: number }>();
+  const merged = new Map<string, {
+    product_id: string; flavor_id: string | null; qty: number; unit_cop: number | null; unit_usd: number | null;
+  }>();
   for (const line of raw as Record<string, unknown>[]) {
     const productId = typeof line?.product_id === 'string' ? line.product_id.trim() : '';
     const flavorId = typeof line?.flavor_id === 'string' && line.flavor_id.trim() ? line.flavor_id.trim() : null;
@@ -51,14 +67,20 @@ export async function priceItems(
     }
     const key = lineKey(productId, flavorId);
     const prev = merged.get(key);
-    merged.set(key, { product_id: productId, flavor_id: flavorId, qty: (prev?.qty ?? 0) + qty });
+    merged.set(key, {
+      product_id: productId,
+      flavor_id: flavorId,
+      qty: (prev?.qty ?? 0) + qty,
+      unit_cop: prev?.unit_cop ?? positiveOrNull(line?.unit_cop),
+      unit_usd: prev?.unit_usd ?? positiveOrNull(line?.unit_usd),
+    });
   }
   const lines = [...merged.values()];
 
   const productIds = [...new Set(lines.map(l => l.product_id))];
   const { data: products, error: pErr } = await db
     .from('products')
-    .select('id, name, type, available, has_flavors, wholesale_price_usd, wholesale_price_cop')
+    .select('id, name, type, category, available, has_flavors, wholesale_price_usd, wholesale_price_cop')
     .in('id', productIds);
   if (pErr) throw new Error(pErr.message);
   const productById = new Map((products ?? []).map(p => [p.id, p]));
@@ -83,6 +105,7 @@ export async function priceItems(
   const productHasFlavors = new Set((pfRows ?? []).filter(r => flavorName.has(r.flavor_id)).map(r => r.product_id));
 
   const items: WholesaleOrderItem[] = [];
+  const masaOverrides: MasaPriceMap = {};
   for (const line of lines) {
     const p = productById.get(line.product_id);
     if (!p) throw new OrderInputError('Uno de los productos ya no existe. Recarga el catálogo.');
@@ -99,14 +122,30 @@ export async function priceItems(
       throw new OrderInputError(`Elige el sabor de ${p.name}.`);
     }
 
-    const needsRate = (flavor
-      ? (flavor.wholesale_price_cop ?? flavor.price_cop ?? p.wholesale_price_cop)
-      : p.wholesale_price_cop) == null;
-    if (needsRate && !copPerUsd) {
-      throw new OrderInputError(`${p.name} no tiene precio en pesos y no hay tasa guardada para convertirlo.`);
-    }
+    // Masas: precio manual del domiciliario, si vino uno usable. Cualquier otra
+    // categoría ignora lo que mande el navegador (precio siempre de catálogo).
+    const manual = p.category === MASA_CATEGORY && (line.unit_cop != null || line.unit_usd != null)
+      ? line
+      : null;
 
-    const prices = wholesaleUnitPrices(p, flavor, copPerUsd ?? 0);
+    let prices: { unit_usd: number; unit_cop: number };
+    if (manual) {
+      const unit_cop = manual.unit_cop ?? (copPerUsd ? Math.round((manual.unit_usd ?? 0) * copPerUsd) : null);
+      const unit_usd = manual.unit_usd ?? (copPerUsd ? (manual.unit_cop ?? 0) / copPerUsd : null);
+      if (unit_cop == null || unit_usd == null) {
+        throw new OrderInputError(`${p.name}: precio de masa incompleto y sin tasa guardada para convertirlo.`);
+      }
+      prices = { unit_usd, unit_cop };
+      masaOverrides[p.id] = { usd: unit_usd, cop: unit_cop };
+    } else {
+      const needsRate = (flavor
+        ? (flavor.wholesale_price_cop ?? flavor.price_cop ?? p.wholesale_price_cop)
+        : p.wholesale_price_cop) == null;
+      if (needsRate && !copPerUsd) {
+        throw new OrderInputError(`${p.name} no tiene precio en pesos y no hay tasa guardada para convertirlo.`);
+      }
+      prices = wholesaleUnitPrices(p, flavor, copPerUsd ?? 0);
+    }
     if (!(prices.unit_usd > 0) && !(prices.unit_cop > 0)) {
       throw new OrderInputError(`${name} no tiene precio al mayor.`);
     }
@@ -115,7 +154,7 @@ export async function priceItems(
 
   const totals = orderTotals(items);
   if (totals.total_usd <= 0 || totals.total_cop <= 0) throw new OrderInputError('El pedido quedó en cero.');
-  return { items, ...totals };
+  return { items, ...totals, masaOverrides };
 }
 
 /**
@@ -196,6 +235,21 @@ export async function loadOrder(db: Db, id: string): Promise<WholesaleOrder | nu
   if (!data) return null;
   const [order] = await attachPayments(db, [data]);
   return order;
+}
+
+/**
+ * Guarda el precio de masa que el domiciliario escribió a mano, para que la
+ * próxima vez que le vendan a este mayorista salga de una vez. Se mezcla con lo
+ * que ya tenía guardado (no borra el precio de otras masas que no cambiaron).
+ */
+export async function saveMasaOverrides(db: Db, clientId: string, overrides: MasaPriceMap): Promise<void> {
+  if (Object.keys(overrides).length === 0) return;
+  const { data } = await db.from('wholesale_clients').select('masa_prices').eq('id', clientId).maybeSingle();
+  const current = (data?.masa_prices ?? {}) as unknown as MasaPriceMap;
+  await db
+    .from('wholesale_clients')
+    .update({ masa_prices: { ...current, ...overrides } as unknown as Json })
+    .eq('id', clientId);
 }
 
 /** Texto limpio y acotado, o null. */

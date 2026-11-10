@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireRole } from '@/lib/adminAuth';
 
+type MasaPrices = Record<string, { usd: number | null; cop: number | null }>;
+
 interface UpdateBody {
   name?: string;
   phone?: string | null;
@@ -10,14 +12,20 @@ interface UpdateBody {
   area?: string | null;
   notes?: string | null;
   active?: boolean;
+  masa_prices?: MasaPrices;
 }
 
-/** Editar un cliente al mayor — SOLO admin. */
+/**
+ * Editar un cliente al mayor. Admin: todos los campos. Equipo: SOLO
+ * `masa_prices` (el precio de masas que acordó por teléfono con este
+ * mayorista) — el resto de la ficha sigue siendo solo-admin.
+ */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!requireRole(request, 'admin')) {
+  const role = requireRole(request, 'admin', 'staff');
+  if (!role) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -30,17 +38,26 @@ export async function PATCH(
 
   // Solo campos permitidos (sin asignación masiva).
   const patch: UpdateBody & { updated_at: string } = { updated_at: new Date().toISOString() };
-  if (body.name !== undefined) {
-    const name = body.name.trim();
-    if (!name) return NextResponse.json({ error: 'El nombre no puede quedar vacío' }, { status: 400 });
-    patch.name = name;
+
+  if (role === 'staff') {
+    if (body.masa_prices === undefined || typeof body.masa_prices !== 'object') {
+      return NextResponse.json({ error: 'Nada que guardar.' }, { status: 400 });
+    }
+    patch.masa_prices = body.masa_prices;
+  } else {
+    if (body.name !== undefined) {
+      const name = body.name.trim();
+      if (!name) return NextResponse.json({ error: 'El nombre no puede quedar vacío' }, { status: 400 });
+      patch.name = name;
+    }
+    if (body.phone !== undefined) patch.phone = body.phone?.trim() || null;
+    if (body.address !== undefined) patch.address = body.address?.trim() || null;
+    if (body.route !== undefined) patch.route = body.route?.trim().slice(0, 80) || null;
+    if (body.area !== undefined) patch.area = body.area?.trim().slice(0, 80) || null;
+    if (body.notes !== undefined) patch.notes = body.notes?.trim() || null;
+    if (body.active !== undefined) patch.active = body.active;
+    if (body.masa_prices !== undefined) patch.masa_prices = body.masa_prices;
   }
-  if (body.phone !== undefined) patch.phone = body.phone?.trim() || null;
-  if (body.address !== undefined) patch.address = body.address?.trim() || null;
-  if (body.route !== undefined) patch.route = body.route?.trim().slice(0, 80) || null;
-  if (body.area !== undefined) patch.area = body.area?.trim().slice(0, 80) || null;
-  if (body.notes !== undefined) patch.notes = body.notes?.trim() || null;
-  if (body.active !== undefined) patch.active = body.active;
 
   const { data, error } = await supabaseAdmin
     .from('wholesale_clients')

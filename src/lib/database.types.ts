@@ -305,6 +305,42 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_methods: {
+        Row: {
+          active: boolean
+          created_at: string
+          details: Json
+          icon: string
+          id: string
+          label: string
+          note: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          details?: Json
+          icon?: string
+          id: string
+          label: string
+          note?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          details?: Json
+          icon?: string
+          id?: string
+          label?: string
+          note?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_flavors: {
         Row: {
           available: boolean
@@ -513,6 +549,7 @@ export type Database = {
           area: string | null
           created_at: string
           id: string
+          masa_prices: Json
           name: string
           notes: string | null
           phone: string | null
@@ -525,6 +562,7 @@ export type Database = {
           area?: string | null
           created_at?: string
           id?: string
+          masa_prices?: Json
           name: string
           notes?: string | null
           phone?: string | null
@@ -537,6 +575,7 @@ export type Database = {
           area?: string | null
           created_at?: string
           id?: string
+          masa_prices?: Json
           name?: string
           notes?: string | null
           phone?: string | null

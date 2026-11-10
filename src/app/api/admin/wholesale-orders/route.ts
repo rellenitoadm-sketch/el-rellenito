@@ -15,6 +15,7 @@ import {
   cleanText,
   getStoredRates,
   priceItems,
+  saveMasaOverrides,
   toOrder,
 } from '@/lib/wholesaleOrders.server';
 import { parseWholesaleItems } from '@/lib/inventory';
@@ -167,6 +168,8 @@ export async function POST(request: NextRequest) {
       .select('*')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await saveMasaOverrides(supabaseAdmin, client.id, priced.masaOverrides);
 
     // Inventario: el pedido aparta las unidades del día en que se entrega.
     await registerSaleSafely(supabaseAdmin, {

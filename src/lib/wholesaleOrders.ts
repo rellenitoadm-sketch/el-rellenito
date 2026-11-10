@@ -59,6 +59,16 @@ export interface StoredRates {
   cop_per_usd: number;
 }
 
+/** Categoría cuyo precio al mayor el domiciliario puede editar por mayorista. */
+export const MASA_CATEGORY = 'MASAS';
+
+export interface MasaPriceOverride {
+  usd: number | null;
+  cop: number | null;
+}
+/** `{ "<product_id>": { usd, cop } }` — precio acordado con un mayorista, guardado en `wholesale_clients.masa_prices`. */
+export type MasaPriceMap = Record<string, MasaPriceOverride>;
+
 /** Línea tal como la manda el formulario: el precio lo pone siempre el servidor. */
 export interface OrderLineInput {
   product_id: string;

@@ -1,19 +1,23 @@
-export type PaymentMethodId =
-  | 'pago_movil'
-  | 'zelle'
-  | 'binance'
-  | 'transferencia_ve'
-  | 'bancolombia'
-  | 'efectivo';
+/**
+ * `string` porque el admin puede crear o borrar métodos desde el panel (Ventas
+ * → Pagos): ya no es un set fijo de valores conocidos en código.
+ */
+export type PaymentMethodId = string;
 
 export interface PaymentMethod {
-  id: PaymentMethodId;
+  id: string;
   label: string;
   icon: string; // nombre del icono Lucide
   details: Record<string, string>;
   note?: string;
 }
 
+/**
+ * Datos de respaldo si la tabla `payment_methods` de Supabase no responde (igual
+ * que `products.ts` respalda a `/api/products`). La fuente real y EDITABLE desde
+ * el panel (Ventas → Pagos) es la tabla; `PaymentMethodsContext` la consulta y
+ * cae a esta lista si falla. Mantener esto al día es opcional/cosmético.
+ */
 export const paymentMethods: PaymentMethod[] = [
   {
     id: 'pago_movil',
@@ -21,8 +25,8 @@ export const paymentMethods: PaymentMethod[] = [
     icon: 'Smartphone',
     details: {
       Banco: 'Banco Provincial (0108)',
-      Teléfono: '+58 412-339-3602',
-      'C.I.': 'V-10.153.486',
+      Teléfono: '0412-339-3602',
+      'C.I.': 'V-29.649.099',
       Titular: 'Nahomy Parada',
     },
   },

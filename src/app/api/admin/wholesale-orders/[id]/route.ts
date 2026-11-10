@@ -10,6 +10,7 @@ import {
   getStoredRates,
   loadOrder,
   priceItems,
+  saveMasaOverrides,
 } from '@/lib/wholesaleOrders.server';
 import type { Database, Json } from '@/lib/database.types';
 
@@ -121,6 +122,7 @@ export async function PATCH(
           patch.items = priced.items as unknown as Json;
           patch.total_usd = priced.total_usd;
           patch.total_cop = priced.total_cop;
+          if (order.client_id) await saveMasaOverrides(db, order.client_id, priced.masaOverrides);
         } catch (e) {
           if (e instanceof OrderInputError) return NextResponse.json({ error: e.message }, { status: 400 });
           return NextResponse.json({ error: 'No se pudo recalcular el pedido.' }, { status: 500 });

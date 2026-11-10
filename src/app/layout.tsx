@@ -6,6 +6,7 @@ import { CurrencyProvider } from '@/components/CurrencyContext';
 import { BubbleProvider } from '@/components/AddToCartBubble';
 import { ProductsProvider } from '@/components/ProductsContext';
 import { CategoriesProvider } from '@/components/CategoriesContext';
+import { PaymentMethodsProvider } from '@/components/PaymentMethodsContext';
 import { ProductModalProvider } from '@/components/ProductModal';
 import { OnboardingProvider } from '@/components/Onboarding';
 import { PwaInstallProvider } from '@/components/PwaInstall';
@@ -107,6 +108,7 @@ export default function RootLayout({
         />
         <CurrencyProvider>
           <CategoriesProvider>
+          <PaymentMethodsProvider>
           <ProductsProvider>
             <CartProvider>
               <BubbleProvider>
@@ -124,6 +126,7 @@ export default function RootLayout({
               </BubbleProvider>
             </CartProvider>
           </ProductsProvider>
+          </PaymentMethodsProvider>
           </CategoriesProvider>
         </CurrencyProvider>
       </body>

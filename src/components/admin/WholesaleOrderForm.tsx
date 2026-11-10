@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Search, X, Minus, Plus, Store, MapPin, Phone, Layers, Trash2, Save } from 'lucide-react';
+import { Search, X, Minus, Plus, Store, MapPin, Phone, Layers, Trash2, Save, UserPlus, Pencil } from 'lucide-react';
 import type { Product } from '@/lib/products';
 import { useProductModal } from '@/components/ProductModal';
 import type { DriverChoice } from '@/components/RouteTracking';
 import { routeLabel } from '@/lib/wholesaleRoutes';
 import {
+  MASA_CATEGORY,
   MAX_AHEAD_DAYS,
   addDays,
   formatCop,
@@ -17,6 +18,7 @@ import {
   normalizeSearch,
   orderTotals,
   wholesaleUnitPrices,
+  type MasaPriceMap,
   type StoredRates,
   type WholesaleOrder,
 } from '@/lib/wholesaleOrders';
@@ -28,6 +30,7 @@ interface ClientLite {
   address: string | null;
   route: string | null;
   active: boolean;
+  masa_prices?: MasaPriceMap;
 }
 
 interface Line {
@@ -106,6 +109,14 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Registrar un mayorista nuevo sin salir del formulario (lo toma por teléfono y no estaba en la cartera).
+  const [creatingClient, setCreatingClient] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientAddress, setNewClientAddress] = useState('');
+  const [creatingError, setCreatingError] = useState('');
+  const [creatingSaving, setCreatingSaving] = useState(false);
+
   useEffect(() => {
     fetch('/api/admin/wholesale-clients')
       .then(r => (r.ok ? r.json() : []))
@@ -139,6 +150,9 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
       .slice(0, 8);
   }, [clients, clientQuery]);
 
+  const productById = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
+  const isMasaLine = (l: Line) => productById.get(l.product_id)?.category === MASA_CATEGORY;
+
   const productResults = useMemo(() => {
     const q = normalizeSearch(productQuery.trim());
     if (!q) return [];
@@ -158,10 +172,21 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
     });
   };
 
+  /** Masas: si este mayorista ya tiene un precio acordado, se usa de entrada en vez del de catálogo. */
+  const masaDefaultPrices = (p: Product, catalogPrices: { unit_usd: number; unit_cop: number }) => {
+    if (p.category !== MASA_CATEGORY) return catalogPrices;
+    const saved = client?.masa_prices?.[p.id];
+    if (!saved) return catalogPrices;
+    return { unit_usd: saved.usd ?? catalogPrices.unit_usd, unit_cop: saved.cop ?? catalogPrices.unit_cop };
+  };
+
   const addProduct = (p: Product) => {
     const base = { wholesale_price_usd: p.wholesale_price_usd, wholesale_price_cop: p.wholesale_price_cop ?? null };
     if (!p.has_flavors) {
-      addLine({ product_id: p.id, flavor_id: null, name: p.name, qty: 1, ...wholesaleUnitPrices(base, null, copRate) });
+      addLine({
+        product_id: p.id, flavor_id: null, name: p.name, qty: 1,
+        ...masaDefaultPrices(p, wholesaleUnitPrices(base, null, copRate)),
+      });
       return;
     }
     modal.open(
@@ -191,6 +216,16 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
     setLines(curr => curr.map(l => (l.key === key ? { ...l, qty: Math.max(0, Math.floor(qty) || 0) } : l)));
   const removeLine = (key: string) => setLines(curr => curr.filter(l => l.key !== key));
 
+  /** Precio de masa escrito a mano: al tocar una moneda, la otra se deriva con la tasa guardada. */
+  const setLinePrice = (key: string, field: 'cop' | 'usd', raw: string) => {
+    const n = Number(raw.replace(/[^\d.]/g, '')) || 0;
+    setLines(curr => curr.map(l => {
+      if (l.key !== key) return l;
+      if (field === 'cop') return { ...l, unit_cop: n, unit_usd: copRate ? Math.round((n / copRate) * 100) / 100 : l.unit_usd };
+      return { ...l, unit_usd: n, unit_cop: copRate ? Math.round(n * copRate) : l.unit_cop };
+    }));
+  };
+
   const totals = orderTotals(lines);
   const units = lines.reduce((s, l) => s + l.qty, 0);
   const dateLocked = !!editing?.driver_name;
@@ -210,8 +245,18 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
     if (!client) { setError('Elige el mayorista.'); return; }
     if (lines.length === 0) { setError('Agrega al menos un producto.'); return; }
     if (lines.some(l => l.qty <= 0)) { setError('Cada producto necesita al menos 1 unidad.'); return; }
+    if (lines.some(l => isMasaLine(l) && !(l.unit_cop > 0) && !(l.unit_usd > 0))) {
+      setError('Ponle precio a la masa antes de guardar.'); return;
+    }
     setSaving(true);
-    const items = lines.map(l => ({ product_id: l.product_id, flavor_id: l.flavor_id, qty: l.qty }));
+    // El precio de masa se manda y vale: lo acordó el domiciliario por teléfono.
+    // Cualquier otro producto se repide siempre del catálogo (no se manda precio).
+    const items = lines.map(l => ({
+      product_id: l.product_id,
+      flavor_id: l.flavor_id,
+      qty: l.qty,
+      ...(isMasaLine(l) ? { unit_cop: l.unit_cop, unit_usd: l.unit_usd } : {}),
+    }));
     try {
       const res = editing
         ? await fetch(`/api/admin/wholesale-orders/${editing.id}`, {
@@ -303,11 +348,80 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
                     </p>
                   </button>
                 ))}
-                {clientResults.length === 0 && (
-                  <p className="text-[12.5px] px-1 py-2" style={{ color: 'var(--text-2)' }}>
-                    No aparece ningún mayorista activo con ese nombre. Pídele al administrador que lo agregue en <b>Mayoristas</b>.
-                  </p>
+                {clientResults.length === 0 && !creatingClient && (
+                  <div className="px-1 py-2 space-y-2">
+                    <p className="text-[12.5px]" style={{ color: 'var(--text-2)' }}>
+                      No aparece ningún mayorista activo con ese nombre.
+                    </p>
+                    <button
+                      onClick={() => { setNewClientName(clientQuery.trim()); setCreatingClient(true); setCreatingError(''); }}
+                      className="btn btn-brand-soft inline-flex items-center gap-1.5" style={{ minHeight: 40, padding: '6px 12px' }}
+                    >
+                      <UserPlus className="w-4 h-4" /> Registrar mayorista nuevo
+                    </button>
+                  </div>
                 )}
+              </div>
+            )}
+
+            {creatingClient && (
+              <div className="card p-3.5 mt-2 space-y-2.5">
+                <p className="text-[12px] font-bold uppercase tracking-widest" style={{ color: 'var(--brand-deep)' }}>Mayorista nuevo</p>
+                <div>
+                  <label htmlFor="nc-name" className="sr-only">Nombre del mayorista</label>
+                  <input id="nc-name" value={newClientName} onChange={e => setNewClientName(e.target.value)}
+                    placeholder="Nombre del negocio o persona" className="field" autoFocus />
+                </div>
+                <div>
+                  <label htmlFor="nc-phone" className="sr-only">Teléfono</label>
+                  <input id="nc-phone" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)}
+                    placeholder="Teléfono (opcional)" className="field" />
+                </div>
+                <div>
+                  <label htmlFor="nc-address" className="sr-only">Dirección</label>
+                  <input id="nc-address" value={newClientAddress} onChange={e => setNewClientAddress(e.target.value)}
+                    placeholder="Dirección (opcional)" className="field" />
+                </div>
+                {creatingError && <p className="text-[12.5px] font-semibold" style={{ color: 'var(--danger)' }}>{creatingError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      const name = newClientName.trim();
+                      if (!name) { setCreatingError('El nombre es obligatorio.'); return; }
+                      setCreatingSaving(true);
+                      setCreatingError('');
+                      try {
+                        const res = await fetch('/api/admin/wholesale-clients', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            name,
+                            phone: newClientPhone.trim() || null,
+                            address: newClientAddress.trim() || null,
+                          }),
+                        });
+                        const data = await res.json().catch(() => ({})) as ClientLite & { error?: string };
+                        if (!res.ok) { setCreatingError(data.error ?? 'No se pudo registrar. Intenta de nuevo.'); return; }
+                        setClients(curr => [...curr, data]);
+                        setClient(data);
+                        setClientQuery('');
+                        setCreatingClient(false);
+                        setNewClientName(''); setNewClientPhone(''); setNewClientAddress('');
+                      } catch {
+                        setCreatingError('Error de conexión. Intenta de nuevo.');
+                      } finally {
+                        setCreatingSaving(false);
+                      }
+                    }}
+                    disabled={creatingSaving}
+                    className="btn btn-primary flex-1" style={{ minHeight: 44 }}
+                  >
+                    {creatingSaving ? 'Guardando…' : 'Registrar y usar'}
+                  </button>
+                  <button onClick={() => setCreatingClient(false)} className="btn btn-ghost" style={{ minHeight: 44, border: '1px solid var(--border)' }}>
+                    Cancelar
+                  </button>
+                </div>
               </div>
             )}
           </>
@@ -384,7 +498,22 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
                     <p className="text-[13.5px] font-semibold" style={{ color: 'var(--text-1)' }}>{l.name}</p>
-                    <p className="text-[11.5px]" style={{ color: 'var(--text-3)' }}>{formatCop(l.unit_cop)} c/u · {formatUsd(l.unit_usd)}</p>
+                    {isMasaLine(l) ? (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Pencil className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--brand)' }} />
+                        <label htmlFor={`cop-${l.key}`} className="sr-only">Precio en pesos de {l.name}</label>
+                        <input id={`cop-${l.key}`} inputMode="decimal" value={l.unit_cop ? String(Math.round(l.unit_cop)) : ''}
+                          onChange={e => setLinePrice(l.key, 'cop', e.target.value)} placeholder="COP c/u"
+                          className="field t-num" style={{ width: 96, minHeight: 34, padding: '4px 8px', fontSize: 12 }} />
+                        <span style={{ color: 'var(--text-3)', fontSize: 11 }}>·</span>
+                        <label htmlFor={`usd-${l.key}`} className="sr-only">Precio en dólares de {l.name}</label>
+                        <input id={`usd-${l.key}`} inputMode="decimal" value={l.unit_usd ? String(l.unit_usd) : ''}
+                          onChange={e => setLinePrice(l.key, 'usd', e.target.value)} placeholder="US$ c/u"
+                          className="field t-num" style={{ width: 76, minHeight: 34, padding: '4px 8px', fontSize: 12 }} />
+                      </div>
+                    ) : (
+                      <p className="text-[11.5px]" style={{ color: 'var(--text-3)' }}>{formatCop(l.unit_cop)} c/u · {formatUsd(l.unit_usd)}</p>
+                    )}
                   </div>
                   <button onClick={() => removeLine(l.key)} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{ background: 'var(--danger-soft)', color: '#B91C1C' }} aria-label={`Quitar ${l.name}`}>
@@ -432,7 +561,9 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
         <p className="text-[12px] text-right t-num" style={{ color: 'var(--text-3)' }}>
           {formatUsd(totals.total_usd)}{rates ? ` · ${formatVes(totals.total_usd * rates.bs_per_usd)}` : ''}
         </p>
-        <p className="text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>Los precios se confirman con el catálogo al guardar.</p>
+        <p className="text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>
+          Los precios se confirman con el catálogo al guardar{lines.some(isMasaLine) ? ', salvo las masas: el precio que pongas queda guardado para este mayorista' : ''}.
+        </p>
       </div>
 
       {error && <p className="text-[13px] font-semibold" style={{ color: 'var(--danger)' }}>{error}</p>}

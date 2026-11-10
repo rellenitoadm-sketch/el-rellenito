@@ -2,7 +2,8 @@
 
 import { Copy, Check } from 'lucide-react';
 import { useState } from 'react';
-import { paymentMethods, type PaymentMethodId } from '@/lib/payments';
+import { type PaymentMethodId } from '@/lib/payments';
+import { usePaymentMethods } from '@/components/PaymentMethodsContext';
 
 interface PaymentDetailsProps {
   methodId: PaymentMethodId;
@@ -10,7 +11,8 @@ interface PaymentDetailsProps {
 
 export default function PaymentDetails({ methodId }: PaymentDetailsProps) {
   const [copied, setCopied] = useState<string | null>(null);
-  const method = paymentMethods.find(m => m.id === methodId);
+  const { methods } = usePaymentMethods();
+  const method = methods.find(m => m.id === methodId);
   if (!method) return null;
 
   const hasDetails = Object.keys(method.details).length > 0;

@@ -1,7 +1,32 @@
 # HANDOFF — El Rellenito (→ nueva sesión)
 
-> **Actualizado 2026-10-12.** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
+> **Actualizado 2026-11-09 (tarde).** Las secciones ⭐ más recientes de abajo son lo VIGENTE. El resto es historial.
 > **Secretos reales (API keys, contraseñas) NO van aquí** (este repo se sube a GitHub) → están en la memoria local del agente y en el docker-compose del VPS.
+
+---
+
+## ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-11-09 (tarde) — Impresora 58mm de ventas (única) + Métodos de pago editables (migraciones 008+009 YA CORRIDAS; falta deploy)
+
+**Pedido del cliente:** nueva y ÚNICA impresora térmica (Roccia RC-5801, 58mm, USB, Windows 11, comandos POS) — NO hay impresora de 80mm/cocina, así que solo existe un botón "Imprimir"; debe poder imprimirse también justo después de hacer el pedido, desde la pantalla de confirmación. Y poder editar los métodos de pago (Pago Móvil nuevo: Provincial, cédula 29.649.099, 0412-339-3602) sin tocar código.
+
+- **Impresión 58 mm (única, sin opción de ancho):** `TicketSlip.tsx` → `SLIP_CSS` fijo a 58mm (letra escalada para ese ancho). Un solo botón **"Imprimir"** en todas partes: en el modal de ticket del panel (`TicketSheet.tsx`, Pedidos/Pedidos mayoristas/Tickets) y en la pantalla de confirmación tras hacer un pedido (`OrderConfirmation.tsx` → `TicketActions`, ya existía). Abre `/t/[code]?print=1` e imprime solo. La impresora se usa como impresora de Windows normal (su driver ya la expone en el diálogo de impresión del navegador) — no se habla ESC/POS directo desde el navegador, no hace falta.
+- **Métodos de pago editables:** tabla `payment_methods` (migración `009_payment_methods.sql`, **YA CORRIDA** por el usuario) — reemplaza el array fijo de `lib/payments.ts` (que queda solo de respaldo si la tabla no responde, igual que `products.ts`). `lib/paymentMethods.ts` (list/create/update/delete, mismo patrón que `lib/categories.ts`). Público: `GET /api/payment-methods`. Admin — **solo admin**, son cuentas bancarias: `GET/POST/PATCH/DELETE /api/admin/payment-methods`. `PaymentMethodsContext.tsx` nuevo (mismo patrón que `CategoriesContext`), provider en `layout.tsx`; `PaymentTabs.tsx`/`PaymentDetails.tsx` ya no importan el array fijo, usan el contexto.
+- **Panel nuevo:** Ventas → **Pagos** (pestaña nueva, solo admin) en `VentasPanel.tsx` → `PagosPanel.tsx`: editar nombre/ícono/datos (banco, teléfono, cuenta…)/nota/visible, agregar o eliminar un método. Tutorial nuevo `adminPagos` en `Onboarding.tsx`.
+- **Pago Móvil YA actualizado** en el seed de la migración 009 y en el fallback estático de `payments.ts`: Provincial, V-29.649.099, 0412-339-3602 (antes tenía otra cédula, mismo teléfono).
+- **Migración 008 (`wholesale_client_masa_prices.sql`, precio de masas por mayorista) también YA CORRIDA** en esta misma sesión del usuario.
+- **Falta:** deploy, probar imprimiendo de verdad en la Roccia RC-5801 (confirmar que Windows la tiene instalada como impresora normal — si pide driver, instalar el que trae el fabricante antes de imprimir desde el navegador). Verificado solo con `tsc --noEmit` + `next build` + `eslint` (todos limpios) — sin revisión visual en navegador ni impresión real.
+
+---
+
+## ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-11-09 — Precio de Masas editable por mayorista (PENDIENTE: migración 008 + deploy)
+
+**Pedido del cliente:** los domiciliarios llevan precios distintos de Masas según el mayorista (lo negocian por teléfono); hace falta poder editarlo a mano al registrar el pedido, elegir el mayorista o registrarlo si no existe, y que el precio quede guardado para ese mayorista la próxima vez.
+
+- **Migración `supabase/migrations/008_wholesale_client_masa_prices.sql`** (correr en SQL Editor): `wholesale_clients.masa_prices jsonb` = `{ "<product_id>": { usd, cop } }`.
+- **`lib/wholesaleOrders.server.ts`** (`priceItems`): sigue ignorando el precio que manda el navegador para TODO, salvo productos categoría `MASAS` — ahí, si la línea trae `unit_cop`/`unit_usd`, se respeta (con validación y derivación de la moneda que falte vía tasa). Nueva función `saveMasaOverrides` guarda lo usado en `wholesale_clients.masa_prices` (merge, no pisa otras masas). Se llama desde el `POST` y el `PATCH action=edit` de `/api/admin/wholesale-orders`.
+- **`/api/admin/wholesale-clients`**: el equipo ya puede crear mayoristas (antes solo admin) — sin `notes` (eso sigue siendo del admin). `PATCH` nuevo: el equipo solo puede tocar `masa_prices`; el resto de la ficha sigue admin-only. `GET` para equipo ahora incluye `masa_prices` (antes se le ocultaba junto con `notes`).
+- **`WholesaleOrderForm.tsx`**: al agregar una Masa, si el mayorista ya tiene precio guardado se usa de entrada; si no, sale el de catálogo. Cada línea de Masa muestra dos inputs (COP/US$) en vez de precio fijo — el domiciliario lo edita ahí mismo. Si el mayorista no está en la cartera, botón "Registrar mayorista nuevo" (nombre/teléfono/dirección) sin salir del formulario.
+- **Falta:** aplicar 008 en Supabase, probar en el teléfono de un domiciliario real (PIN real), deploy. Verificado solo con `tsc --noEmit` + `next build` (ambos exit 0) y `eslint` limpio — sin revisión visual en navegador.
 
 ---
 
