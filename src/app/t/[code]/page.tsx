@@ -33,14 +33,18 @@ export default async function TicketPage({ params, searchParams }: Props) {
   const { print } = await searchParams;
   const ticket = await load(code);
   if (!ticket) notFound();
+  const printing = print === '1';
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center gap-4 px-4 py-8" style={{ background: '#FFE9DC' }}>
       <style>{SLIP_CSS}</style>
-      <TicketCard ticket={ticket} logoSrc="/logo-circle.png" fonts={WEB_FONTS} />
+      {/* Al imprimir (?print=1, el único camino real: botón del panel y de la confirmación de
+          pedido) no se renderiza nada más que el ticket térmico — así no hay como una tarjeta
+          oculta por CSS deje espacio en blanco en el rollo si el navegador pagina mal. */}
+      {!printing && <TicketCard ticket={ticket} logoSrc="/logo-circle.png" fonts={WEB_FONTS} />}
       <TicketSlip ticket={ticket} />
-      <TicketActions code={code} number={ticket.number} inline />
-      {print === '1' && <AutoPrint />}
+      {!printing && <TicketActions code={code} number={ticket.number} inline />}
+      {printing && <AutoPrint />}
     </main>
   );
 }
