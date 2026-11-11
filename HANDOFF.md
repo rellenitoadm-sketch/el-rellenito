@@ -5,6 +5,16 @@
 
 ---
 
+## ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-11-11 — Ticket impreso cortado a la derecha + montos en pesos (FALTA deploy)
+
+**Foto del cliente:** la Roccia ya imprime, pero se perdía todo lo alineado a la derecha (precio por línea, unidades, total en $ y COP, "11 nov", dirección). Y en pantalla el ticket mostraba solo dólares ("$7.02"), cuando se cobra en pesos.
+
+- **Causa del corte:** el rollo es de 58 mm pero el cabezal imprime ~48 mm. `SLIP_CSS` tenía el ticket a 58 mm. Ahora `.ticket-slip` mide 46 mm, sin padding lateral, y los montos van en su propia línea (precio debajo del producto, TOTAL arriba y monto grande abajo a la derecha).
+- **Pesos primero:** `lib/tickets.ts` tiene `fmtLine` (línea en COP si trae `unit_cop`, si no en USD) y `ticketExtraCop`. `TicketSlip`, `TicketCard` (página, PNG de WhatsApp, panel) y `ticketShareText` muestran el total en COP con USD abajo. `fmtUsd` ahora dice `US$` (antes `$`, que se confundía con pesos); esto también cambia los montos en dólares del panel (Tickets, Ventas).
+- **Falta:** deploy e imprimir un ticket de prueba en la Roccia. Verificado solo con `tsc` + `eslint` + `next build`.
+
+---
+
 ## ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-11-09 (tarde) — Impresora 58mm de ventas (única) + Métodos de pago editables (migraciones 008+009 YA CORRIDAS; falta deploy)
 
 **Pedido del cliente:** nueva y ÚNICA impresora térmica (Roccia RC-5801, 58mm, USB, Windows 11, comandos POS) — NO hay impresora de 80mm/cocina, así que solo existe un botón "Imprimir"; debe poder imprimirse también justo después de hacer el pedido, desde la pantalla de confirmación. Y poder editar los métodos de pago (Pago Móvil nuevo: Provincial, cédula 29.649.099, 0412-339-3602) sin tocar código.

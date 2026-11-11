@@ -1,9 +1,11 @@
 import {
   deliveryLabel,
   fmtCop,
+  fmtLine,
   fmtTicketDate,
   fmtUsd,
   paymentLabel,
+  ticketExtraCop,
   ticketExtraUsd,
   ticketNumber,
   type Ticket,
@@ -53,6 +55,8 @@ export function TicketCard({ ticket: t, logoSrc, fonts = IMAGE_FONTS }: { ticket
   const SERIF = fonts.serif;
   const SANS = fonts.sans;
   const extra = ticketExtraUsd(t);
+  const extraCop = ticketExtraCop(t);
+  const hasCop = t.total_cop > 0;
   const pay = paymentLabel(t.payment_method);
   const delivery = deliveryLabel(t.meta.delivery_type);
   const when = t.meta.date ? fmtTicketDate(t.meta.date) : '';
@@ -95,13 +99,13 @@ export function TicketCard({ ticket: t, logoSrc, fonts = IMAGE_FONTS }: { ticket
           {t.items.map((i, idx) => (
             <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 17 }}>
               <div style={{ display: 'flex', flex: 1 }}>{`${i.qty} × ${i.name}`}</div>
-              <div style={{ display: 'flex', fontWeight: 700 }}>{fmtUsd(i.qty * i.unit_usd)}</div>
+              <div style={{ display: 'flex', fontWeight: 700 }}>{fmtLine(i)}</div>
             </div>
           ))}
           {extra > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, color: C.mute }}>
               <div style={{ display: 'flex' }}>Fritura y otros cargos</div>
-              <div style={{ display: 'flex' }}>{fmtUsd(extra)}</div>
+              <div style={{ display: 'flex' }}>{hasCop && extraCop > 0 ? fmtCop(extraCop) : fmtUsd(extra)}</div>
             </div>
           )}
         </div>
@@ -109,8 +113,8 @@ export function TicketCard({ ticket: t, logoSrc, fonts = IMAGE_FONTS }: { ticket
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', fontSize: 14, letterSpacing: 2, textTransform: 'uppercase', color: C.mute }}>Total</div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            <div style={{ display: 'flex', fontFamily: SERIF, fontSize: 44, fontWeight: 700, color: C.brandDeep }}>{fmtUsd(t.total_usd)}</div>
-            {t.total_cop > 0 && <div style={{ display: 'flex', fontSize: 15, color: C.mute }}>{fmtCop(t.total_cop)}</div>}
+            <div style={{ display: 'flex', fontFamily: SERIF, fontSize: hasCop ? 38 : 44, fontWeight: 700, color: C.brandDeep }}>{hasCop ? fmtCop(t.total_cop) : fmtUsd(t.total_usd)}</div>
+            {hasCop && <div style={{ display: 'flex', fontSize: 15, color: C.mute }}>{fmtUsd(t.total_usd)}</div>}
           </div>
         </div>
 

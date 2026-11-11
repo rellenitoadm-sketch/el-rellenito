@@ -116,8 +116,25 @@ export function ticketExtraUsd(t: Pick<Ticket, 'items' | 'total_usd'>): number {
   return extra > 0.009 ? extra : 0;
 }
 
+/** Igual que `ticketExtraUsd` pero en pesos (0 si el ticket no trae pesos). */
+export function ticketExtraCop(t: Pick<Ticket, 'items' | 'total_cop'>): number {
+  if (!(t.total_cop > 0)) return 0;
+  const sum = t.items.reduce((s, i) => s + i.qty * i.unit_cop, 0);
+  const extra = t.total_cop - sum;
+  return extra > 1 ? extra : 0;
+}
+
+/**
+ * Monto de una línea como sale en el ticket: en pesos (la moneda con la que se
+ * cobra) si la línea los trae; si no, en dólares.
+ */
+export function fmtLine(i: Pick<TicketItem, 'qty' | 'unit_usd' | 'unit_cop'>): string {
+  return i.unit_cop > 0 ? fmtCop(i.qty * i.unit_cop) : fmtUsd(i.qty * i.unit_usd);
+}
+
+/** "US$" y no "$" solo: en el ticket "$" se confunde con pesos. */
 export function fmtUsd(n: number): string {
-  return `$${n.toFixed(2)}`;
+  return `US$${n.toFixed(2)}`;
 }
 
 export function fmtCop(n: number): string {
@@ -132,6 +149,7 @@ export function fmtTicketDate(iso: string): string {
 }
 
 /** Mensaje predeterminado al mandar el ticket por WhatsApp. El link se ve como tarjeta con la imagen. */
-export function ticketShareText(t: Pick<Ticket, 'customer_name' | 'number' | 'total_usd'>, url: string): string {
-  return `¡Hola ${t.customer_name}! 🧡 Gracias por tu compra en El Rellenito. Aquí está tu ticket ${ticketNumber(t.number)} por ${fmtUsd(t.total_usd)}:\n${url}`;
+export function ticketShareText(t: Pick<Ticket, 'customer_name' | 'number' | 'total_usd' | 'total_cop'>, url: string): string {
+  const total = t.total_cop > 0 ? fmtCop(t.total_cop) : fmtUsd(t.total_usd);
+  return `¡Hola ${t.customer_name}! 🧡 Gracias por tu compra en El Rellenito. Aquí está tu ticket ${ticketNumber(t.number)} por ${total}:\n${url}`;
 }

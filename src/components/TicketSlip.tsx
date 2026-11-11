@@ -1,4 +1,4 @@
-import { deliveryLabel, fmtCop, fmtTicketDate, fmtUsd, paymentLabel, ticketExtraUsd, ticketNumber, type Ticket } from '@/lib/tickets';
+import { deliveryLabel, fmtCop, fmtLine, fmtTicketDate, fmtUsd, paymentLabel, ticketExtraCop, ticketExtraUsd, ticketNumber, type Ticket } from '@/lib/tickets';
 
 /**
  * Versión del ticket para la impresora térmica de ventas (Roccia RC-5801, 58
@@ -11,6 +11,8 @@ export function TicketSlip({ ticket: t }: { ticket: Ticket }) {
   const when = t.meta.date ? fmtTicketDate(t.meta.date) : '';
   const pay = paymentLabel(t.payment_method);
   const extra = ticketExtraUsd(t);
+  const extraCop = ticketExtraCop(t);
+  const hasCop = t.total_cop > 0;
   const units = t.items.reduce((s, i) => s + i.qty, 0);
 
   return (
@@ -26,22 +28,25 @@ export function TicketSlip({ ticket: t }: { ticket: Ticket }) {
       {delivery && <p className="s-big s-bold">{delivery.toUpperCase()}</p>}
       {when && <p className="s-row"><span>Entrega</span><b>{t.meta.time ? `${when} · ${t.meta.time}` : when}</b></p>}
       {t.meta.route && <p className="s-row"><span>Ruta</span><b>{t.meta.route}</b></p>}
-      {t.meta.delivery_address && <p className="s-row"><span>Dir.</span><b>{t.meta.delivery_address.split('\n')[0].slice(0, 90)}</b></p>}
+      {t.meta.delivery_address && <p className="s-addr"><span>Dir. </span><b>{t.meta.delivery_address.split('\n')[0].slice(0, 90)}</b></p>}
       <hr />
 
       {t.items.map((i, idx) => (
         <div key={idx} className="s-item">
-          <span className="s-qty">{i.qty}×</span>
-          <span className="s-name">{i.name}</span>
-          <span className="s-price">{fmtUsd(i.qty * i.unit_usd)}</span>
+          <div className="s-line">
+            <span className="s-qty">{i.qty}×</span>
+            <span className="s-name">{i.name}</span>
+          </div>
+          <p className="s-price">{fmtLine(i)}</p>
         </div>
       ))}
-      {extra > 0 && <p className="s-row"><span>Fritura y otros cargos</span><b>{fmtUsd(extra)}</b></p>}
+      {extra > 0 && <p className="s-row"><span>Fritura y otros</span><b>{hasCop && extraCop > 0 ? fmtCop(extraCop) : fmtUsd(extra)}</b></p>}
       <hr />
 
       <p className="s-row"><span>Unidades</span><b>{units}</b></p>
-      <p className="s-row s-big s-bold"><span>TOTAL</span><span>{fmtUsd(t.total_usd)}</span></p>
-      {t.total_cop > 0 && <p className="s-row s-small"><span /><span>{fmtCop(t.total_cop)}</span></p>}
+      <p className="s-bold">TOTAL</p>
+      <p className="s-total">{hasCop ? fmtCop(t.total_cop) : fmtUsd(t.total_usd)}</p>
+      {hasCop && <p className="s-small s-right">{fmtUsd(t.total_usd)}</p>}
       {pay && <p className="s-row"><span>Pago</span><b>{pay}</b></p>}
       {t.meta.advance_usd ? (
         <>
@@ -61,7 +66,12 @@ export function TicketSlip({ ticket: t }: { ticket: Ticket }) {
   );
 }
 
-/** Estilos del ticket para la Roccia RC-5801 (58 mm): oculto en pantalla; al imprimir es lo único que sale. */
+/**
+ * Estilos del ticket para la Roccia RC-5801: oculto en pantalla; al imprimir es lo único que sale.
+ * El rollo mide 58 mm pero el cabezal solo imprime ~48 mm (384 puntos): con el ticket a 58 mm
+ * se perdía todo lo alineado a la derecha (precios, total, unidades). Por eso el contenido va
+ * a 46 mm y los montos van en su propia línea, no a la derecha de un texto largo.
+ */
 export const SLIP_CSS = `
   .ticket-slip { display: none; }
   @media print {
@@ -70,7 +80,7 @@ export const SLIP_CSS = `
     main { padding: 0 !important; margin: 0 !important; min-height: 0 !important; height: auto !important; max-width: none !important; background: #fff !important; display: block !important; }
     main > *:not(.ticket-slip) { display: none !important; }
     .ticket-slip * { color: #000 !important; }
-    .ticket-slip { display: block; width: 58mm; box-sizing: border-box; padding: 2mm 2mm 4mm; background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.3; break-inside: avoid; page-break-inside: avoid; }
+    .ticket-slip { display: block; width: 46mm; box-sizing: border-box; padding: 1mm 0 4mm; overflow-wrap: anywhere; background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.3; break-inside: avoid; page-break-inside: avoid; }
     .ticket-slip p, .ticket-slip hr, .ticket-slip .s-item { break-inside: avoid; page-break-inside: avoid; }
     .ticket-slip p { margin: 2px 0; }
     .ticket-slip hr { border: 0; border-top: 2px dashed #000; margin: 8px 0; }
@@ -81,10 +91,14 @@ export const SLIP_CSS = `
     .ticket-slip .s-num { text-align: center; font-size: 28px; font-weight: 900; line-height: 1; margin: 4px 0; }
     .ticket-slip .s-row { display: flex; justify-content: space-between; gap: 8px; }
     .ticket-slip .s-row b { text-align: right; }
-    .ticket-slip .s-item { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; font-weight: 800; }
+    .ticket-slip .s-right { text-align: right; }
+    .ticket-slip .s-addr b { font-weight: 800; }
+    .ticket-slip .s-item { padding: 3px 0; font-weight: 800; }
+    .ticket-slip .s-line { display: flex; gap: 6px; align-items: baseline; }
     .ticket-slip .s-qty { font-size: 18px; min-width: 2.1em; }
-    .ticket-slip .s-name { flex: 1; font-size: 14px; line-height: 1.15; }
-    .ticket-slip .s-price { font-size: 10px; font-weight: 600; }
+    .ticket-slip .s-name { flex: 1; min-width: 0; font-size: 14px; line-height: 1.15; }
+    .ticket-slip .s-price { text-align: right; font-size: 12px; font-weight: 800; }
+    .ticket-slip .s-total { text-align: right; font-size: 20px; font-weight: 900; line-height: 1.1; }
     .ticket-slip .s-note { font-size: 13px; font-weight: 800; line-height: 1.25; }
   }
 `;
