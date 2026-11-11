@@ -73,14 +73,14 @@ const STEPS: Record<TourId, Step[]> = {
   ],
   admin: [
     { target: 'admin-title', title: 'Panel El Rellenito', body: 'Desde aquí gestionas todo el negocio. Te muestro lo principal.' },
-    { target: 'admin-tabs', title: 'Secciones', body: 'Cada pestaña gestiona una parte del negocio: pedidos, inventario, tickets, métricas, clientes, mayoristas y rutas. Toca cada una; te guío dentro al abrirla.' },
+    { target: 'admin-tabs', title: 'Secciones', body: 'Cada pestaña gestiona una parte del negocio: pedidos, inventario, ventas, clientes, mayoristas y rutas. Toca cada una; te guío dentro al abrirla.' },
     ...ORDERS_FILTER_STEPS,
     { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido apruebas el pago, lo marcas en camino o entregado y abres el mapa o el contacto del cliente. El botón “Ticket” abre su factura para mandarla por WhatsApp.' },
     { target: 'admin-logout', title: 'Cerrar sesión', body: 'Sal del panel de forma segura cuando termines.' },
   ],
   adminStaff: [
     { target: 'admin-title', title: 'Panel del equipo', body: 'Bienvenido. Aquí atiendes los pedidos y mantienes los productos al día.' },
-    { target: 'admin-tabs', title: 'Tus secciones', body: 'Como equipo ves Pedidos, Productos (inventario), Reparto, Pedidos mayoristas y Tickets. (Métricas, Clientes y demás son del administrador.)' },
+    { target: 'admin-tabs', title: 'Tus secciones', body: 'Como equipo ves Pedidos, Productos (inventario), Reparto, Pedidos mayoristas y Tickets. (Clientes y demás son del administrador.)' },
     ...ORDERS_FILTER_STEPS,
     { target: 'orders-list', title: 'Gestionar un pedido', body: 'En cada pedido verificas el pago, lo marcas en camino o entregado y contactas al cliente desde su ficha. El botón “Ticket” abre su factura para mandarla por WhatsApp.' },
     { target: 'admin-logout', title: 'Cerrar sesión', body: 'Sal del panel de forma segura cuando termines tu turno.' },
@@ -121,11 +121,6 @@ const STEPS: Record<TourId, Step[]> = {
     { target: 'route-actions', title: 'Detener o finalizar', body: 'Detener pausa el rastreo y lo retomas al volver. Finalizar cierra la ruta y queda en el historial.' },
     { target: 'route-delete', title: 'Eliminar ruta', body: 'Borra el recorrido por completo. Si era la entrega de un pedido, vuelve a “por entregar”. No se puede deshacer.' },
   ],
-  adminMetricas: [
-    { target: 'metrics-revenue', title: 'Ingresos y pedidos', body: 'Ingresos y pedidos de hoy y del mes, con el ticket promedio.' },
-    { target: 'metrics-visits', title: 'Visitas', body: 'Cuántas personas visitan tu página y a qué horas.' },
-    { target: 'metrics-top', title: 'Más vendidos', body: 'Tus productos más vendidos en los últimos 30 días.' },
-  ],
   adminCrm: [
     { target: 'crm-stats', title: 'Tus clientes', body: 'Cuántos clientes tienes y el valor total que han comprado.' },
     { target: 'crm-search', title: 'Buscar cliente', body: 'Encuentra un cliente por su nombre o número de teléfono.' },
@@ -153,7 +148,7 @@ const STEPS: Record<TourId, Step[]> = {
 
 type TourId =
   | 'home' | 'catalog' | 'mayor' | 'cart' | 'checkout' | 'wcheckout'
-  | 'admin' | 'adminStaff' | 'adminInventario' | 'adminTickets' | 'adminReparto' | 'adminMetricas'
+  | 'admin' | 'adminStaff' | 'adminInventario' | 'adminTickets' | 'adminReparto'
   | 'adminCrm' | 'adminPagos' | 'adminMayoristas' | 'adminMayoristasRutas' | 'adminRutas'
   | 'routeStart' | 'routeLive'
   | 'productEditor2';

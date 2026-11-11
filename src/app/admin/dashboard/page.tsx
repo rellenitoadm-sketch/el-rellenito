@@ -3,10 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { LogOut, ShoppingBag, Boxes, BarChart3, Store, Truck, Bike, ClipboardList, Receipt } from 'lucide-react';
+import { LogOut, ShoppingBag, Boxes, Store, Truck, Bike, ClipboardList, Receipt } from 'lucide-react';
 import OrdersPanel from '@/components/admin/OrdersPanel';
 import ProductsPanel from '@/components/admin/ProductsPanel';
-import MetricsPanel from '@/components/admin/MetricsPanel';
 import WholesaleClientsPanel from '@/components/admin/WholesaleClientsPanel';
 import RoutesPanel from '@/components/admin/RoutesPanel';
 import RepartoPanel from '@/components/admin/RepartoPanel';
@@ -15,7 +14,7 @@ import VentasPanel from '@/components/admin/VentasPanel';
 import { useOnboarding } from '@/components/Onboarding';
 import type { StaffRole } from '@/lib/adminAuth';
 
-type Tab = 'pedidos' | 'productos' | 'reparto' | 'pedidosMayoristas' | 'ventas' | 'metricas' | 'mayoristas' | 'rutas';
+type Tab = 'pedidos' | 'productos' | 'reparto' | 'pedidosMayoristas' | 'ventas' | 'mayoristas' | 'rutas';
 
 interface TabDef {
   id: Tab;
@@ -33,7 +32,6 @@ const TABS: TabDef[] = [
   { id: 'reparto', label: 'Reparto', Icon: Bike, staffOnly: true },
   { id: 'pedidosMayoristas', label: 'Pedidos al mayor', Icon: ClipboardList },
   { id: 'ventas', label: 'Ventas', Icon: Receipt },
-  { id: 'metricas', label: 'Métricas', Icon: BarChart3, adminOnly: true },
   { id: 'mayoristas', label: 'Clientes mayor', Icon: Store, adminOnly: true },
   { id: 'rutas', label: 'Rutas', Icon: Truck, adminOnly: true },
 ];
@@ -87,7 +85,6 @@ export default function AdminDashboard() {
     // lo vea aunque el administrador ya haya visto el suyo en este mismo dispositivo.
     const which = tab === 'productos' ? 'adminInventario'
       : tab === 'reparto' ? 'adminReparto'
-      : tab === 'metricas' ? 'adminMetricas'
       : tab === 'mayoristas' ? 'adminMayoristas'
       : tab === 'rutas' ? 'adminRutas'
       : null;
@@ -174,7 +171,6 @@ export default function AdminDashboard() {
         {tab === 'reparto' && role !== 'admin' && <RepartoPanel />}
         {tab === 'pedidosMayoristas' && <WholesaleOrdersPanel isAdmin={role === 'admin'} />}
         {tab === 'ventas' && <VentasPanel isAdmin={role === 'admin'} />}
-        {tab === 'metricas' && role === 'admin' && <MetricsPanel />}
         {tab === 'mayoristas' && role === 'admin' && <WholesaleClientsPanel />}
         {tab === 'rutas' && role === 'admin' && <RoutesPanel />}
       </div>

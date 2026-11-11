@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Download, Receipt, RefreshCw, ShoppingBag, Store, Users, Wallet } from 'lucide-react';
+import { BarChart3, Download, Eye, Receipt, RefreshCw, ShoppingBag, Store, Users, Wallet } from 'lucide-react';
 import TicketsPanel from './TicketsPanel';
 import CrmPanel from './CrmPanel';
 import PagosPanel from './PagosPanel';
@@ -55,7 +55,7 @@ export default function VentasPanel({ isAdmin }: { isAdmin: boolean }) {
         ))}
       </div>
 
-      {sub === 'resumen' && <Resumen onOpenTickets={() => setSub('tickets')} />}
+      {sub === 'resumen' && <Resumen onOpenTickets={() => setSub('tickets')} isAdmin={isAdmin} />}
       {sub === 'tickets' && <TicketsPanel />}
       {sub === 'clientes' && isAdmin && <CrmPanel />}
       {sub === 'pagos' && isAdmin && <PagosPanel />}
@@ -63,7 +63,48 @@ export default function VentasPanel({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-function Resumen({ onOpenTickets }: { onOpenTickets: () => void }) {
+interface VisitsData { total: number; today: number; byHour: number[] }
+
+/** Visitas a la página (no es venta, pero antes vivía en una pestaña "Métricas" aparte sin razón). */
+function VisitsCard() {
+  const [v, setV] = useState<VisitsData | null>(null);
+  useEffect(() => {
+    let off = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/metrics');
+        if (!res.ok) return;
+        const json = await res.json() as { visits: VisitsData };
+        if (!off) setV(json.visits);
+      } catch { /* ignore: tarjeta opcional */ }
+    })();
+    return () => { off = true; };
+  }, []);
+  if (!v) return null;
+
+  const peak = Math.max(...v.byHour, 1);
+  return (
+    <div className="card p-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Eye className="w-4 h-4" style={{ color: 'var(--brand)' }} />
+        <p className="text-[13px] font-semibold" style={{ color: 'var(--text-1)' }}>Visitas a la página</p>
+      </div>
+      <div className="flex gap-5 mb-3">
+        <div><p className="text-[22px] font-bold t-num" style={{ color: 'var(--text-1)' }}>{v.today}</p><p className="text-[11px]" style={{ color: 'var(--text-3)' }}>hoy</p></div>
+        <div><p className="text-[22px] font-bold t-num" style={{ color: 'var(--text-2)' }}>{v.total}</p><p className="text-[11px]" style={{ color: 'var(--text-3)' }}>total (30d)</p></div>
+      </div>
+      <div className="flex items-end gap-[2px] h-14" role="img" aria-label={`Visitas por hora, últimos 30 días. Total: ${v.total}.`}>
+        {v.byHour.map((n, h) => (
+          <div key={h} aria-hidden="true" className="flex-1 h-full flex flex-col items-center justify-end" title={`${h}:00 — ${n}`}>
+            <div className="w-full rounded-t-sm" style={{ height: `${Math.max((n / peak) * 100, n > 0 ? 8 : 2)}%`, background: n > 0 ? 'var(--brand)' : 'var(--surface-2)', opacity: n > 0 ? 1 : 0.5 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Resumen({ onOpenTickets, isAdmin }: { onOpenTickets: () => void; isAdmin: boolean }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -202,6 +243,8 @@ function Resumen({ onOpenTickets }: { onOpenTickets: () => void }) {
           </ol>
         )}
       </div>
+
+      {isAdmin && <VisitsCard />}
 
       <button onClick={onOpenTickets} className="btn btn-primary w-full justify-center" style={{ minHeight: 56, fontSize: 16 }}>
         <Receipt className="w-5 h-5" /> Ver todos los tickets
