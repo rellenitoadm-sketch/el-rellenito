@@ -5,6 +5,17 @@
 
 ---
 
+## ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-11-11 (tarde) — Ventas por motorizado en Ventas → Resumen (FALTA deploy)
+
+**Pedido del cliente:** en Ventas ver cuánto vende cada motorizado (lo que antes buscaban en Métricas; la pestaña vieja nunca lo tuvo).
+
+- **`GET /api/admin/wholesale-orders/by-driver?days=1|7|30`** (solo admin): por `driver_name` de `wholesale_orders` no cancelados con `delivery_date` en el periodo → pedidos, entregados, unidades, vendido COP/USD (incluye los aún no entregados). Cobrado = cobros (`wholesale_payments.collected_on` en el periodo) del que marcó el cobro, `share × total_cop` del pedido. También cuenta pedidos sin motorizado.
+- **`VentasPanel.tsx` → `DriversCard`** (solo admin): Hoy / 7 días / 30 días, ranking por vendido en pesos con barra, US$ abajo.
+- **No cubre** entregas de detal (`delivery_routes`): esas son entregas, no ventas del motorizado.
+- **Falta:** deploy y revisar con datos reales. Verificado solo con `tsc` + `eslint` + `next build`.
+
+---
+
 ## ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-11-11 — Ticket impreso cortado a la derecha + montos en pesos (FALTA deploy)
 
 **Foto del cliente:** la Roccia ya imprime, pero se perdía todo lo alineado a la derecha (precio por línea, unidades, total en $ y COP, "11 nov", dirección). Y en pantalla el ticket mostraba solo dólares ("$7.02"), cuando se cobra en pesos.

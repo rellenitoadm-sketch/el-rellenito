@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Download, Eye, Receipt, RefreshCw, ShoppingBag, Store, Users, Wallet } from 'lucide-react';
+import { BarChart3, Bike, Download, Eye, Receipt, RefreshCw, ShoppingBag, Store, Users, Wallet } from 'lucide-react';
 import TicketsPanel from './TicketsPanel';
 import CrmPanel from './CrmPanel';
 import PagosPanel from './PagosPanel';
 import { useOnboarding } from '../Onboarding';
-import { fmtUsd, ticketNumber, type Ticket } from '@/lib/tickets';
+import { fmtCop, fmtUsd, ticketNumber, type Ticket } from '@/lib/tickets';
 
 type Sub = 'resumen' | 'tickets' | 'clientes' | 'pagos';
 
@@ -59,6 +59,100 @@ export default function VentasPanel({ isAdmin }: { isAdmin: boolean }) {
       {sub === 'tickets' && <TicketsPanel />}
       {sub === 'clientes' && isAdmin && <CrmPanel />}
       {sub === 'pagos' && isAdmin && <PagosPanel />}
+    </div>
+  );
+}
+
+interface DriverRow { name: string; orders: number; delivered: number; units: number; sold_cop: number; sold_usd: number; collected_cop: number }
+interface DriversData { drivers: DriverRow[]; unassigned: number }
+
+const DRIVER_RANGES: { days: number; label: string }[] = [
+  { days: 1, label: 'Hoy' },
+  { days: 7, label: '7 días' },
+  { days: 30, label: '30 días' },
+];
+
+/** Cuánto vende cada motorizado (pedidos al mayor que lleva) y cuánto cobra. Solo admin. */
+function DriversCard() {
+  const [days, setDays] = useState(7);
+  const [data, setData] = useState<DriversData | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let off = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin/wholesale-orders/by-driver?days=${days}`);
+        if (!res.ok) throw new Error();
+        const json = await res.json() as DriversData;
+        if (!off) { setData(json); setError(false); }
+      } catch {
+        if (!off) setError(true);
+      }
+    })();
+    return () => { off = true; };
+  }, [days]);
+
+  const peak = Math.max(...(data?.drivers ?? []).map(d => d.sold_cop), 1);
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Bike className="w-5 h-5" style={{ color: 'var(--brand)' }} aria-hidden />
+        <h3 className="text-[14px] font-bold flex-1" style={{ color: 'var(--text-1)' }}>Ventas por motorizado</h3>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-4" role="tablist" aria-label="Periodo">
+        {DRIVER_RANGES.map(r => (
+          <button
+            key={r.days}
+            role="tab"
+            aria-selected={days === r.days}
+            onClick={() => setDays(r.days)}
+            className="rounded-xl text-[13px] font-bold"
+            style={{ minHeight: 40, ...(days === r.days ? { background: '#1A1A1A', color: '#fff' } : { background: 'var(--surface-2)', color: 'var(--text-2)' }) }}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
+      {error ? (
+        <p className="text-[13px]" style={{ color: 'var(--text-3)' }}>No se pudieron cargar las ventas de los motorizados.</p>
+      ) : !data ? (
+        <div className="flex justify-center py-6"><RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--brand)' }} /></div>
+      ) : data.drivers.length === 0 ? (
+        <p className="text-[13px]" style={{ color: 'var(--text-3)' }}>Ningún motorizado lleva pedidos al mayor en este periodo.</p>
+      ) : (
+        <ol className="space-y-4">
+          {data.drivers.map((d, i) => (
+            <li key={d.name}>
+              <div className="flex items-baseline gap-3">
+                <span className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold flex-shrink-0 self-center" style={{ background: i === 0 ? '#1A1A1A' : 'var(--surface-2)', color: i === 0 ? '#fff' : 'var(--text-2)' }}>{i + 1}</span>
+                <span className="flex-1 truncate text-[15px] font-bold" style={{ color: 'var(--text-1)' }}>{d.name}</span>
+                <span className="text-right">
+                  <span className="block text-[16px] font-extrabold t-num" style={{ color: 'var(--text-1)' }}>{fmtCop(d.sold_cop)}</span>
+                  <span className="block text-[11px] t-num" style={{ color: 'var(--text-3)' }}>{fmtUsd(d.sold_usd)}</span>
+                </span>
+              </div>
+              <div className="ml-10 mt-1.5 h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }} aria-hidden>
+                <div className="h-full rounded-full" style={{ width: `${Math.max(3, (d.sold_cop / peak) * 100)}%`, background: i === 0 ? '#1A1A1A' : 'var(--brand)' }} />
+              </div>
+              <p className="ml-10 mt-1.5 text-[12px]" style={{ color: 'var(--text-2)' }}>
+                {d.orders} {d.orders === 1 ? 'pedido' : 'pedidos'} · {d.delivered} {d.delivered === 1 ? 'entregado' : 'entregados'} · {d.units} uds
+              </p>
+              <p className="ml-10 text-[12px] t-num" style={{ color: 'var(--text-2)' }}>
+                Cobró <b style={{ color: 'var(--text-1)' }}>{fmtCop(d.collected_cop)}</b>
+              </p>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {data && data.unassigned > 0 && (
+        <p className="text-[12px] mt-4" style={{ color: 'var(--text-3)' }}>
+          {data.unassigned} {data.unassigned === 1 ? 'pedido sin motorizado asignado' : 'pedidos sin motorizado asignado'} en este periodo.
+        </p>
+      )}
     </div>
   );
 }
@@ -243,6 +337,8 @@ function Resumen({ onOpenTickets, isAdmin }: { onOpenTickets: () => void; isAdmi
           </ol>
         )}
       </div>
+
+      {isAdmin && <DriversCard />}
 
       {isAdmin && <VisitsCard />}
 
