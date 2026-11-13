@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, CircleDollarSign, HandCoins, Ban, Undo2, X, ClipboardCheck, Clock } from 'lucide-react';
+import { Bike, Check, CircleDollarSign, HandCoins, Ban, Undo2, X, ClipboardCheck, Clock } from 'lucide-react';
 import type { DriverChoice } from '@/components/RouteTracking';
 import {
   CURRENCY_LABEL,
@@ -59,6 +59,20 @@ export default function WholesaleCollections({ today, orders, carryover, rates, 
       if (p.collected_on === today && p.currency && p.amount > 0) collectedToday[p.currency] += p.amount;
     }
   }
+  // Lo mismo, por quién marcó el cobro: cuánto efectivo debe entregar cada motorizado.
+  const byDriver = new Map<string, { name: string; count: number } & Record<PaymentCurrency, number>>();
+  for (const o of rows) {
+    for (const p of o.payments) {
+      if (p.collected_on !== today || !p.currency || !(p.amount > 0)) continue;
+      const name = p.driver_name?.trim() || 'Sin nombre';
+      const key = name.toLowerCase();
+      const d = byDriver.get(key) ?? { name, count: 0, COP: 0, VES: 0, USD: 0 };
+      d[p.currency] += p.amount;
+      d.count++;
+      byDriver.set(key, d);
+    }
+  }
+  const driverTotals = [...byDriver.values()].sort((a, b) => b.COP - a.COP || b.USD - a.USD || b.VES - a.VES);
   const pendingCop = rows.reduce((s, o) => s + remainingShare(o.paid_share) * o.total_cop, 0);
   const reviewed = rows.filter(o => isSettled(o.paid_share, o.total_cop) || o.payments.some(p => p.collected_on === today)).length;
 
@@ -226,6 +240,31 @@ export default function WholesaleCollections({ today, orders, carryover, rates, 
             <ClipboardCheck className="w-3.5 h-3.5" /> Revisados {reviewed} de {rows.length}
           </p>
         </div>
+      </div>
+
+      <div className="card p-3.5 mb-5">
+        <p className="text-[12px] font-bold uppercase tracking-widest mb-2 inline-flex items-center gap-1.5" style={{ color: 'var(--brand-deep)' }}>
+          <Bike className="w-4 h-4" /> Cobrado hoy por motorizado
+        </p>
+        {driverTotals.length === 0 ? (
+          <p className="text-[12.5px]" style={{ color: 'var(--text-3)' }}>Nadie ha marcado cobros hoy.</p>
+        ) : (
+          <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+            {driverTotals.map(d => (
+              <li key={d.name} className="flex items-start gap-2 py-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold truncate" style={{ color: 'var(--text-1)' }}>{d.name}</p>
+                  <p className="text-[11.5px]" style={{ color: 'var(--text-3)' }}>{d.count} {d.count === 1 ? 'cobro' : 'cobros'}</p>
+                </div>
+                <div className="text-right t-num">
+                  {d.COP > 0 && <p className="text-[14px] font-bold" style={{ color: '#15803D' }}>{formatCop(d.COP)}</p>}
+                  {d.VES > 0 && <p className="text-[12.5px] font-semibold" style={{ color: '#15803D' }}>{formatVes(d.VES)}</p>}
+                  {d.USD > 0 && <p className="text-[12.5px] font-semibold" style={{ color: '#15803D' }}>{formatUsd(d.USD)}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <h3 className="text-[12px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--brand-deep)' }}>

@@ -5,6 +5,18 @@
 
 ---
 
+## ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-11-13 — Créditos por cliente + cobrado por motorizado en Cobros (FALTA commit y deploy)
+
+**Queja del cliente (foto del panel en Cobros):** "no ve dónde están los créditos de los clientes y cuánto cobraron los motorizados". Lo buscaban en Pedidos al mayor; "Ventas por motorizado" (11/11) sí estaba en producción pero en Ventas → Resumen y solo para admin.
+
+- **Pestaña nueva "Créditos"** en Pedidos al mayor (`WholesaleCredits.tsx`, equipo y admin): total en créditos, un renglón por cliente con lo que debe (COP y US$), cuántos pedidos y desde cuándo (rojo si pasa de 7 días). Al tocarlo: teléfono, ruta, cada pedido con saldo, quién lo llevó y abonos. Buscador si hay más de 4. Solo lectura; botón a Cobros para marcar el pago.
+- **`GET /api/admin/wholesale-orders/credits`**: pedidos `entregado` con saldo, de **cualquier fecha** (Cobros solo arrastra 90 días), agrupados por `client_id` (o nombre si se borró el mayorista). Los pedidos de días pasados sin marcar entregado no cuentan como deuda: salen como aviso (`unmarked`).
+- **Cobros → "Cobrado hoy por motorizado"** (`WholesaleCollections.tsx`): lo cobrado hoy agrupado por quien marcó el cobro, separado en pesos/Bs/US$ (el efectivo que entrega cada uno). Visible para equipo también.
+- Pestañas de Pedidos al mayor pasan a 4 columnas; en teléfono se ocultan ícono y contador para que quepan.
+- **Falta:** commit, deploy y revisar con datos reales. Verificado solo con `tsc` + `eslint` + `next build` (sin revisión visual logueado).
+
+---
+
 ## ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ ESTADO 2026-11-11 (tarde) — Ventas por motorizado en Ventas → Resumen (FALTA deploy)
 
 **Pedido del cliente:** en Ventas ver cuánto vende cada motorizado (lo que antes buscaban en Métricas; la pestaña vieja nunca lo tuvo).

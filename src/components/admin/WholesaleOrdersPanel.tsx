@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ChevronLeft, ChevronRight, RefreshCw, UserRound, X, Check, Pencil, Ban, Undo2,
   PackagePlus, ListChecks, Wallet, Truck, MapPin, Square, SquareCheck,
-  Navigation, Play, CalendarClock, AlertTriangle, Receipt,
+  Navigation, Play, CalendarClock, AlertTriangle, Receipt, HandCoins,
 } from 'lucide-react';
 import { loadSavedDriver, saveDriver, useRouteTracking, type DriverChoice } from '@/components/RouteTracking';
 import { formatDistance } from '@/lib/routes';
@@ -25,8 +25,9 @@ import {
 } from '@/lib/wholesaleOrders';
 import WholesaleOrderForm from './WholesaleOrderForm';
 import WholesaleCollections from './WholesaleCollections';
+import WholesaleCredits from './WholesaleCredits';
 
-type View = 'nuevo' | 'dia' | 'cobros';
+type View = 'nuevo' | 'dia' | 'cobros' | 'creditos';
 type Filter = 'todos' | 'sin' | 'mios' | 'entregados';
 
 interface DayData {
@@ -298,6 +299,7 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
     { id: 'nuevo', label: 'Nuevo', Icon: PackagePlus },
     { id: 'dia', label: 'Del día', Icon: ListChecks, badge: orders.filter(o => o.status !== 'cancelado').length },
     { id: 'cobros', label: 'Cobros', Icon: Wallet },
+    { id: 'creditos', label: 'Créditos', Icon: HandCoins },
   ];
 
   return (
@@ -359,19 +361,20 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
         </>
       )}
 
-      <div className="grid grid-cols-3 gap-1.5 mb-4" role="tablist">
+      <div className="grid grid-cols-4 gap-1.5 mb-4" role="tablist">
         {tabs.map(t => {
           const active = view === t.id;
           return (
             <button key={t.id} role="tab" aria-selected={active}
               // Los cobros son siempre el cierre de hoy, no el del día que se esté mirando.
               onClick={() => { setView(t.id); setNotice(null); if (t.id === 'cobros') setDate(today); }}
-              className="rounded-2xl py-2.5 text-[13px] font-bold inline-flex items-center justify-center gap-1.5 border"
+              className="rounded-2xl py-2.5 px-1 text-[12.5px] sm:text-[13px] font-bold inline-flex items-center justify-center gap-1.5 border whitespace-nowrap"
               style={active
                 ? { background: 'var(--brand)', color: '#fff', borderColor: 'transparent' }
                 : { background: 'var(--surface)', color: 'var(--text-2)', borderColor: 'var(--border)' }}>
-              <t.Icon className="w-4 h-4" /> {t.label}
-              {t.badge ? <span className="text-[11px] opacity-90">({t.badge})</span> : null}
+              {/* En el teléfono no caben ícono + texto en 4 columnas: queda solo el texto. */}
+              <t.Icon className="w-4 h-4 hidden sm:block" /> {t.label}
+              {t.badge ? <span className="text-[11px] opacity-90 hidden sm:inline">({t.badge})</span> : null}
             </button>
           );
         })}
@@ -416,6 +419,10 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
           onOrderChange={replaceOrder}
           onNeedIdentity={() => setIdentityOpen(true)}
         />
+      )}
+
+      {view === 'creditos' && (
+        <WholesaleCredits onGoToCobros={() => { setView('cobros'); setDate(today); }} />
       )}
 
       {view === 'dia' && (
