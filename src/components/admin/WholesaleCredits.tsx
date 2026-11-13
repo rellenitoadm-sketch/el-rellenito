@@ -12,6 +12,7 @@ import {
   type WholesaleOrder,
 } from '@/lib/wholesaleOrders';
 import { routeLabel } from '@/lib/wholesaleRoutes';
+import { useOnboarding } from '../Onboarding';
 
 interface ClientCredit {
   key: string;
@@ -77,6 +78,15 @@ export default function WholesaleCredits({ onGoToCobros }: { onGoToCobros: () =>
     return () => { off = true; };
   }, [apply]);
 
+  // El tutorial arranca cuando ya hay datos: así existen los elementos que resalta.
+  const { maybeStart } = useOnboarding();
+  const ready = data !== null;
+  useEffect(() => {
+    if (!ready) return;
+    const t = setTimeout(() => maybeStart('adminCreditos'), 650);
+    return () => clearTimeout(t);
+  }, [ready, maybeStart]);
+
   const shown = useMemo(() => {
     const q = normalizeSearch(query.trim());
     const list = data?.clients ?? [];
@@ -99,7 +109,7 @@ export default function WholesaleCredits({ onGoToCobros }: { onGoToCobros: () =>
 
   return (
     <div className="pb-10">
-      <div className="card p-4 mb-3">
+      <div className="card p-4 mb-3" data-tour="cr-total">
         <div className="flex items-start gap-2">
           <div className="flex-1">
             <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>Total en créditos</p>
@@ -132,11 +142,11 @@ export default function WholesaleCredits({ onGoToCobros }: { onGoToCobros: () =>
       )}
 
       {data.clients.length === 0 ? (
-        <p className="card p-4 text-[13px]" style={{ color: 'var(--text-3)' }}>Nadie debe nada. Todos los pedidos entregados están pagados.</p>
+        <p className="card p-4 text-[13px]" data-tour="cr-list" style={{ color: 'var(--text-3)' }}>Nadie debe nada. Todos los pedidos entregados están pagados.</p>
       ) : shown.length === 0 ? (
         <p className="card p-4 text-[13px]" style={{ color: 'var(--text-3)' }}>Ningún cliente con ese nombre debe.</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2" data-tour="cr-list">
           {shown.map(c => {
             const isOpen = open === c.key;
             const age = daysBetween(c.oldest, data.today);

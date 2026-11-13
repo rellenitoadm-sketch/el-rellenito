@@ -104,6 +104,11 @@ const STEPS: Record<TourId, Step[]> = {
     { target: 'pagos-list', title: 'Editar un método', body: 'Toca el lápiz para cambiar el banco, teléfono, cuenta o cédula. Se actualiza al instante en todos los carritos. Desactívalo si quieres ocultarlo sin borrarlo.' },
     { target: 'pagos-add', title: 'Agregar método nuevo', body: 'Crea uno nuevo (otro banco, otra cuenta) con sus propios datos.' },
   ],
+  adminCreditos: [
+    { target: 'cr-total', title: 'Total en créditos', body: 'Lo que te deben todos los clientes juntos: pedidos ya entregados que no se han pagado completo, de cualquier fecha.' },
+    { target: 'cr-list', title: 'Cuánto debe cada cliente', body: 'Ordenados del que más debe. Ves cuántos pedidos tiene y desde cuándo debe; sale en rojo si pasa de 7 días. Tócalo para ver cada pedido con su saldo, quién lo llevó y los abonos.' },
+    { target: 'wo-tab-cobros', title: 'Marcar un pago', body: 'Los pagos se anotan en Cobros: busca el pedido y toca Pagó todo, Abonó o No pagó. El crédito del cliente baja solo.' },
+  ],
   adminMayoristasRutas: [
     { target: 'mayoristas-route', title: 'Ruta o día de entrega', body: 'Elige una ruta de la lista, o toca “＋ Nueva ruta o día…” para crear una: marca los días y escribe la ubicación. Queda guardada para los demás clientes.' },
   ],
@@ -149,7 +154,7 @@ const STEPS: Record<TourId, Step[]> = {
 type TourId =
   | 'home' | 'catalog' | 'mayor' | 'cart' | 'checkout' | 'wcheckout'
   | 'admin' | 'adminStaff' | 'adminInventario' | 'adminTickets' | 'adminReparto'
-  | 'adminCrm' | 'adminPagos' | 'adminMayoristas' | 'adminMayoristasRutas' | 'adminRutas'
+  | 'adminCrm' | 'adminPagos' | 'adminCreditos' | 'adminMayoristas' | 'adminMayoristasRutas' | 'adminRutas'
   | 'routeStart' | 'routeLive'
   | 'productEditor2';
 

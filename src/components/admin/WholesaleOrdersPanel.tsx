@@ -365,7 +365,7 @@ export default function WholesaleOrdersPanel({ isAdmin }: { isAdmin: boolean }) 
         {tabs.map(t => {
           const active = view === t.id;
           return (
-            <button key={t.id} role="tab" aria-selected={active}
+            <button key={t.id} role="tab" aria-selected={active} data-tour={`wo-tab-${t.id}`}
               // Los cobros son siempre el cierre de hoy, no el del día que se esté mirando.
               onClick={() => { setView(t.id); setNotice(null); if (t.id === 'cobros') setDate(today); }}
               className="rounded-2xl py-2.5 px-1 text-[12.5px] sm:text-[13px] font-bold inline-flex items-center justify-center gap-1.5 border whitespace-nowrap"

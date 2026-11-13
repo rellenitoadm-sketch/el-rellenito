@@ -12,6 +12,7 @@
 - **Pestaña nueva "Créditos"** en Pedidos al mayor (`WholesaleCredits.tsx`, equipo y admin): total en créditos, un renglón por cliente con lo que debe (COP y US$), cuántos pedidos y desde cuándo (rojo si pasa de 7 días). Al tocarlo: teléfono, ruta, cada pedido con saldo, quién lo llevó y abonos. Buscador si hay más de 4. Solo lectura; botón a Cobros para marcar el pago.
 - **`GET /api/admin/wholesale-orders/credits`**: pedidos `entregado` con saldo, de **cualquier fecha** (Cobros solo arrastra 90 días), agrupados por `client_id` (o nombre si se borró el mayorista). Los pedidos de días pasados sin marcar entregado no cuentan como deuda: salen como aviso (`unmarked`).
 - **Cobros → "Cobrado hoy por motorizado"** (`WholesaleCollections.tsx`): lo cobrado hoy agrupado por quien marcó el cobro, separado en pesos/Bs/US$ (el efectivo que entrega cada uno). Visible para equipo también.
+- **Tutorial `adminCreditos`** (`Onboarding.tsx`, 3 pasos: `cr-total`, `cr-list`, `wo-tab-cobros`): arranca la primera vez que se abre Créditos, ya con datos cargados. Las pestañas de Pedidos al mayor ahora tienen `data-tour="wo-tab-<id>"`.
 - Pestañas de Pedidos al mayor pasan a 4 columnas; en teléfono se ocultan ícono y contador para que quepan.
 - **Deployado 2026-11-13** (`b3d212f`, push a main; `/api/admin/wholesale-orders/credits` responde 401 en vivo). **Falta:** que el cliente lo revise con datos reales (no se vio logueado).
 
