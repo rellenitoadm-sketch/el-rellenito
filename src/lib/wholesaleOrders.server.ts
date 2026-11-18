@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from './database.types';
 import {
-  MASA_CATEGORY,
   lineKey,
   orderTotals,
   paidShareOf,
@@ -37,13 +36,11 @@ function positiveOrNull(v: unknown): number | null {
 
 /**
  * Convierte las líneas del formulario en ítems con precio de catálogo. Los
- * precios que mande el navegador se ignoran para TODO excepto las Masas: ahí
- * cada mayorista negocia su propio precio por teléfono y el domiciliario lo
- * escribe a mano. `unit_cop`/`unit_usd` en una línea de Masas se respetan (con
- * validación); en cualquier otra categoría se ignoran igual que siempre, para
- * que un teléfono con el catálogo viejo en caché no guarde precios equivocados.
+ * precios de catálogo valen salvo que el domiciliario escriba uno a mano: cada
+ * mayorista negocia su precio por teléfono, en cualquier producto. `unit_cop`/
+ * `unit_usd` en una línea se respetan (con validación).
  *
- * Devuelve también `masaOverrides`: lo que se usó de precio manual en Masas,
+ * Devuelve también `masaOverrides`: lo que se usó de precio manual,
  * para que la ruta lo guarde en `wholesale_clients.masa_prices` del mayorista.
  */
 export async function priceItems(
@@ -122,21 +119,20 @@ export async function priceItems(
       throw new OrderInputError(`Elige el sabor de ${p.name}.`);
     }
 
-    // Masas: precio manual del domiciliario, si vino uno usable. Cualquier otra
-    // categoría ignora lo que mande el navegador (precio siempre de catálogo).
-    const manual = p.category === MASA_CATEGORY && (line.unit_cop != null || line.unit_usd != null)
-      ? line
-      : null;
+    // Precio manual del domiciliario (cualquier producto), si vino uno usable;
+    // si no, precio de catálogo.
+    const manual = line.unit_cop != null || line.unit_usd != null ? line : null;
 
     let prices: { unit_usd: number; unit_cop: number };
     if (manual) {
       const unit_cop = manual.unit_cop ?? (copPerUsd ? Math.round((manual.unit_usd ?? 0) * copPerUsd) : null);
       const unit_usd = manual.unit_usd ?? (copPerUsd ? (manual.unit_cop ?? 0) / copPerUsd : null);
       if (unit_cop == null || unit_usd == null) {
-        throw new OrderInputError(`${p.name}: precio de masa incompleto y sin tasa guardada para convertirlo.`);
+        throw new OrderInputError(`${p.name}: precio incompleto y sin tasa guardada para convertirlo.`);
       }
       prices = { unit_usd, unit_cop };
-      masaOverrides[p.id] = { usd: unit_usd, cop: unit_cop };
+      // Solo se recuerda el precio de productos sin sabor (el mapa va por producto, no por sabor).
+      if (!line.flavor_id) masaOverrides[p.id] = { usd: unit_usd, cop: unit_cop };
     } else {
       const needsRate = (flavor
         ? (flavor.wholesale_price_cop ?? flavor.price_cop ?? p.wholesale_price_cop)

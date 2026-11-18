@@ -7,7 +7,6 @@ import { useProductModal } from '@/components/ProductModal';
 import type { DriverChoice } from '@/components/RouteTracking';
 import { routeLabel } from '@/lib/wholesaleRoutes';
 import {
-  MASA_CATEGORY,
   MAX_AHEAD_DAYS,
   addDays,
   formatCop,
@@ -151,7 +150,6 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
   }, [clients, clientQuery]);
 
   const productById = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
-  const isMasaLine = (l: Line) => productById.get(l.product_id)?.category === MASA_CATEGORY;
 
   const productResults = useMemo(() => {
     const q = normalizeSearch(productQuery.trim());
@@ -172,9 +170,8 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
     });
   };
 
-  /** Masas: si este mayorista ya tiene un precio acordado, se usa de entrada en vez del de catálogo. */
+  /** Si este mayorista ya tiene un precio acordado, se usa de entrada en vez del de catálogo. */
   const masaDefaultPrices = (p: Product, catalogPrices: { unit_usd: number; unit_cop: number }) => {
-    if (p.category !== MASA_CATEGORY) return catalogPrices;
     const saved = client?.masa_prices?.[p.id];
     if (!saved) return catalogPrices;
     return { unit_usd: saved.usd ?? catalogPrices.unit_usd, unit_cop: saved.cop ?? catalogPrices.unit_cop };
@@ -216,7 +213,7 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
     setLines(curr => curr.map(l => (l.key === key ? { ...l, qty: Math.max(0, Math.floor(qty) || 0) } : l)));
   const removeLine = (key: string) => setLines(curr => curr.filter(l => l.key !== key));
 
-  /** Precio de masa escrito a mano: al tocar una moneda, la otra se deriva con la tasa guardada. */
+  /** Precio escrito a mano: al tocar una moneda, la otra se deriva con la tasa guardada. */
   const setLinePrice = (key: string, field: 'cop' | 'usd', raw: string) => {
     const n = Number(raw.replace(/[^\d.]/g, '')) || 0;
     setLines(curr => curr.map(l => {
@@ -245,17 +242,17 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
     if (!client) { setError('Elige el mayorista.'); return; }
     if (lines.length === 0) { setError('Agrega al menos un producto.'); return; }
     if (lines.some(l => l.qty <= 0)) { setError('Cada producto necesita al menos 1 unidad.'); return; }
-    if (lines.some(l => isMasaLine(l) && !(l.unit_cop > 0) && !(l.unit_usd > 0))) {
-      setError('Ponle precio a la masa antes de guardar.'); return;
+    if (lines.some(l => !(l.unit_cop > 0) && !(l.unit_usd > 0))) {
+      setError('Ponle precio a todos los productos antes de guardar.'); return;
     }
     setSaving(true);
-    // El precio de masa se manda y vale: lo acordó el domiciliario por teléfono.
-    // Cualquier otro producto se repide siempre del catálogo (no se manda precio).
+    // El precio se manda y vale: lo acordó el domiciliario por teléfono.
     const items = lines.map(l => ({
       product_id: l.product_id,
       flavor_id: l.flavor_id,
       qty: l.qty,
-      ...(isMasaLine(l) ? { unit_cop: l.unit_cop, unit_usd: l.unit_usd } : {}),
+      unit_cop: l.unit_cop,
+      unit_usd: l.unit_usd,
     }));
     try {
       const res = editing
@@ -498,7 +495,6 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
                     <p className="text-[13.5px] font-semibold" style={{ color: 'var(--text-1)' }}>{l.name}</p>
-                    {isMasaLine(l) ? (
                       <div className="flex items-center gap-1.5 mt-1">
                         <Pencil className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--brand)' }} />
                         <label htmlFor={`cop-${l.key}`} className="sr-only">Precio en pesos de {l.name}</label>
@@ -511,9 +507,6 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
                           onChange={e => setLinePrice(l.key, 'usd', e.target.value)} placeholder="US$ c/u"
                           className="field t-num" style={{ width: 76, minHeight: 34, padding: '4px 8px', fontSize: 12 }} />
                       </div>
-                    ) : (
-                      <p className="text-[11.5px]" style={{ color: 'var(--text-3)' }}>{formatCop(l.unit_cop)} c/u · {formatUsd(l.unit_usd)}</p>
-                    )}
                   </div>
                   <button onClick={() => removeLine(l.key)} className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{ background: 'var(--danger-soft)', color: '#B91C1C' }} aria-label={`Quitar ${l.name}`}>
@@ -562,7 +555,7 @@ export default function WholesaleOrderForm({ me, today, rates, editing, onSaved,
           {formatUsd(totals.total_usd)}{rates ? ` · ${formatVes(totals.total_usd * rates.bs_per_usd)}` : ''}
         </p>
         <p className="text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>
-          Los precios se confirman con el catálogo al guardar{lines.some(isMasaLine) ? ', salvo las masas: el precio que pongas queda guardado para este mayorista' : ''}.
+          Puedes cambiar el precio de cualquier producto: queda guardado para este mayorista.
         </p>
       </div>
 
