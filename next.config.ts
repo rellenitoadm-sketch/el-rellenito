@@ -35,6 +35,8 @@ const nextConfig: NextConfig = {
     ],
   },
   images: {
+    // Cuota de optimización de imágenes de Vercel agotada (402): se sirven directo desde Supabase Storage.
+    unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'drive.google.com' },
